@@ -63,7 +63,7 @@ export class Game {
         this.showHitboxes = !this.showHitboxes;
         window.__GAME_HITBOXES = this.showHitboxes;
       }
-      if (e.code === 'KeyE') {
+      if (e.code === 'KeyT') {
         input.easyInputs = !input.easyInputs;
         window.__GAME_EASY = input.easyInputs;
       }
@@ -254,6 +254,10 @@ export class Game {
         this.f1.addSuper(hitResult.attack.damage * 0.08);
         const hitType = this.f2.takeHit(hitResult.attack, this.f1.facingRight ? 1 : -1);
 
+        // Attacker also gets impact hitstop for crunchy tactile arcade feedback
+        const isHeavy = hitResult.attack.hitType === HIT_TYPE.HEAVY || hitResult.attack.hitType === HIT_TYPE.KNOCKDOWN;
+        this.f1.hitStop = isHeavy ? 4 : 2;
+
         this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
         if (hitType !== 'blocked') {
           this.hud.recordHit(1);
@@ -270,6 +274,10 @@ export class Game {
         this.f2.hasHitThisAttack = true;
         this.f2.addSuper(hitResult.attack.damage * 0.08);
         const hitType = this.f1.takeHit(hitResult.attack, this.f2.facingRight ? 1 : -1);
+
+        // Attacker also gets impact hitstop for crunchy tactile arcade feedback
+        const isHeavy = hitResult.attack.hitType === HIT_TYPE.HEAVY || hitResult.attack.hitType === HIT_TYPE.KNOCKDOWN;
+        this.f2.hitStop = isHeavy ? 4 : 2;
 
         this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
         if (hitType !== 'blocked') {

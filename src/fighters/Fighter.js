@@ -41,6 +41,8 @@ export class Fighter {
     this.isGrounded = true;
     this.isInvincible = false;
     this.isDead = false;
+    this.isHoldingBack = false;
+    this.isCrouching = false;
 
     // Micro-Freeze Hitstop & Stun
     this.hitStop = 0;
@@ -87,7 +89,9 @@ export class Fighter {
       this.state === FIGHTER_STATE.CROUCH_LIGHT_PUNCH ||
       this.state === FIGHTER_STATE.CROUCH_LIGHT_KICK ||
       this.state === FIGHTER_STATE.ATTACK_HEAVY_PUNCH ||
-      this.state === FIGHTER_STATE.ATTACK_HEAVY_KICK
+      this.state === FIGHTER_STATE.ATTACK_HEAVY_KICK ||
+      this.state === FIGHTER_STATE.CROUCH_HEAVY_PUNCH ||
+      this.state === FIGHTER_STATE.CROUCH_HEAVY_KICK
     );
   }
 
@@ -103,20 +107,20 @@ export class Fighter {
     
     if (isCrouching) {
       return [
-        new Box(this.x + 20, this.y - 48, 40, 48)
+        new Box(this.x + 14, this.y - 56, 52, 56)
       ];
     }
 
     if (!this.isGrounded) {
       return [
-        new Box(this.x + 22, this.y - 70, 36, 55)
+        new Box(this.x + 16, this.y - 74, 48, 60)
       ];
     }
 
     return [
-      new Box(this.x + 26, this.y - 82, 28, 22),
-      new Box(this.x + 22, this.y - 60, 36, 30),
-      new Box(this.x + 24, this.y - 30, 32, 30)
+      new Box(this.x + 18, this.y - 88, 44, 26),
+      new Box(this.x + 14, this.y - 64, 52, 36),
+      new Box(this.x + 18, this.y - 28, 44, 28)
     ];
   }
 
@@ -131,8 +135,18 @@ export class Fighter {
     );
   }
 
-  changeState(newState) {
-    if (this.state === newState) return;
+  changeState(newState, force = false) {
+    if (this.state === newState && !force) {
+      // Allow re-chaining an attack if currently attacking
+      if (this.isAttacking() && this.canCancelOnHit()) {
+        this.stateTimer = 0;
+        this.animFrame = 0;
+        this.animTimer = 0;
+        this.activeHitbox = null;
+        this.hasHitThisAttack = false;
+      }
+      return;
+    }
     this.state = newState;
     this.stateTimer = 0;
     this.animFrame = 0;
@@ -271,11 +285,20 @@ export class Fighter {
     const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
     this.hitStop = isHeavy ? 4 : 2;
 
-    const isHoldingBack = (this.facingRight && fromDirection > 0) || (!this.facingRight && fromDirection < 0);
-    const isCrouching = this.state === FIGHTER_STATE.CROUCH || this.state === FIGHTER_STATE.CROUCH_BLOCK;
+    // Defender can block if grounded, not currently attacking, and actively guarding
+    const canBlock = this.isGrounded && !this.isAttacking() && (
+      this.isHoldingBack || 
+      this.state === FIGHTER_STATE.BLOCK || 
+      this.state === FIGHTER_STATE.CROUCH_BLOCK ||
+      this.state === FIGHTER_STATE.WALK_BACK
+    );
 
     let blocked = false;
-    if (isHoldingBack) {
+    if (canBlock) {
+      const isCrouching = this.state === FIGHTER_STATE.CROUCH || 
+                          this.state === FIGHTER_STATE.CROUCH_BLOCK ||
+                          this.isCrouching;
+
       if (attackData.height === ATTACK_HEIGHT.HIGH) {
         blocked = true;
       } else if (attackData.height === ATTACK_HEIGHT.MID) {
@@ -291,6 +314,7 @@ export class Fighter {
       this.health = Math.max(1, this.health - chip);
       this.blockStun = attackData.blockStun || 12;
       this.vx = (this.facingRight ? -1 : 1) * (attackData.pushback * 0.7);
+      const isCrouching = this.state === FIGHTER_STATE.CROUCH || this.isCrouching;
       this.changeState(isCrouching ? FIGHTER_STATE.CROUCH_BLOCK : FIGHTER_STATE.BLOCK);
       return 'blocked';
     }
@@ -319,6 +343,7 @@ export class Fighter {
 
     this.hitStun = attackData.hitStun || 16;
     this.vx = (this.facingRight ? -1 : 1) * attackData.pushback;
+    const isCrouching = this.state === FIGHTER_STATE.CROUCH || this.isCrouching;
     this.changeState(isCrouching ? FIGHTER_STATE.HIT_CROUCH : FIGHTER_STATE.HIT);
     return 'hit';
   }
@@ -356,7 +381,9 @@ export class Fighter {
     });
 
     // 2. Render Main Sprite
-    const frames = this.sprites[this.state] || this.sprites.IDLE;
+    const frames = this.sprites[this.state] || 
+                   (this.state === FIGHTER_STATE.CROUCH_HEAVY_PUNCH ? this.sprites.CROUCH_LP : null) || 
+                   this.sprites.IDLE;
     const currentImg = frames[Math.min(this.animFrame, frames.length - 1)];
 
     if (!currentImg) return;

@@ -21,6 +21,9 @@ export class Kazuki extends Fighter {
       return;
     }
 
+    this.isHoldingBack = !!inputState.back;
+    this.isCrouching = !!inputState.down;
+
     const pNum = this.playerNum;
 
     // 1. Naruto-Style Ultimate Jutsu Check (Spacebar, HP+HK, or buffered action)
@@ -73,7 +76,7 @@ export class Kazuki extends Fighter {
     }
 
     // Tatsumaki Senpuukyaku (Hurricane Kick)
-    const isQCB = inputManager.checkQCB(pNum) && (inputState.lkJust || inputState.hkJust);
+    const isQCB = (inputManager.checkQCB(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isQCB) {
       inputManager.consumeBuffer(pNum);
       this.startTatsumaki();
@@ -101,25 +104,25 @@ export class Kazuki extends Fighter {
     if (inputState.down) {
       if (lpTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH, true);
         soundFX.playWhoosh('light');
         return;
       }
       if (hpTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_PUNCH, true);
         soundFX.playWhoosh('heavy');
         return;
       }
       if (lkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK, true);
         soundFX.playWhoosh('light');
         return;
       }
       if (hkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK, true);
         soundFX.playWhoosh('heavy');
         return;
       }
@@ -131,25 +134,25 @@ export class Kazuki extends Fighter {
 
     if (lpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH, true);
       soundFX.playWhoosh('heavy');
       return;
     }
     if (lkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK, true);
       soundFX.playWhoosh('heavy');
       return;
     }
@@ -228,7 +231,7 @@ export class Kazuki extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(48, 30, 24, 14);
+          this.activeHitbox = new Box(40, 24, 56, 18);
           this.currentAttackData = {
             damage: 40,
             hitStun: 14,
@@ -250,7 +253,7 @@ export class Kazuki extends Fighter {
         else if (this.stateTimer <= 9) this.animFrame = 1;
         else if (this.stateTimer <= 15) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(46, 28, 34, 18);
+          this.activeHitbox = new Box(38, 20, 75, 24);
           this.currentAttackData = {
             damage: 95,
             hitStun: 22,
@@ -271,7 +274,7 @@ export class Kazuki extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(44, 48, 28, 16);
+          this.activeHitbox = new Box(40, 44, 58, 20);
           this.currentAttackData = {
             damage: 45,
             hitStun: 14,
@@ -293,7 +296,7 @@ export class Kazuki extends Fighter {
         else if (this.stateTimer <= 10) this.animFrame = 1;
         else if (this.stateTimer <= 15) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(44, 18, 36, 24);
+          this.activeHitbox = new Box(38, 14, 78, 28);
           this.currentAttackData = {
             damage: 105,
             hitStun: 24,
@@ -314,7 +317,7 @@ export class Kazuki extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(44, 44, 22, 14);
+          this.activeHitbox = new Box(38, 38, 54, 18);
           this.currentAttackData = {
             damage: 35,
             hitStun: 12,
@@ -331,11 +334,53 @@ export class Kazuki extends Fighter {
         }
         break;
 
+      case FIGHTER_STATE.CROUCH_HEAVY_PUNCH:
+        if (this.stateTimer <= 4) this.animFrame = 0;
+        else if (this.stateTimer <= 13) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 16, 62, 36);
+          this.currentAttackData = {
+            damage: 90,
+            hitStun: 24,
+            blockStun: 14,
+            pushback: 6,
+            height: ATTACK_HEIGHT.HIGH,
+            hitType: HIT_TYPE.KNOCKDOWN
+          };
+        } else if (this.stateTimer <= 20) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
+      case FIGHTER_STATE.CROUCH_LIGHT_KICK:
+        if (this.stateTimer <= 3) this.animFrame = 0;
+        else if (this.stateTimer <= 7) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 58, 56, 18);
+          this.currentAttackData = {
+            damage: 38,
+            hitStun: 12,
+            blockStun: 9,
+            pushback: 4,
+            height: ATTACK_HEIGHT.LOW,
+            hitType: HIT_TYPE.LIGHT
+          };
+        } else if (this.stateTimer <= 11) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
       case FIGHTER_STATE.CROUCH_HEAVY_KICK:
         if (this.stateTimer <= 5) this.animFrame = 0;
         else if (this.stateTimer <= 11) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(40, 64, 42, 16);
+          this.activeHitbox = new Box(36, 56, 88, 24);
           this.currentAttackData = {
             damage: 85,
             hitStun: 28,
@@ -354,7 +399,7 @@ export class Kazuki extends Fighter {
 
       case FIGHTER_STATE.JUMP_PUNCH:
         this.animFrame = 1;
-        this.activeHitbox = new Box(44, 40, 24, 20);
+        this.activeHitbox = new Box(36, 32, 58, 30);
         this.currentAttackData = {
           damage: 75,
           hitStun: 18,
@@ -367,7 +412,7 @@ export class Kazuki extends Fighter {
 
       case FIGHTER_STATE.JUMP_KICK:
         this.animFrame = 1;
-        this.activeHitbox = new Box(44, 38, 32, 22);
+        this.activeHitbox = new Box(36, 38, 65, 26);
         this.currentAttackData = {
           damage: 85,
           hitStun: 20,
@@ -405,7 +450,7 @@ export class Kazuki extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 8) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(36, 10, 32, 40);
+          this.activeHitbox = new Box(28, -15, 70, 60);
           this.currentAttackData = {
             damage: 130,
             hitStun: 30,
@@ -417,7 +462,7 @@ export class Kazuki extends Fighter {
           };
         } else if (this.stateTimer <= 15) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(36, 0, 30, 35);
+          this.activeHitbox = new Box(28, -25, 70, 60);
         } else if (this.stateTimer <= 22) {
           this.animFrame = 3;
           this.activeHitbox = null;
@@ -431,15 +476,19 @@ export class Kazuki extends Fighter {
 
       case FIGHTER_STATE.SPECIAL_3:
         this.animFrame = (Math.floor(this.stateTimer / 4)) % 4;
-        this.activeHitbox = new Box(10, 30, 60, 20);
+        this.activeHitbox = new Box(10, 26, 85, 26);
         this.currentAttackData = {
-          damage: 35,
+          damage: 40,
           hitStun: 16,
           blockStun: 12,
           pushback: 4,
           height: ATTACK_HEIGHT.HIGH,
           hitType: HIT_TYPE.LIGHT
         };
+        // Reset hit registration on frame 12 so Tatsumaki can land 2 hits!
+        if (this.stateTimer === 12) {
+          this.hasHitThisAttack = false;
+        }
         if (this.stateTimer > 26) {
           this.activeHitbox = null;
           this.changeState(FIGHTER_STATE.IDLE);

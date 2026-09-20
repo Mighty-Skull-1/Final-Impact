@@ -24,6 +24,9 @@ export class Kagura extends Fighter {
       return;
     }
 
+    this.isHoldingBack = !!inputState.back;
+    this.isCrouching = !!inputState.down;
+
     const pNum = this.playerNum;
 
     // 1. Naruto Shadow Clone Ultimate Check
@@ -76,7 +79,7 @@ export class Kagura extends Fighter {
     }
 
     // Ki Kunai
-    const isKunai = inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust);
+    const isKunai = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isKunai) {
       inputManager.consumeBuffer(pNum);
       this.startKunai();
@@ -102,21 +105,27 @@ export class Kagura extends Fighter {
     const hkTrigger = inputState.hkJust || inputManager.peekAction(pNum) === 'HK';
 
     if (inputState.down) {
-      if (lpTrigger || hpTrigger) {
+      if (lpTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH);
-        soundFX.playWhoosh(hpTrigger ? 'heavy' : 'light');
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH, true);
+        soundFX.playWhoosh('light');
+        return;
+      }
+      if (hpTrigger) {
+        inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_PUNCH, true);
+        soundFX.playWhoosh('heavy');
         return;
       }
       if (lkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK, true);
         soundFX.playWhoosh('light');
         return;
       }
       if (hkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK, true);
         soundFX.playWhoosh('heavy');
         return;
       }
@@ -128,25 +137,25 @@ export class Kagura extends Fighter {
 
     if (lpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH, true);
       soundFX.playWhoosh('heavy');
       return;
     }
     if (lkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK, true);
       soundFX.playWhoosh('heavy');
       return;
     }
@@ -231,7 +240,7 @@ export class Kagura extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 6) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(48, 30, 24, 12);
+          this.activeHitbox = new Box(40, 24, 56, 18);
           this.currentAttackData = {
             damage: 38,
             hitStun: 13,
@@ -253,7 +262,7 @@ export class Kagura extends Fighter {
         else if (this.stateTimer <= 8) this.animFrame = 1;
         else if (this.stateTimer <= 14) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(46, 26, 36, 18);
+          this.activeHitbox = new Box(38, 20, 75, 24);
           this.currentAttackData = {
             damage: 92,
             hitStun: 22,
@@ -274,7 +283,7 @@ export class Kagura extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 6) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(46, 46, 28, 14);
+          this.activeHitbox = new Box(40, 44, 58, 20);
           this.currentAttackData = {
             damage: 40,
             hitStun: 13,
@@ -296,7 +305,7 @@ export class Kagura extends Fighter {
         else if (this.stateTimer <= 9) this.animFrame = 1;
         else if (this.stateTimer <= 14) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(44, 14, 32, 26);
+          this.activeHitbox = new Box(38, 14, 78, 28);
           this.currentAttackData = {
             damage: 100,
             hitStun: 24,
@@ -317,7 +326,7 @@ export class Kagura extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 6) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(42, 42, 22, 14);
+          this.activeHitbox = new Box(38, 38, 54, 18);
           this.currentAttackData = {
             damage: 35,
             hitStun: 12,
@@ -334,11 +343,53 @@ export class Kagura extends Fighter {
         }
         break;
 
+      case FIGHTER_STATE.CROUCH_HEAVY_PUNCH:
+        if (this.stateTimer <= 4) this.animFrame = 0;
+        else if (this.stateTimer <= 13) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 16, 62, 36);
+          this.currentAttackData = {
+            damage: 90,
+            hitStun: 24,
+            blockStun: 14,
+            pushback: 7,
+            height: ATTACK_HEIGHT.HIGH,
+            hitType: HIT_TYPE.KNOCKDOWN
+          };
+        } else if (this.stateTimer <= 20) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
+      case FIGHTER_STATE.CROUCH_LIGHT_KICK:
+        if (this.stateTimer <= 3) this.animFrame = 0;
+        else if (this.stateTimer <= 6) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 58, 56, 18);
+          this.currentAttackData = {
+            damage: 38,
+            hitStun: 12,
+            blockStun: 9,
+            pushback: 4,
+            height: ATTACK_HEIGHT.LOW,
+            hitType: HIT_TYPE.LIGHT
+          };
+        } else if (this.stateTimer <= 10) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
       case FIGHTER_STATE.CROUCH_HEAVY_KICK:
         if (this.stateTimer <= 4) this.animFrame = 0;
         else if (this.stateTimer <= 10) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(38, 64, 44, 16);
+          this.activeHitbox = new Box(36, 56, 88, 24);
           this.currentAttackData = {
             damage: 82,
             hitStun: 26,
@@ -357,7 +408,7 @@ export class Kagura extends Fighter {
 
       case FIGHTER_STATE.JUMP_PUNCH:
         this.animFrame = 1;
-        this.activeHitbox = new Box(46, 36, 26, 18);
+        this.activeHitbox = new Box(36, 32, 58, 30);
         this.currentAttackData = {
           damage: 75,
           hitStun: 18,
@@ -370,7 +421,7 @@ export class Kagura extends Fighter {
 
       case FIGHTER_STATE.JUMP_KICK:
         this.animFrame = 1;
-        this.activeHitbox = new Box(46, 38, 30, 20);
+        this.activeHitbox = new Box(36, 38, 65, 26);
         this.currentAttackData = {
           damage: 85,
           hitStun: 20,
@@ -395,7 +446,7 @@ export class Kagura extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 8) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(34, 10, 36, 40);
+          this.activeHitbox = new Box(25, -10, 75, 55);
           this.currentAttackData = {
             damage: 125,
             hitStun: 28,
@@ -407,7 +458,7 @@ export class Kagura extends Fighter {
           };
         } else if (this.stateTimer <= 14) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(34, 4, 36, 40);
+          this.activeHitbox = new Box(25, -18, 75, 55);
         } else if (this.stateTimer <= 21) {
           this.animFrame = 3;
           this.activeHitbox = null;

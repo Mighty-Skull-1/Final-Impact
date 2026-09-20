@@ -48,7 +48,7 @@ Featuring smooth frame-based animation, responsive attack cancel combos, impact 
 - **Impact Crunch (Hitstop)**: Micro-freeze frame effects upon heavy impacts and knockdown strikes.
 - **Naruto-Style Secret Techniques (奥義)**: Fill your Super Meter to 100% and unleash dramatic cinematic Ultimates with camera zooms, screen tinting, Japanese kanji banners, and sound effects.
 - **Dynamic 16-Bit Sound & Music**: Fully procedural Web Audio retro synthesizer (chiptune synth-bass, kick, snare, hit sounds, voice announcer, and special move audio) - zero external audio assets required.
-- **Settings Modal**: Accessible anytime via the top-right button or pressing `O`. Adjust Master, SFX, and Music volume independently, toggle CRT scanlines, and retro combat camera shake.
+- **Settings Modal**: Accessible anytime via the top-right button or pressing `Esc` / `P`. Adjust Master, SFX, and Music volume independently, toggle CRT scanlines, game speed, and combat camera shake.
 
 ---
 

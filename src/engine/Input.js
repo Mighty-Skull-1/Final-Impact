@@ -111,19 +111,21 @@ export class InputManager {
     // Continuous button hold
     const lp = this.isDown(ctrl.LP) || gp?.lp;
     const hp = this.isDown(ctrl.HP) || gp?.hp;
-    const sp1 = this.isDown(ctrl.SP1) || gp?.sp1;
     const lk = this.isDown(ctrl.LK) || gp?.lk;
     const hk = this.isDown(ctrl.HK) || gp?.hk;
-    const sp2 = this.isDown(ctrl.SP2) || gp?.sp2;
+    const sp1 = this.isDown(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isDown(ctrl.QUICK_SP1)) || gp?.sp1;
+    const sp2 = this.isDown(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isDown(ctrl.QUICK_SP2)) || gp?.sp2;
+    const sp3 = (ctrl.SP3 && this.isDown(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isDown(ctrl.QUICK_SP3));
     const start = this.isDown(ctrl.START) || gp?.start;
 
     // Leading-edge triggers (Just Pressed this frame!)
     const lpJust = this.isJustPressed(ctrl.LP);
     const hpJust = this.isJustPressed(ctrl.HP);
-    const sp1Just = this.isJustPressed(ctrl.SP1);
     const lkJust = this.isJustPressed(ctrl.LK);
     const hkJust = this.isJustPressed(ctrl.HK);
-    const sp2Just = this.isJustPressed(ctrl.SP2);
+    const sp1Just = this.isJustPressed(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isJustPressed(ctrl.QUICK_SP1));
+    const sp2Just = this.isJustPressed(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isJustPressed(ctrl.QUICK_SP2));
+    const sp3Just = (ctrl.SP3 && this.isJustPressed(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isJustPressed(ctrl.QUICK_SP3));
 
     // Naruto Ultimate Activation: Spacebar (or U + I / HP + HK / Gamepad trigger)
     const ultimateJust = isP1 
@@ -159,16 +161,18 @@ export class InputManager {
       dir,
       lp,
       hp,
-      sp1,
       lk,
       hk,
+      sp1,
       sp2,
+      sp3,
       lpJust,
       hpJust,
-      sp1Just,
       lkJust,
       hkJust,
+      sp1Just,
       sp2Just,
+      sp3Just,
       ultimateJust,
       dashFwd,
       dashBack,
@@ -223,8 +227,9 @@ export class InputManager {
       this.p2LastBackTap = now;
     }
 
-    // 3. Action Queue (8-frame buffer)
+    // 3. Action Queue (16-frame buffer for responsive combo execution)
     if (s1.ultimateJust) this.queueAction(1, 'ULTIMATE');
+    else if (s1.sp3Just) this.queueAction(1, 'SP3');
     else if (s1.sp2Just) this.queueAction(1, 'SP2');
     else if (s1.sp1Just) this.queueAction(1, 'SP1');
     else if (s1.hpJust) this.queueAction(1, 'HP');
@@ -233,6 +238,7 @@ export class InputManager {
     else if (s1.lkJust) this.queueAction(1, 'LK');
 
     if (s2.ultimateJust) this.queueAction(2, 'ULTIMATE');
+    else if (s2.sp3Just) this.queueAction(2, 'SP3');
     else if (s2.sp2Just) this.queueAction(2, 'SP2');
     else if (s2.sp1Just) this.queueAction(2, 'SP1');
     else if (s2.hpJust) this.queueAction(2, 'HP');
@@ -272,7 +278,9 @@ export class InputManager {
 
   queueAction(playerNum, action) {
     const queue = playerNum === 1 ? this.p1ActionQueue : this.p2ActionQueue;
-    queue.push({ action, frames: 8 });
+    // Keep freshest intent
+    queue.length = 0;
+    queue.push({ action, frames: 16 });
   }
 
   peekAction(playerNum) {

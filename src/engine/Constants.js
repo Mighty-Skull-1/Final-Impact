@@ -78,12 +78,17 @@ export const DEFAULT_CONTROLS = {
     DOWN: 'KeyS',
     LEFT: 'KeyA',
     RIGHT: 'KeyD',
-    LP: 'KeyU',      // Light Punch
-    HP: 'KeyI',      // Heavy Punch
-    SP1: 'KeyO',     // Special Move 1 / Easy Special
-    LK: 'KeyJ',      // Light Kick
-    HK: 'KeyK',      // Heavy Kick
-    SP2: 'KeyL',     // Special Move 2 / Super
+    LP: 'KeyU',        // Light Punch
+    HP: 'KeyI',        // Heavy Punch
+    LK: 'KeyJ',        // Light Kick
+    HK: 'KeyK',        // Heavy Kick
+    SP1: 'KeyO',       // Special Move 1 (Fireball / Sonic / Warp)
+    SP2: 'KeyL',       // Special Move 2 (Uppercut / Flash Kick / Spiral)
+    SP3: 'Semicolon',  // Special Move 3 (Hurricane / Blitz / Kunai)
+    // Quick Action Specials:
+    QUICK_SP1: 'KeyQ',
+    QUICK_SP2: 'KeyE',
+    QUICK_SP3: 'KeyR',
     START: 'Enter'
   },
   P2: {
@@ -93,10 +98,11 @@ export const DEFAULT_CONTROLS = {
     RIGHT: 'ArrowRight',
     LP: 'Numpad4',
     HP: 'Numpad5',
-    SP1: 'Numpad6',
     LK: 'Numpad1',
     HK: 'Numpad2',
-    SP2: 'Numpad3',
+    SP1: 'Numpad7',
+    SP2: 'Numpad8',
+    SP3: 'Numpad9',
     START: 'NumpadEnter'
   }
 };

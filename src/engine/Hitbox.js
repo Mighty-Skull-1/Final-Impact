@@ -50,8 +50,11 @@ export class HitboxSystem {
     return null;
   }
 
-  // Pushbox separation to prevent fighters walking through each other
+  // Pushbox separation to prevent grounded fighters walking through each other
   static resolvePushboxes(f1, f2, stageLeft = 40, stageRight = 920) {
+    // Airborne fighters do not get pushed horizontally backwards when jumping over / jump-in hitting
+    if (!f1.isGrounded || !f2.isGrounded) return;
+
     const p1 = f1.getPushbox();
     const p2 = f2.getPushbox();
 
@@ -60,18 +63,19 @@ export class HitboxSystem {
       const overlapAlt = (p2.x + p2.w) - p1.x;
       const minOverlap = Math.min(Math.abs(overlapX), Math.abs(overlapAlt));
 
-      // Separate them equally or push away from wall if against corner
-      if (f1.x < f2.x) {
-        f1.x -= minOverlap / 2;
-        f2.x += minOverlap / 2;
-      } else {
-        f1.x += minOverlap / 2;
-        f2.x -= minOverlap / 2;
+      if (minOverlap > 0) {
+        if (f1.x < f2.x) {
+          f1.x -= minOverlap / 2;
+          f2.x += minOverlap / 2;
+        } else {
+          f1.x += minOverlap / 2;
+          f2.x -= minOverlap / 2;
+        }
       }
     }
 
     // Keep within stage boundaries
-    f1.x = Math.max(stageLeft, Math.min(stageRight - 50, f1.x));
-    f2.x = Math.max(stageLeft, Math.min(stageRight - 50, f2.x));
+    f1.x = Math.max(stageLeft, Math.min(stageRight - 80, f1.x));
+    f2.x = Math.max(stageLeft, Math.min(stageRight - 80, f2.x));
   }
 }

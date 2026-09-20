@@ -32,18 +32,18 @@
       <div class="panel-section">
         <h3>PLAYER 1 (KEYBOARD)</h3>
         <div class="control-keys">
-          <span><strong>MOVE:</strong> W (Jump), A (Back), S (Crouch), D (Fwd)</span>
-          <span><strong>PUNCHES:</strong> U (Light), I (Heavy), O (Special 1)</span>
-          <span><strong>KICKS:</strong> J (Light), K (Heavy), L (Special 2)</span>
+          <span><strong>MOVE:</strong> W (Jump), A (Back/Guard), S (Crouch), D (Fwd)</span>
+          <span><strong>NORMALS:</strong> U (Light Punch), I (Heavy Punch), J (Light Kick), K (Heavy Kick)</span>
+          <span><strong>SPECIALS:</strong> Q or O (Special 1), E or L (Special 2), R or ; (Special 3)</span>
         </div>
       </div>
 
       <div class="panel-section">
         <h3>SPECIAL & ULTIMATE COMMANDS</h3>
         <div class="control-keys">
-          <span><strong>HADOUKEN / SONIC / KUNAI:</strong> ↓ ↘ → + Punch (or O)</span>
-          <span><strong>SHORYUKEN / SOMERSAULT:</strong> → ↓ ↘ + Punch / Kick (or L)</span>
-          <span><strong>HURRICANE / BLITZ / WARP:</strong> ↓ ↙ ← + Kick / Punch</span>
+          <span><strong>SPECIAL 1 (FIREBALL / SONIC / WARP):</strong> Q or O (or ↓ ↘ → + Punch)</span>
+          <span><strong>SPECIAL 2 (UPPERCUT / SOMERSAULT / SPIRAL):</strong> E or L (or → ↓ ↘ + Punch/Kick)</span>
+          <span><strong>SPECIAL 3 (HURRICANE / BLITZ / KUNAI):</strong> R or ; (or ↓ ↙ ← + Kick)</span>
           <span style="color:#fde047"><strong>★ NARUTO ULTIMATE (OUGI):</strong> [SPACE] (When Meter is 100%!)</span>
           <span><strong>DASH:</strong> Double tap [D, D] (Fwd) or [A, A] (Back)</span>
         </div>
@@ -55,7 +55,7 @@
           <button id="settingsBtn" class="arcade-btn highlight-btn">⚙️ SETTINGS [ESC / P]</button>
           <button id="toggleCrtBtn" class="arcade-btn">CRT SCANLINES: ON</button>
           <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF [H]</button>
-          <button id="toggleEasyBtn" class="arcade-btn">EASY SPECIALS: OFF [E]</button>
+          <button id="toggleEasyBtn" class="arcade-btn">EASY SPECIALS: OFF [T]</button>
           <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN [F]</button>
         </div>
       </div>
@@ -153,9 +153,9 @@
     // Easy specials button
     const easyBtn = document.getElementById('toggleEasyBtn');
     easyBtn.addEventListener('click', () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
       setTimeout(() => {
-        easyBtn.textContent = `EASY SPECIALS: ${window.__GAME_EASY ? 'ON' : 'OFF'} [E]`;
+        easyBtn.textContent = `EASY SPECIALS: ${window.__GAME_EASY ? 'ON' : 'OFF'} [T]`;
       }, 50);
     });
 

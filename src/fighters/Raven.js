@@ -24,6 +24,9 @@ export class Raven extends Fighter {
       return;
     }
 
+    this.isHoldingBack = !!inputState.back;
+    this.isCrouching = !!inputState.down;
+
     const pNum = this.playerNum;
 
     // 1. Naruto-Style Ultimate Jutsu Check
@@ -76,7 +79,7 @@ export class Raven extends Fighter {
     }
 
     // Blitz Knuckle
-    const isBlitz = inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust);
+    const isBlitz = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isBlitz) {
       inputManager.consumeBuffer(pNum);
       this.startBlitzKnuckle();
@@ -102,21 +105,27 @@ export class Raven extends Fighter {
     const hkTrigger = inputState.hkJust || inputManager.peekAction(pNum) === 'HK';
 
     if (inputState.down) {
-      if (lpTrigger || hpTrigger) {
+      if (lpTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH);
-        soundFX.playWhoosh(hpTrigger ? 'heavy' : 'light');
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH, true);
+        soundFX.playWhoosh('light');
+        return;
+      }
+      if (hpTrigger) {
+        inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_PUNCH, true);
+        soundFX.playWhoosh('heavy');
         return;
       }
       if (lkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK, true);
         soundFX.playWhoosh('light');
         return;
       }
       if (hkTrigger) {
         inputManager.consumeAction(pNum);
-        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK, true);
         soundFX.playWhoosh('heavy');
         return;
       }
@@ -128,25 +137,25 @@ export class Raven extends Fighter {
 
     if (lpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hpTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH, true);
       soundFX.playWhoosh('heavy');
       return;
     }
     if (lkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK, true);
       soundFX.playWhoosh('light');
       return;
     }
     if (hkTrigger) {
       inputManager.consumeAction(pNum);
-      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK, true);
       soundFX.playWhoosh('heavy');
       return;
     }
@@ -222,7 +231,7 @@ export class Raven extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(50, 26, 26, 14);
+          this.activeHitbox = new Box(40, 24, 56, 18);
           this.currentAttackData = {
             damage: 42,
             hitStun: 14,
@@ -244,7 +253,7 @@ export class Raven extends Fighter {
         else if (this.stateTimer <= 9) this.animFrame = 1;
         else if (this.stateTimer <= 15) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(48, 24, 38, 20);
+          this.activeHitbox = new Box(38, 20, 75, 24);
           this.currentAttackData = {
             damage: 100,
             hitStun: 22,
@@ -265,7 +274,7 @@ export class Raven extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(44, 48, 26, 16);
+          this.activeHitbox = new Box(40, 44, 58, 20);
           this.currentAttackData = {
             damage: 42,
             hitStun: 14,
@@ -287,7 +296,7 @@ export class Raven extends Fighter {
         else if (this.stateTimer <= 10) this.animFrame = 1;
         else if (this.stateTimer <= 15) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(42, 14, 34, 28);
+          this.activeHitbox = new Box(38, 14, 78, 28);
           this.currentAttackData = {
             damage: 110,
             hitStun: 24,
@@ -308,7 +317,7 @@ export class Raven extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 7) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(44, 40, 24, 14);
+          this.activeHitbox = new Box(38, 38, 54, 18);
           this.currentAttackData = {
             damage: 38,
             hitStun: 12,
@@ -325,11 +334,53 @@ export class Raven extends Fighter {
         }
         break;
 
+      case FIGHTER_STATE.CROUCH_HEAVY_PUNCH:
+        if (this.stateTimer <= 4) this.animFrame = 0;
+        else if (this.stateTimer <= 13) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 16, 62, 36);
+          this.currentAttackData = {
+            damage: 95,
+            hitStun: 24,
+            blockStun: 14,
+            pushback: 7,
+            height: ATTACK_HEIGHT.HIGH,
+            hitType: HIT_TYPE.KNOCKDOWN
+          };
+        } else if (this.stateTimer <= 20) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
+      case FIGHTER_STATE.CROUCH_LIGHT_KICK:
+        if (this.stateTimer <= 3) this.animFrame = 0;
+        else if (this.stateTimer <= 7) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 58, 56, 18);
+          this.currentAttackData = {
+            damage: 40,
+            hitStun: 12,
+            blockStun: 9,
+            pushback: 4,
+            height: ATTACK_HEIGHT.LOW,
+            hitType: HIT_TYPE.LIGHT
+          };
+        } else if (this.stateTimer <= 11) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.CROUCH);
+        }
+        break;
+
       case FIGHTER_STATE.CROUCH_HEAVY_KICK:
         if (this.stateTimer <= 5) this.animFrame = 0;
         else if (this.stateTimer <= 11) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(40, 64, 42, 18);
+          this.activeHitbox = new Box(36, 56, 88, 24);
           this.currentAttackData = {
             damage: 90,
             hitStun: 28,
@@ -348,7 +399,7 @@ export class Raven extends Fighter {
 
       case FIGHTER_STATE.JUMP_PUNCH:
         this.animFrame = 1;
-        this.activeHitbox = new Box(46, 38, 26, 20);
+        this.activeHitbox = new Box(36, 32, 58, 30);
         this.currentAttackData = {
           damage: 80,
           hitStun: 18,
@@ -361,7 +412,7 @@ export class Raven extends Fighter {
 
       case FIGHTER_STATE.JUMP_KICK:
         this.animFrame = 1;
-        this.activeHitbox = new Box(46, 36, 34, 22);
+        this.activeHitbox = new Box(36, 38, 65, 26);
         this.currentAttackData = {
           damage: 90,
           hitStun: 20,
@@ -399,7 +450,7 @@ export class Raven extends Fighter {
         if (this.stateTimer <= 3) this.animFrame = 0;
         else if (this.stateTimer <= 8) {
           this.animFrame = 1;
-          this.activeHitbox = new Box(20, -10, 48, 44);
+          this.activeHitbox = new Box(20, -18, 72, 62);
           this.currentAttackData = {
             damage: 135,
             hitStun: 30,
@@ -411,7 +462,7 @@ export class Raven extends Fighter {
           };
         } else if (this.stateTimer <= 14) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(20, -14, 48, 44);
+          this.activeHitbox = new Box(20, -26, 72, 62);
         } else if (this.stateTimer <= 22) {
           this.animFrame = 3;
           this.activeHitbox = null;
@@ -427,7 +478,7 @@ export class Raven extends Fighter {
         if (this.stateTimer <= 5) this.animFrame = 0;
         else if (this.stateTimer <= 16) {
           this.animFrame = 2;
-          this.activeHitbox = new Box(48, 28, 38, 20);
+          this.activeHitbox = new Box(35, 20, 80, 30);
           this.currentAttackData = {
             damage: 105,
             hitStun: 24,
