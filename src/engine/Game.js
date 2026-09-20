@@ -694,7 +694,12 @@ export class Game {
       this.f1.isInvincible = false;
       this.f1.hitStun = 0;
       this.f1.blockStun = 0;
+      this.f1.projectileCooldown = 0;
+      this.f1.activeProjectileCount = 0;
     }
+    this.projectiles = [];
+    input.consumeBuffer(1);
+    input.consumeBuffer(2);
     this.cameraX = 0;
 
     // Reset HUD timer to full 99 seconds for the stage and calibrate red health bars
@@ -759,8 +764,14 @@ export class Game {
       f.y = 300;
       f.isGrounded = true;
       f.isDead = false;
+      f.projectileCooldown = 0;
+      f.activeProjectileCount = 0;
       f.changeState(FIGHTER_STATE.IDLE);
     });
+
+    this.projectiles = [];
+    input.consumeBuffer(1);
+    input.consumeBuffer(2);
 
     if (this.is2v2) {
       this.f1.x = 180;
@@ -1387,7 +1398,8 @@ export class Game {
                 pushback: 5,
                 height: p.attackHeight,
                 hitType: 'HEAVY',
-                chipDamage: 12
+                chipDamage: 12,
+                isProjectile: true
               }, p.vx > 0 ? 1 : -1);
 
               this.hud.addHitSpark(p.x + p.width / 2, p.y + p.height / 2, hitType === 'blocked' ? 'block' : 'hit');

@@ -34,7 +34,7 @@ export class Fighter {
     // Stamina & Limb Fatigue System
     this.maxStamina = 100;
     this.stamina = 100;
-    this.staminaRegenRate = 0.32;
+    this.staminaRegenRate = 0.90;
     this.windedTimer = 0;
     this.limbs = {
       leadArm: 100,
@@ -97,23 +97,22 @@ export class Fighter {
     this.sprites = spriteGenerator.generateFighterSprites(this.id);
   }
 
-  consumeStamina(amount) {
+  consumeStamina(amount, canWind = false) {
     this.stamina = Math.max(0, this.stamina - amount);
-    if (this.stamina <= 0 && this.state !== FIGHTER_STATE.WINDED && this.isGrounded && !this.isDead) {
+    if (canWind && this.stamina <= 0 && this.state !== FIGHTER_STATE.WINDED && this.isGrounded && !this.isDead) {
       this.changeState(FIGHTER_STATE.WINDED);
-      this.windedTimer = 65;
+      this.windedTimer = 35;
     }
   }
 
-  canFireProjectile(staminaCost = 25) {
-    if (this.stamina < staminaCost) return false;
+  canFireProjectile(staminaCost = 10) {
     if (this.projectileCooldown > 0) return false;
-    if (this.activeProjectileCount >= 1) return false;
+    if (this.activeProjectileCount >= 2) return false;
     return true;
   }
 
-  onFireProjectile(staminaCost = 25, cooldown = 50) {
-    this.consumeStamina(staminaCost);
+  onFireProjectile(staminaCost = 10, cooldown = 18) {
+    this.consumeStamina(staminaCost, false);
     this.projectileCooldown = cooldown;
     this.activeProjectileCount++;
   }
@@ -234,8 +233,8 @@ export class Fighter {
 
   // Double-tap Dashing
   startDash(forward = true) {
-    if (this.isAttacking() || !this.isGrounded || this.hitStun > 0 || this.blockStun > 0 || this.stamina < 8 || this.state === FIGHTER_STATE.WINDED) return;
-    this.consumeStamina(12);
+    if (this.isAttacking() || !this.isGrounded || this.hitStun > 0 || this.blockStun > 0 || this.state === FIGHTER_STATE.WINDED) return;
+    this.consumeStamina(8, false);
     soundFX.playDash();
     this.changeState(forward ? FIGHTER_STATE.DASH_FWD : FIGHTER_STATE.DASH_BACK);
     let speed = forward ? this.dashSpeed : this.dashSpeed * 0.7;
@@ -471,7 +470,7 @@ export class Fighter {
   executePickupAttack(type, opponent) {
     const item = this.heldPickup;
     this.heldPickup = null;
-    this.consumeStamina(10);
+    this.consumeStamina(6, false);
 
     if (item === 'brick' || item === 'bottle') {
       if (this.spawnProjectile) {
@@ -771,7 +770,7 @@ export class Fighter {
       soundFX.playBlock();
       const chip = attackData.chipDamage || 0;
       this.health = Math.max(1, this.health - chip);
-      this.consumeStamina(attackData.damage * 0.15);
+      this.consumeStamina(attackData.damage * 0.15, true);
       this.damageLimb(LIMB_ZONE.LEAD_ARM, attackData.damage * 0.18);
       this.blockStun = attackData.blockStun || 12;
       this.vx = (this.facingRight ? -1 : 1) * (attackData.pushback * 0.7);

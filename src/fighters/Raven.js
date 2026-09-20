@@ -88,8 +88,10 @@ export class Raven extends Fighter {
     }
 
     // 4. Special Moves (Leading-edge and buffer only)
-    // Flash Somersault (Anti-air kick)
-    const isSomersault = ((inputManager.checkChargeDownUp(pNum) || inputManager.checkDP(pNum)) && (inputState.lkJust || inputState.hkJust)) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
+    const anyAttackJust = inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust;
+
+    // Flash Somersault (Anti-air kick - check DP/Charge down-up first)
+    const isSomersault = ((inputManager.checkChargeDownUp(pNum) || inputManager.checkDP(pNum)) && anyAttackJust) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
     if (isSomersault) {
       inputManager.consumeBuffer(pNum);
       this.startFlashKick();
@@ -97,17 +99,15 @@ export class Raven extends Fighter {
     }
 
     // Sonic Blade (Golden razor projectile)
-    const isSonicBlade = ((inputManager.checkChargeBackFwd(pNum) || inputManager.checkQCF(pNum)) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
+    const isSonicBlade = ((inputManager.checkChargeBackFwd(pNum) || inputManager.checkQCF(pNum)) && anyAttackJust) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isSonicBlade) {
-      if (this.canFireProjectile(25)) {
-        inputManager.consumeBuffer(pNum);
-        this.startSonicBlade();
-        return;
-      }
+      inputManager.consumeBuffer(pNum);
+      this.startSonicBlade();
+      return;
     }
 
     // Blitz Knuckle
-    const isBlitz = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
+    const isBlitz = (inputManager.checkQCB(pNum) && anyAttackJust) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isBlitz) {
       inputManager.consumeBuffer(pNum);
       this.startBlitzKnuckle();
@@ -214,8 +214,8 @@ export class Raven extends Fighter {
   }
 
   startSonicBlade() {
-    if (!this.canFireProjectile(25)) return;
-    this.onFireProjectile(25, 48);
+    if (!this.canFireProjectile(10)) return;
+    this.onFireProjectile(10, 18);
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playSonicBlade();
   }

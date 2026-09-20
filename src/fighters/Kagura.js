@@ -88,30 +88,31 @@ export class Kagura extends Fighter {
     }
 
     // 4. Special Moves (Leading-edge and buffer only)
-    // Crescent Gale
-    const isCrescent = (inputManager.checkQCF(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
+    const anyPunchJust = inputState.lpJust || inputState.hpJust;
+    const anyKickJust = inputState.lkJust || inputState.hkJust;
+
+    // Crescent Gale (DP or QCF+Kick)
+    const isCrescent = ((inputManager.checkDP(pNum) || inputManager.checkQCF(pNum)) && anyKickJust) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
     if (isCrescent) {
       inputManager.consumeBuffer(pNum);
       this.startCrescentGale();
       return;
     }
 
-    // Shadow Warp
-    const isWarp = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
+    // Shadow Warp (QCB)
+    const isWarp = (inputManager.checkQCB(pNum) && (anyPunchJust || anyKickJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isWarp) {
       inputManager.consumeBuffer(pNum);
       this.startShadowWarp(opponent);
       return;
     }
 
-    // Ki Kunai
-    const isKunai = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
+    // Ki Kunai (QCF+Punch)
+    const isKunai = (inputManager.checkQCF(pNum) && anyPunchJust) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isKunai) {
-      if (this.canFireProjectile(25)) {
-        inputManager.consumeBuffer(pNum);
-        this.startKunai();
-        return;
-      }
+      inputManager.consumeBuffer(pNum);
+      this.startKunai();
+      return;
     }
 
     // 5. Dash Execution (Ninja Flash Step)
@@ -236,8 +237,8 @@ export class Kagura extends Fighter {
   }
 
   startKunai() {
-    if (!this.canFireProjectile(25)) return;
-    this.onFireProjectile(25, 45);
+    if (!this.canFireProjectile(10)) return;
+    this.onFireProjectile(10, 18);
     this.changeState(FIGHTER_STATE.SPECIAL_3);
     soundFX.playWhoosh('light');
   }

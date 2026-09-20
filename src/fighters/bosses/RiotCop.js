@@ -14,8 +14,8 @@ export class RiotCop extends Fighter {
     this.walkSpeed = 2.6;
     this.dashSpeed = 5.2;
     this.shieldRaised = true;
-    this.shieldIntegrity = 250;
-    this.maxShieldIntegrity = 250;
+    this.shieldIntegrity = 120;
+    this.maxShieldIntegrity = 120;
     this.shieldBrokenTimer = 0;
     this.isBatonElectrified = false;
   }
@@ -23,28 +23,35 @@ export class RiotCop extends Fighter {
   takeHit(attackData, fromDirection) {
     if (this.isInvincible || this.isDead) return false;
 
-    // Check if frontal attack hit the ballistic riot shield
-    const hitFromFront = (this.facingRight && fromDirection > 0) || (!this.facingRight && fromDirection < 0);
+    // Check if attack hit the frontal ballistic riot shield
+    const hitFromFront = (this.facingRight && fromDirection < 0) || (!this.facingRight && fromDirection > 0);
     const isUnblockable = attackData.height === ATTACK_HEIGHT.UNBLOCKABLE;
     const isLowAnkle = attackData.height === ATTACK_HEIGHT.LOW;
 
-    // 1. Perfect Guard Riot Shield Absorption
+    // 1. Riot Shield Absorption & Shield Health
     if (this.shieldRaised && hitFromFront && !isUnblockable && !isLowAnkle && this.shieldBrokenTimer <= 0) {
       soundFX.playBlock();
-      this.shieldIntegrity -= attackData.damage;
-      this.vx = (this.facingRight ? -1 : 1) * 2.5;
+      // Specials and projectiles deal massive shield damage and 25% chip damage to health!
+      const isSpecialOrProj = (attackData.chipDamage && attackData.chipDamage > 0) || attackData.isProjectile;
+      const shieldDmg = isSpecialOrProj ? attackData.damage * 2 : attackData.damage;
+      this.shieldIntegrity -= shieldDmg;
+      
+      // Chip damage through shield from specials/projectiles
+      if (isSpecialOrProj) {
+        this.health = Math.max(1, this.health - Math.floor(attackData.damage * 0.25));
+      }
+      this.vx = (this.facingRight ? -1 : 1) * 3.5;
 
       // Shield break check
       if (this.shieldIntegrity <= 0) {
         soundFX.playKO();
         this.shieldRaised = false;
-        this.shieldBrokenTimer = 140; // Shield dropped for 140 frames!
+        this.shieldBrokenTimer = 180; // Shield dropped for 3 seconds!
         this.changeState(FIGHTER_STATE.HIT);
         return 'shield_broken';
       }
 
-      // Frontal attacks bounce off with zero damage and heavy attacker recovery!
-      return 'shield_blocked';
+      return 'blocked';
     }
 
     // 2. Dirty Tactic Bypass (e.g. Pocket Sand into visor slit)

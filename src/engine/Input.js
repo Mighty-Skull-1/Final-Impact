@@ -79,6 +79,12 @@ export class InputManager {
   setKeybind(playerNum, action, keyCode) {
     const pKey = playerNum === 1 ? 'P1' : 'P2';
     if (this.controls[pKey]) {
+      // Clear this keycode from any other actions in this player's layout to prevent ghost collisions
+      for (const [k, v] of Object.entries(this.controls[pKey])) {
+        if (v === keyCode && k !== action) {
+          this.controls[pKey][k] = null;
+        }
+      }
       this.controls[pKey][action] = keyCode;
       if (action === 'SP1') this.controls[pKey].QUICK_SP1 = keyCode;
       if (action === 'SP2') this.controls[pKey].QUICK_SP2 = keyCode;
@@ -180,9 +186,13 @@ export class InputManager {
     const hp = this.isDown(ctrl.HP) || gp?.hp;
     const lk = this.isDown(ctrl.LK) || gp?.lk;
     const hk = this.isDown(ctrl.HK) || gp?.hk;
-    const sp1 = this.isDown(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isDown(ctrl.QUICK_SP1)) || gp?.sp1;
-    const sp2 = this.isDown(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isDown(ctrl.QUICK_SP2)) || gp?.sp2;
-    const sp3 = (ctrl.SP3 && this.isDown(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isDown(ctrl.QUICK_SP3));
+    const quick1Valid = ctrl.QUICK_SP1 && ctrl.QUICK_SP1 !== ctrl.LP && ctrl.QUICK_SP1 !== ctrl.HP && ctrl.QUICK_SP1 !== ctrl.LK && ctrl.QUICK_SP1 !== ctrl.HK;
+    const quick2Valid = ctrl.QUICK_SP2 && ctrl.QUICK_SP2 !== ctrl.LP && ctrl.QUICK_SP2 !== ctrl.HP && ctrl.QUICK_SP2 !== ctrl.LK && ctrl.QUICK_SP2 !== ctrl.HK;
+    const quick3Valid = ctrl.QUICK_SP3 && ctrl.QUICK_SP3 !== ctrl.LP && ctrl.QUICK_SP3 !== ctrl.HP && ctrl.QUICK_SP3 !== ctrl.LK && ctrl.QUICK_SP3 !== ctrl.HK;
+
+    const sp1 = this.isDown(ctrl.SP1) || (quick1Valid && this.isDown(ctrl.QUICK_SP1)) || gp?.sp1;
+    const sp2 = this.isDown(ctrl.SP2) || (quick2Valid && this.isDown(ctrl.QUICK_SP2)) || gp?.sp2;
+    const sp3 = (ctrl.SP3 && this.isDown(ctrl.SP3)) || (quick3Valid && this.isDown(ctrl.QUICK_SP3));
     const dirty = (ctrl.DIRTY && this.isDown(ctrl.DIRTY)) || gp?.dirty;
     const start = this.isDown(ctrl.START) || gp?.start;
 
@@ -191,9 +201,9 @@ export class InputManager {
     const hpJust = this.isJustPressed(ctrl.HP);
     const lkJust = this.isJustPressed(ctrl.LK);
     const hkJust = this.isJustPressed(ctrl.HK);
-    const sp1Just = this.isJustPressed(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isJustPressed(ctrl.QUICK_SP1));
-    const sp2Just = this.isJustPressed(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isJustPressed(ctrl.QUICK_SP2));
-    const sp3Just = (ctrl.SP3 && this.isJustPressed(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isJustPressed(ctrl.QUICK_SP3));
+    const sp1Just = this.isJustPressed(ctrl.SP1) || (quick1Valid && this.isJustPressed(ctrl.QUICK_SP1));
+    const sp2Just = this.isJustPressed(ctrl.SP2) || (quick2Valid && this.isJustPressed(ctrl.QUICK_SP2));
+    const sp3Just = (ctrl.SP3 && this.isJustPressed(ctrl.SP3)) || (quick3Valid && this.isJustPressed(ctrl.QUICK_SP3));
     const dirtyJust = (ctrl.DIRTY && this.isJustPressed(ctrl.DIRTY)) || this.checkDownDownPunch(playerNum);
 
     // Naruto Ultimate Activation: Configured key, Spacebar (for P1), HP+HK, or Gamepad trigger
@@ -347,9 +357,9 @@ export class InputManager {
 
   queueAction(playerNum, action) {
     const queue = playerNum === 1 ? this.p1ActionQueue : this.p2ActionQueue;
-    // Keep freshest intent
+    // Keep freshest intent with a generous 14-frame combo cancel buffer (~233ms)
     queue.length = 0;
-    queue.push({ action, frames: 6 });
+    queue.push({ action, frames: 14 });
   }
 
   peekAction(playerNum) {
@@ -373,17 +383,14 @@ export class InputManager {
   // Lenient Special Motion Checkers (QCF, DP, QCB)
   checkQCF(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 4) return false;
+    if (buf.length < 2) return false;
 
     let foundFwd = false;
-    let foundDown = false;
-
     for (let i = 0; i < Math.min(18, buf.length); i++) {
       const d = buf[i].dir;
       if (!foundFwd && (d === 6 || d === 3)) {
         foundFwd = true;
       } else if (foundFwd && (d === 2 || d === 1 || d === 3)) {
-        foundDown = true;
         return true;
       }
     }
@@ -392,21 +399,19 @@ export class InputManager {
 
   checkDP(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 5) return false;
+    if (buf.length < 3) return false;
 
-    let foundDownDiag = false;
-    let foundDown = false;
-    let foundFwd = false;
-
-    for (let i = 0; i < Math.min(20, buf.length); i++) {
+    // DP: Forward -> Down -> Down-Forward (or Forward -> Down -> Forward on keyboard)
+    // Checking backwards in time from newest frame:
+    let step = 0; // 0: looking for final 6 or 3; 1: looking for 2, 1, or 3; 2: looking for initial 6 or 3
+    for (let i = 0; i < Math.min(22, buf.length); i++) {
       const d = buf[i].dir;
-      if (!foundDownDiag && d === 3) {
-        foundDownDiag = true;
-      } else if (foundDownDiag && !foundDown && (d === 2 || d === 1)) {
-        foundDown = true;
-      } else if (foundDown && !foundFwd && d === 6) {
-        foundFwd = true;
-        return true;
+      if (step === 0) {
+        if (d === 6 || d === 3) step = 1;
+      } else if (step === 1) {
+        if (d === 2 || d === 1 || d === 3) step = 2;
+      } else if (step === 2) {
+        if (d === 6 || d === 3) return true;
       }
     }
     return false;
@@ -414,17 +419,14 @@ export class InputManager {
 
   checkQCB(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 4) return false;
+    if (buf.length < 2) return false;
 
     let foundBack = false;
-    let foundDown = false;
-
     for (let i = 0; i < Math.min(18, buf.length); i++) {
       const d = buf[i].dir;
       if (!foundBack && (d === 4 || d === 1)) {
         foundBack = true;
       } else if (foundBack && (d === 2 || d === 3 || d === 1)) {
-        foundDown = true;
         return true;
       }
     }

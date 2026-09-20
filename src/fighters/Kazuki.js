@@ -85,8 +85,10 @@ export class Kazuki extends Fighter {
     }
 
     // 4. Ground Special Moves Check (Leading-edge and buffer only)
-    // Shoryuken (Dragon Uppercut)
-    const isDP = (inputManager.checkDP(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
+    const anyAttackJust = inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust;
+
+    // Shoryuken (Dragon Uppercut - DP check first)
+    const isDP = (inputManager.checkDP(pNum) && anyAttackJust) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
     if (isDP) {
       inputManager.consumeBuffer(pNum);
       this.startShoryuken();
@@ -94,17 +96,15 @@ export class Kazuki extends Fighter {
     }
 
     // Hadouken (Ki Fireball)
-    const isQCF = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
+    const isQCF = (inputManager.checkQCF(pNum) && anyAttackJust) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isQCF) {
-      if (this.canFireProjectile(25)) {
-        inputManager.consumeBuffer(pNum);
-        this.startHadouken();
-        return;
-      }
+      inputManager.consumeBuffer(pNum);
+      this.startHadouken();
+      return;
     }
 
     // Tatsumaki Senpuukyaku (Hurricane Kick)
-    const isQCB = (inputManager.checkQCB(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
+    const isQCB = (inputManager.checkQCB(pNum) && anyAttackJust) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isQCB) {
       inputManager.consumeBuffer(pNum);
       this.startTatsumaki();
@@ -211,8 +211,8 @@ export class Kazuki extends Fighter {
   }
 
   startHadouken() {
-    if (!this.canFireProjectile(25)) return;
-    this.onFireProjectile(25, 50);
+    if (!this.canFireProjectile(10)) return;
+    this.onFireProjectile(10, 18);
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playHadouken();
   }

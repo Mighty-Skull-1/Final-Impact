@@ -81,22 +81,27 @@ export class Fang extends Fighter {
     // 3. Attack Protection
     if (this.isAttacking() && !this.canCancelOnHit()) return;
 
-    // 4. Specials
-    const isSP2 = (inputManager.checkDP(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
+    // 4. Specials (Leading-edge and buffer only)
+    const anyAttackJust = inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust;
+
+    // Cyclone Elbow (DP motion or SP2 key)
+    const isSP2 = (inputManager.checkDP(pNum) && anyAttackJust) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
     if (isSP2) {
       inputManager.consumeBuffer(pNum);
       this.startCycloneElbow();
       return;
     }
 
-    const isSP1 = (inputManager.checkQCF(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
+    // Tiger Knee (QCF motion or SP1 key)
+    const isSP1 = (inputManager.checkQCF(pNum) && anyAttackJust) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isSP1) {
       inputManager.consumeBuffer(pNum);
       this.startTigerKnee();
       return;
     }
 
-    const isSP3 = (inputManager.checkQCB(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
+    // Iron Teep (QCB motion or SP3 key)
+    const isSP3 = (inputManager.checkQCB(pNum) && anyAttackJust) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isSP3) {
       inputManager.consumeBuffer(pNum);
       this.startIronTeep();
