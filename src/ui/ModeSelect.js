@@ -37,6 +37,14 @@ export class ModeSelect {
         color: '#f97316'
       },
       {
+        id: 'online',
+        badge: 'NETPLAY P2P',
+        title: '🌐 ONLINE VERSUS',
+        subtitle: 'BATTLE A FRIEND VIA ROOM CODE',
+        description: 'Connect directly with a friend online using zero-setup WebRTC peer-to-peer. Low-latency input streaming with room codes and instant invite links.',
+        color: '#c084fc'
+      },
+      {
         id: 'training',
         badge: 'DOJO LAB',
         title: '🥋 PRACTICE MODE',
@@ -106,17 +114,17 @@ export class ModeSelect {
     // Header Title
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 22px monospace';
-    ctx.fillText('SELECT GAME MODE', W / 2, 34);
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('SELECT GAME MODE', W / 2, 26);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = 'bold 11px monospace';
-    ctx.fillText('CHOOSE YOUR DISCIPLINE FOR THE CONCRETE ARENA', W / 2, 50);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText('CHOOSE YOUR DISCIPLINE FOR THE CONCRETE ARENA', W / 2, 40);
 
     // 2. Mode Cards Layout
-    const startY = 64;
-    const cardH = 46;
-    const cardGap = 8;
+    const startY = 48;
+    const cardH = 35;
+    const cardGap = 5;
     const cardW = 540;
     const cardX = (W - cardW) / 2;
 
@@ -141,9 +149,9 @@ export class ModeSelect {
 
         // Little arrow cursor
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px monospace';
+        ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'right';
-        ctx.fillText('▶', cardX - 10, y + cardH / 2 + 5);
+        ctx.fillText('▶', cardX - 8, y + cardH / 2 + 5);
       } else {
         ctx.fillStyle = 'rgba(15, 12, 30, 0.65)';
         ctx.fillRect(cardX, y, cardW, cardH);
@@ -155,42 +163,42 @@ export class ModeSelect {
       // Badge
       ctx.textAlign = 'left';
       ctx.fillStyle = isSelected ? m.color : '#64748b';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(`[ ${m.badge} ]`, cardX + 18, y + 15);
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(`[ ${m.badge} ]`, cardX + 16, y + 12);
 
       // Title
       ctx.fillStyle = isSelected ? '#ffffff' : '#cbd5e1';
-      ctx.font = isSelected ? 'bold 15px monospace' : '14px monospace';
-      ctx.fillText(m.title, cardX + 18, y + 33);
+      ctx.font = isSelected ? 'bold 13px monospace' : '12px monospace';
+      ctx.fillText(m.title, cardX + 16, y + 27);
 
       // Subtitle / Difficulty on Right
       if (m.id === 'cpu') {
         const diffColor = this.currentDifficulty === 'hard' ? '#ef4444' : (this.currentDifficulty === 'normal' ? '#f59e0b' : '#22c55e');
         ctx.textAlign = 'right';
         ctx.fillStyle = diffColor;
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(`DIFFICULTY: ◄ ${this.currentDifficulty.toUpperCase()} ►`, cardX + cardW - 16, y + 27);
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(`DIFFICULTY: ◄ ${this.currentDifficulty.toUpperCase()} ►`, cardX + cardW - 14, y + 22);
       } else {
         ctx.textAlign = 'right';
         ctx.fillStyle = isSelected ? '#38bdf8' : '#475569';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText(m.subtitle, cardX + cardW - 16, y + 27);
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(m.subtitle, cardX + cardW - 14, y + 22);
       }
     });
 
     // 3. Selected Mode Description Box
-    const descY = H - 65;
+    const descY = H - 62;
     const current = this.modes[this.selectedIndex];
     ctx.fillStyle = 'rgba(10, 8, 22, 0.9)';
-    ctx.fillRect(cardX, descY, cardW, 36);
+    ctx.fillRect(cardX, descY, cardW, 34);
     ctx.strokeStyle = '#332a58';
     ctx.lineWidth = 1;
-    ctx.strokeRect(cardX, descY, cardW, 36);
+    ctx.strokeRect(cardX, descY, cardW, 34);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '10px monospace';
-    ctx.fillText(current.description, W / 2, descY + 22);
+    ctx.fillText(current.description, W / 2, descY + 21);
 
     // 4. Controls Footer
     ctx.fillStyle = '#94a3b8';

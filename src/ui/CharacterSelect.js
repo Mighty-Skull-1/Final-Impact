@@ -63,6 +63,7 @@ export class CharacterSelect {
     this.stageIndex = 0;
     this.gameMode = 'campaign'; // 'campaign', 'cpu', '2p', '2v2', 'training'
     this.cpuDifficulty = 'normal';
+    this.localPlayerNum = 1;
     this.p1Locked = false;
     this.p2Locked = false;
     this.animTimer = 0;
@@ -75,9 +76,10 @@ export class CharacterSelect {
     });
   }
 
-  setMode(mode, difficulty = 'normal') {
+  setMode(mode, difficulty = 'normal', localPlayerNum = 1) {
     this.gameMode = mode;
     this.cpuDifficulty = difficulty;
+    this.localPlayerNum = localPlayerNum;
   }
 
   handleInput(inputState, isP1 = true) {
@@ -147,6 +149,7 @@ export class CharacterSelect {
       cpu: `⚔️ MODE: 1V1 VS CPU (AI Difficulty: ${(this.cpuDifficulty || 'normal').toUpperCase()})`,
       '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER VERSUS',
       '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL',
+      online: '🌐 MODE: ONLINE VERSUS (P2P WEBRTC NETPLAY)',
       training: '🥋 MODE: PRACTICE / TRAINING DOJO'
     };
     ctx.fillText(modeLabels[this.gameMode] || modeLabels.campaign, W / 2, 50);
@@ -172,22 +175,31 @@ export class CharacterSelect {
       ctx.fillRect(cx, cardY, cardW, cardH);
 
       // Card Border & Highlight
-      if (isP1Hover) {
+      if (isP1Hover && isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online')) {
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
+        ctx.fillStyle = '#a855f7';
+        ctx.font = 'bold 13px monospace';
+        ctx.fillText('P1 & P2', cx + cardW / 2, cardY - 8);
+      } else if (isP1Hover) {
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         // P1 Marker
         ctx.fillStyle = '#38bdf8';
         ctx.font = 'bold 14px monospace';
-        ctx.fillText('PLAYER 1', cx + cardW / 2, cardY - 8);
-      } else if (isP2Hover && this.gameMode === '2p') {
+        const p1Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'HOST (P1)' : 'YOU (P1)') : 'PLAYER 1';
+        ctx.fillText(p1Tag, cx + cardW / 2, cardY - 8);
+      } else if (isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online')) {
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         // P2 Marker
         ctx.fillStyle = '#ef4444';
         ctx.font = 'bold 14px monospace';
-        ctx.fillText('PLAYER 2', cx + cardW / 2, cardY - 8);
+        const p2Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'YOU (P2)' : 'RIVAL (P2)') : 'PLAYER 2';
+        ctx.fillText(p2Tag, cx + cardW / 2, cardY - 8);
       } else {
         ctx.strokeStyle = '#334155';
         ctx.lineWidth = 1;
@@ -238,9 +250,15 @@ export class CharacterSelect {
 
     // Instructions Footer
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px monospace';
-    ctx.fillText('PRESS [ENTER] OR [SPACE] TO START THE BATTLE', W / 2, H - 20);
+    if (this.gameMode === 'online' && this.localPlayerNum === 2) {
+      const pulse = Math.floor(Date.now() / 350) % 2 === 0;
+      ctx.fillStyle = pulse ? '#38bdf8' : '#0284c7';
+      ctx.fillText('WAITING FOR HOST TO START THE BATTLE...', W / 2, H - 20);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('PRESS [ENTER] OR [SPACE] TO START THE BATTLE', W / 2, H - 20);
+    }
 
     ctx.textAlign = 'left';
   }

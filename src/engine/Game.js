@@ -23,10 +23,13 @@ import { Matriarch } from '../fighters/bosses/Matriarch.js';
 import { StreetLord } from '../fighters/bosses/StreetLord.js';
 import { UrbanLegend } from '../fighters/bosses/UrbanLegend.js';
 import { Champion } from '../fighters/bosses/Champion.js';
+import { Netplay } from '../network/Netplay.js';
+import { OnlineLobby } from '../ui/OnlineLobby.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
   MODE_SELECT: 'MODE_SELECT',
+  ONLINE_LOBBY: 'ONLINE_LOBBY',
   CHAR_SELECT: 'CHAR_SELECT',
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
@@ -44,6 +47,85 @@ export class Game {
     this.modeSelect = new ModeSelect();
     this.charSelect = new CharacterSelect();
     this.hud = new HUD();
+
+    // Online Multiplayer Netplay Engine & Lobby UI
+    this.netplay = new Netplay();
+    this.onlineLobby = new OnlineLobby(this.netplay, this);
+    this.isOnline = false;
+    this.onlineSyncTick = 0;
+
+    // Listen for Netplay peer connection
+    this.netplay.onConnect((isHost) => {
+      this.isOnline = true;
+      this.charSelect.setMode('online', 'normal', isHost ? 1 : 2);
+      this.screen = GAME_SCREENS.CHAR_SELECT;
+      soundFX.playMenuSelect();
+    });
+
+    // Listen for Netplay disconnect / connection loss
+    this.netplay.onDisconnect(() => {
+      if (this.isOnline) {
+        this.isOnline = false;
+        soundFX.playBlock();
+        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER || this.screen === GAME_SCREENS.VICTORY) {
+          this.onlineLobby.reset();
+          this.onlineLobby.subState = 'MENU';
+          this.onlineLobby.netplay.statusMessage = 'CHALLENGER DISCONNECTED';
+          this.screen = GAME_SCREENS.ONLINE_LOBBY;
+        }
+      }
+    });
+
+    // Handle incoming Netplay sync messages
+    this.netplay.onMessage((msg) => {
+      if (msg.type === 'CHAR_SYNC') {
+        if (!this.netplay.isHost) {
+          if (msg.p1Index !== undefined) this.charSelect.p1Index = msg.p1Index;
+          if (msg.stageIndex !== undefined) this.charSelect.stageIndex = msg.stageIndex;
+        } else {
+          if (msg.p2Index !== undefined) this.charSelect.p2Index = msg.p2Index;
+        }
+        if (msg.startMatch) {
+          soundFX.playAnnouncer('ROUND1');
+          soundFX.startMusic('fight');
+          this.startMatch();
+        }
+      } else if (msg.type === 'REMATCH') {
+        soundFX.playAnnouncer('ROUND1');
+        soundFX.startMusic('fight');
+        this.startMatch();
+      }
+    });
+
+    // Canvas click delegation for Online Lobby buttons
+    this.canvas.addEventListener('click', (e) => {
+      if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / (rect.width || 1);
+        const scaleY = this.canvas.height / (rect.height || 1);
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        this.onlineLobby.handleClick(x, y);
+      }
+    });
+
+    // URL Query Parameter ?room=XXXX auto-join
+    if (typeof window !== 'undefined' && window.location && window.location.search) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const room = params.get('room');
+        if (room) {
+          this.onlineLobby.subState = 'JOINING';
+          this.onlineLobby.joinInputCode = room.toUpperCase();
+          this.screen = GAME_SCREENS.ONLINE_LOBBY;
+          setTimeout(() => {
+            this.netplay.joinMatch(room);
+          }, 600);
+        }
+      } catch (e) {
+        console.warn('Failed to parse URL query params', e);
+      }
+    }
 
     // AI Controllers for multi-fighter brawl and campaign
     this.ai = new AIController('normal');
@@ -113,14 +195,39 @@ export class Game {
           this.settingsManager.toggle();
         } else if (this.screen === GAME_SCREENS.MODE_SELECT) {
           this.screen = GAME_SCREENS.TITLE;
+        } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+          if (this.onlineLobby.subState === 'MENU') {
+            this.screen = GAME_SCREENS.MODE_SELECT;
+          } else {
+            this.onlineLobby.handleInput({ back: true });
+          }
         } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-          this.screen = GAME_SCREENS.MODE_SELECT;
+          if (this.isOnline) {
+            this.netplay.disconnect();
+            this.isOnline = false;
+            this.screen = GAME_SCREENS.ONLINE_LOBBY;
+          } else {
+            this.screen = GAME_SCREENS.MODE_SELECT;
+          }
         } else if (this.screen === GAME_SCREENS.FIGHT) {
           this.settingsManager.toggle();
+        } else if (this.screen === GAME_SCREENS.VICTORY && this.isOnline) {
+          this.netplay.disconnect();
+          this.isOnline = false;
+          this.screen = GAME_SCREENS.ONLINE_LOBBY;
         }
       }
       if (e.code === 'KeyP') {
         this.settingsManager.toggle();
+      }
+
+      // Online Lobby Key forwarding (C to copy link in HOSTING, typing in JOINING)
+      if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+        if (e.code === 'KeyC' && this.onlineLobby.subState === 'HOSTING') {
+          this.onlineLobby.handleInput({ copy: true });
+        } else if (this.onlineLobby.subState === 'JOINING' && e.code !== 'Space' && e.code !== 'Enter') {
+          this.onlineLobby.handleInput({ key: e.key });
+        }
       }
 
       // Screen navigation on enter / space
@@ -141,12 +248,43 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playGong();
+      if (this.modeSelect.selectedMode === 'online') {
+        this.onlineLobby.reset();
+        this.screen = GAME_SCREENS.ONLINE_LOBBY;
+        return;
+      }
       this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
       this.screen = GAME_SCREENS.CHAR_SELECT;
       return;
     }
 
+    if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+      this.onlineLobby.handleInput({ confirm: true });
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+      if (this.isOnline) {
+        if (this.netplay.isHost) {
+          this.netplay.send({
+            type: 'CHAR_SYNC',
+            p1Index: this.charSelect.p1Index,
+            stageIndex: this.charSelect.stageIndex,
+            startMatch: true
+          });
+          soundFX.playAnnouncer('ROUND1');
+          soundFX.startMusic('fight');
+          this.startMatch();
+        } else {
+          this.netplay.send({
+            type: 'CHAR_SYNC',
+            p2Index: this.charSelect.p2Index,
+            p2Ready: true
+          });
+          soundFX.playMenuSelect();
+        }
+        return;
+      }
       soundFX.playAnnouncer('ROUND1');
       soundFX.startMusic('fight');
       this.startMatch();
@@ -154,6 +292,11 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.VICTORY) {
+      if (this.isOnline) {
+        this.netplay.send({ type: 'REMATCH' });
+        this.startMatch();
+        return;
+      }
       this.screen = GAME_SCREENS.MODE_SELECT;
     }
   }
@@ -171,6 +314,7 @@ export class Game {
     this.isCampaign = (mode === 'campaign');
     this.is2v2 = (mode === '2v2');
     this.isTraining = (mode === 'training');
+    this.isOnline = (mode === 'online') || (this.netplay && this.netplay.isConnected);
 
     if (this.isCampaign) {
       this.bossIndex = 0;
@@ -192,9 +336,9 @@ export class Game {
 
       this.allFighters = [this.f1, this.f2, this.f3, this.f4];
     } else {
-      // Standard 1v1 (CPU, 2P, Training)
+      // Standard 1v1 (CPU, 2P, Online, Training)
       const p2Id = this.charSelect.characters[this.charSelect.p2Index].id;
-      const isCpu = mode !== '2p';
+      const isCpu = !this.isOnline && (mode !== '2p');
 
       this.f1 = this.createFighter(p1Id, 220, true, 1, false);
       this.f2 = this.createFighter(p2Id, 700, false, 2, isCpu);
@@ -204,7 +348,7 @@ export class Game {
 
       if (this.isTraining) {
         this.ai.setDifficulty('easy');
-      } else {
+      } else if (!this.isOnline) {
         this.ai.setDifficulty(this.charSelect.cpuDifficulty || 'normal');
       }
     }
@@ -409,6 +553,20 @@ export class Game {
       return;
     }
 
+    // 0. Online Lobby Navigation
+    if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+        input.consumeKey('KeyW');
+        input.consumeKey('ArrowUp');
+        this.onlineLobby.handleInput({ up: true });
+      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+        input.consumeKey('KeyS');
+        input.consumeKey('ArrowDown');
+        this.onlineLobby.handleInput({ down: true });
+      }
+      return;
+    }
+
     // 1. Mode Select Navigation (Discrete single-tap checks)
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
@@ -435,24 +593,34 @@ export class Game {
 
     // 2. Character Select Navigation (Discrete single-tap checks)
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+      const isHostOrLocal = !this.isOnline || this.netplay.isHost;
+
       if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft')) {
         input.consumeKey('KeyA');
         input.consumeKey('ArrowLeft');
-        this.charSelect.handleInput({ left: true }, true);
+        this.charSelect.handleInput({ left: true }, isHostOrLocal);
+        if (this.isOnline) this.syncCharSelect();
       } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight')) {
         input.consumeKey('KeyD');
         input.consumeKey('ArrowRight');
-        this.charSelect.handleInput({ right: true }, true);
+        this.charSelect.handleInput({ right: true }, isHostOrLocal);
+        if (this.isOnline) this.syncCharSelect();
       }
 
       if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
         input.consumeKey('KeyW');
         input.consumeKey('ArrowUp');
-        this.charSelect.handleInput({ up: true }, true);
+        if (isHostOrLocal) {
+          this.charSelect.handleInput({ up: true }, true);
+          if (this.isOnline) this.syncCharSelect();
+        }
       } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
         input.consumeKey('KeyS');
         input.consumeKey('ArrowDown');
-        this.charSelect.handleInput({ down: true }, true);
+        if (isHostOrLocal) {
+          this.charSelect.handleInput({ down: true }, true);
+          if (this.isOnline) this.syncCharSelect();
+        }
       }
 
       // Player 2 selection in 2P mode
@@ -500,50 +668,54 @@ export class Game {
     // 1. Update Input Manager
     input.update(this.f1.facingRight, this.f2 ? this.f2.facingRight : false);
 
-    // 2. Process Player 1 Inputs
-    const p1Input = input.getState(1, this.f1.facingRight);
-    const targetForP1 = this.getNearestOpponent(this.f1);
-    this.f1.handleInput(p1Input, input, targetForP1);
+    if (this.isOnline) {
+      this.updateOnlineMatch();
+    } else {
+      // 2. Process Player 1 Inputs
+      const p1Input = input.getState(1, this.f1.facingRight);
+      const targetForP1 = this.getNearestOpponent(this.f1);
+      this.f1.handleInput(p1Input, input, targetForP1);
 
-    // Submission struggle button mash for P1
-    if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
-      if (p1Input.lpJust || p1Input.hpJust || p1Input.lkJust || p1Input.hkJust || p1Input.dirtyJust) {
-        this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
-        soundFX.playWhoosh('light');
-      }
-    }
-
-    // 3. Process Player 2 / Main Opponent Inputs
-    if (this.f2 && !this.f2.isDead) {
-      let p2Input;
-      const targetForF2 = this.getNearestOpponent(this.f2);
-      if (this.f2.isCpu) {
-        p2Input = this.ai.update(this.f2, targetForF2);
-        if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
-          this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 1.2);
+      // Submission struggle button mash for P1
+      if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+        if (p1Input.lpJust || p1Input.hpJust || p1Input.lkJust || p1Input.hkJust || p1Input.dirtyJust) {
+          this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
+          soundFX.playWhoosh('light');
         }
-      } else {
-        p2Input = input.getState(2, this.f2.facingRight);
-        if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
-          if (p2Input.lpJust || p2Input.hpJust || p2Input.lkJust || p2Input.hkJust || p2Input.dirtyJust) {
-            this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 14);
-            soundFX.playWhoosh('light');
+      }
+
+      // 3. Process Player 2 / Main Opponent Inputs
+      if (this.f2 && !this.f2.isDead) {
+        let p2Input;
+        const targetForF2 = this.getNearestOpponent(this.f2);
+        if (this.f2.isCpu) {
+          p2Input = this.ai.update(this.f2, targetForF2);
+          if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+            this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 1.2);
+          }
+        } else {
+          p2Input = input.getState(2, this.f2.facingRight);
+          if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+            if (p2Input.lpJust || p2Input.hpJust || p2Input.lkJust || p2Input.hkJust || p2Input.dirtyJust) {
+              this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 14);
+              soundFX.playWhoosh('light');
+            }
           }
         }
+        this.f2.handleInput(p2Input, input, targetForF2);
       }
-      this.f2.handleInput(p2Input, input, targetForF2);
-    }
 
-    // 4. Process Extra Combatants (Ally f3, Second Boss/Enemy f4)
-    if (this.f3 && !this.f3.isDead) {
-      const targetForF3 = this.getNearestOpponent(this.f3);
-      const f3Input = this.ai2.update(this.f3, targetForF3);
-      this.f3.handleInput(f3Input, input, targetForF3);
-    }
-    if (this.f4 && !this.f4.isDead) {
-      const targetForF4 = this.getNearestOpponent(this.f4);
-      const f4Input = this.ai3.update(this.f4, targetForF4);
-      this.f4.handleInput(f4Input, input, targetForF4);
+      // 4. Process Extra Combatants (Ally f3, Second Boss/Enemy f4)
+      if (this.f3 && !this.f3.isDead) {
+        const targetForF3 = this.getNearestOpponent(this.f3);
+        const f3Input = this.ai2.update(this.f3, targetForF3);
+        this.f3.handleInput(f3Input, input, targetForF3);
+      }
+      if (this.f4 && !this.f4.isDead) {
+        const targetForF4 = this.getNearestOpponent(this.f4);
+        const f4Input = this.ai3.update(this.f4, targetForF4);
+        this.f4.handleInput(f4Input, input, targetForF4);
+      }
     }
 
     // 5. Environmental Pickup Check (Down + Dirty / C to collect)
@@ -605,15 +777,160 @@ export class Game {
     this.checkMatchEnd();
   }
 
+  syncCharSelect() {
+    if (!this.isOnline || !this.netplay.isConnected) return;
+    if (this.netplay.isHost) {
+      this.netplay.send({
+        type: 'CHAR_SYNC',
+        p1Index: this.charSelect.p1Index,
+        stageIndex: this.charSelect.stageIndex
+      });
+    } else {
+      this.netplay.send({
+        type: 'CHAR_SYNC',
+        p2Index: this.charSelect.p2Index
+      });
+    }
+  }
+
+  updateOnlineMatch() {
+    const isHost = this.netplay.isHost;
+    const targetForP1 = this.getNearestOpponent(this.f1);
+    const targetForF2 = this.f2 ? this.getNearestOpponent(this.f2) : this.f1;
+
+    if (isHost) {
+      // Host controls f1 via local P1 controls
+      const localInput = input.getState(1, this.f1.facingRight);
+      this.netplay.sendInput(localInput);
+      this.f1.handleInput(localInput, input, targetForP1);
+
+      if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+        if (localInput.lpJust || localInput.hpJust || localInput.lkJust || localInput.hkJust || localInput.dirtyJust) {
+          this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
+          soundFX.playWhoosh('light');
+        }
+      }
+
+      if (this.f2 && !this.f2.isDead) {
+        const remoteInput = this.netplay.remoteInputState || {};
+        this.f2.handleInput(remoteInput, input, targetForF2);
+
+        if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+          if (remoteInput.lpJust || remoteInput.hpJust || remoteInput.lkJust || remoteInput.hkJust || remoteInput.dirtyJust) {
+            this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 14);
+            soundFX.playWhoosh('light');
+          }
+        }
+      }
+
+      // Host streams authoritative snapshot every 4 ticks (~15Hz)
+      this.onlineSyncTick++;
+      if (this.onlineSyncTick % 4 === 0 && this.f2) {
+        this.netplay.sendSnapshot({
+          f1: {
+            x: Math.round(this.f1.x),
+            y: Math.round(this.f1.y),
+            vx: this.f1.vx,
+            vy: this.f1.vy,
+            health: this.f1.health,
+            stamina: this.f1.stamina,
+            superMeter: this.f1.superMeter,
+            state: this.f1.state,
+            facingRight: this.f1.facingRight,
+            roundsWon: this.f1.roundsWon
+          },
+          f2: {
+            x: Math.round(this.f2.x),
+            y: Math.round(this.f2.y),
+            vx: this.f2.vx,
+            vy: this.f2.vy,
+            health: this.f2.health,
+            stamina: this.f2.stamina,
+            superMeter: this.f2.superMeter,
+            state: this.f2.state,
+            facingRight: this.f2.facingRight,
+            roundsWon: this.f2.roundsWon
+          },
+          round: this.round,
+          timer: this.hud.timer
+        });
+      }
+    } else {
+      // Client controls f2 via local P1 controls
+      if (this.f2 && !this.f2.isDead) {
+        const localInput = input.getState(1, this.f2.facingRight);
+        this.netplay.sendInput(localInput);
+        this.f2.handleInput(localInput, input, targetForF2);
+
+        if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+          if (localInput.lpJust || localInput.hpJust || localInput.lkJust || localInput.hkJust || localInput.dirtyJust) {
+            this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 14);
+            soundFX.playWhoosh('light');
+          }
+        }
+      }
+
+      // Challenger applies host remote inputs to f1
+      const remoteInput = this.netplay.remoteInputState || {};
+      this.f1.handleInput(remoteInput, input, targetForP1);
+
+      if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+        if (remoteInput.lpJust || remoteInput.hpJust || remoteInput.lkJust || remoteInput.hkJust || remoteInput.dirtyJust) {
+          this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
+          soundFX.playWhoosh('light');
+        }
+      }
+
+      // Reconcile client with authoritative host snapshot
+      if (this.netplay.latestSnapshot) {
+        const snap = this.netplay.latestSnapshot;
+        if (snap.f1 && this.f1) {
+          this.f1.health = snap.f1.health;
+          this.f1.stamina = snap.f1.stamina;
+          this.f1.superMeter = snap.f1.superMeter;
+          this.f1.roundsWon = snap.f1.roundsWon;
+          if (Math.abs(this.f1.x - snap.f1.x) > 40) this.f1.x = snap.f1.x;
+          else this.f1.x += (snap.f1.x - this.f1.x) * 0.25;
+          if (Math.abs(this.f1.y - snap.f1.y) > 40) this.f1.y = snap.f1.y;
+          else this.f1.y += (snap.f1.y - this.f1.y) * 0.25;
+        }
+        if (snap.f2 && this.f2) {
+          this.f2.health = snap.f2.health;
+          this.f2.stamina = snap.f2.stamina;
+          this.f2.superMeter = snap.f2.superMeter;
+          this.f2.roundsWon = snap.f2.roundsWon;
+          if (Math.abs(this.f2.x - snap.f2.x) > 50) this.f2.x = snap.f2.x;
+          else this.f2.x += (snap.f2.x - this.f2.x) * 0.2;
+          if (Math.abs(this.f2.y - snap.f2.y) > 50) this.f2.y = snap.f2.y;
+          else this.f2.y += (snap.f2.y - this.f2.y) * 0.2;
+        }
+        if (snap.timer !== undefined && this.hud) {
+          this.hud.timer = snap.timer;
+        }
+      }
+    }
+  }
+
   checkPickups() {
     this.allFighters.forEach(f => {
       if (f.isDead || f.heldPickup) return;
       for (const p of this.pickups) {
         if (p.active && !p.isAirborne && Math.abs(f.x - p.x) < 45) {
-          const isP1 = f.playerNum === 1;
-          const wantsPickup = isP1
-            ? (input.isDown('KeyS') && input.isJustPressed('KeyC'))
-            : (f.isCpu && Math.random() < 0.04);
+          let wantsPickup = false;
+          if (this.isOnline) {
+            const isLocal = (this.netplay.isHost && f.playerNum === 1) || (!this.netplay.isHost && f.playerNum === 2);
+            if (isLocal) {
+              wantsPickup = (input.isDown('KeyS') && input.isJustPressed('KeyC'));
+            } else {
+              const remote = this.netplay.remoteInputState || {};
+              wantsPickup = !!(remote.rawDown && remote.dirtyJust);
+            }
+          } else {
+            const isP1 = f.playerNum === 1;
+            wantsPickup = isP1
+              ? (input.isDown('KeyS') && input.isJustPressed('KeyC'))
+              : (f.isCpu ? Math.random() < 0.04 : (input.isDown('Numpad2') && input.isJustPressed('Numpad3')));
+          }
 
           if (wantsPickup) {
             f.heldPickup = p.type;
@@ -948,6 +1265,11 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+      this.onlineLobby.render(ctx, W, H);
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       this.modeSelect.render(ctx, W, H);
       return;
@@ -995,6 +1317,39 @@ export class Game {
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
     this.hud.render(ctx, this.f1, primaryEnemy, W, H);
 
+    // Online Connection & Ping Badge
+    if (this.isOnline && this.netplay) {
+      this.renderOnlineBadge(ctx, W, H);
+    }
+
+    ctx.restore();
+  }
+
+  renderOnlineBadge(ctx, W, H) {
+    ctx.save();
+    const ping = this.netplay.ping || 24;
+    const isHost = this.netplay.isHost;
+    const roleText = isHost ? 'HOST' : 'CLIENT';
+    const pingColor = ping < 60 ? '#22c55e' : (ping < 120 ? '#eab308' : '#ef4444');
+
+    const badgeX = W / 2 - 70;
+    const badgeY = 6;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillRect(badgeX, badgeY, 140, 15);
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(badgeX, badgeY, 140, 15);
+
+    // Online dot
+    ctx.fillStyle = pingColor;
+    ctx.beginPath();
+    ctx.arc(badgeX + 8, badgeY + 7.5, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`ONLINE [${roleText}] ${ping}ms`, badgeX + 16, badgeY + 11);
     ctx.restore();
   }
 
