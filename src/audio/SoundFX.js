@@ -21,9 +21,18 @@ class SoundFX {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioCtx();
       
+      // Master Dynamics Compressor / Limiter (Prevents audio clipping, popping & crackling)
+      this.compressor = this.ctx.createDynamicsCompressor();
+      this.compressor.threshold.setValueAtTime(-6, this.ctx.currentTime);
+      this.compressor.knee.setValueAtTime(12, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(8, this.ctx.currentTime);
+      this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+      this.compressor.release.setValueAtTime(0.12, this.ctx.currentTime);
+
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
-      this.masterGain.connect(this.ctx.destination);
+      this.masterGain.gain.setValueAtTime(0.68, this.ctx.currentTime);
+      this.masterGain.connect(this.compressor);
+      this.compressor.connect(this.ctx.destination);
 
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
@@ -32,6 +41,14 @@ class SoundFX {
       this.musicGain = this.ctx.createGain();
       this.musicGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
       this.musicGain.connect(this.masterGain);
+
+      // Pre-generate reusable 2-second white noise buffer (eliminates GC pauses & crackling)
+      const noiseLen = this.ctx.sampleRate * 2;
+      this.sharedNoiseBuffer = this.ctx.createBuffer(1, noiseLen, this.ctx.sampleRate);
+      const data = this.sharedNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseLen; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
 
       // Warm up
       if (this.ctx.state === 'suspended') {
@@ -172,20 +189,14 @@ class SoundFX {
 
   // Light Attack Swing Whoosh
   playWhoosh(type = 'light') {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.sharedNoiseBuffer) return;
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
 
-    const bufferSize = this.ctx.sampleRate * 0.12;
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
     const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
+    noise.buffer = this.sharedNoiseBuffer;
+    noise.loop = true;
 
     filter.type = 'bandpass';
     const startFreq = type === 'heavy' ? 700 : 1200;
@@ -194,7 +205,7 @@ class SoundFX {
     filter.frequency.exponentialRampToValueAtTime(endFreq, now + 0.12);
     filter.Q.setValueAtTime(3.0, now);
 
-    gain.gain.setValueAtTime(type === 'heavy' ? 0.35 : 0.22, now);
+    gain.gain.setValueAtTime(type === 'heavy' ? 0.30 : 0.18, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
     noise.connect(filter);
@@ -496,26 +507,27 @@ class SoundFX {
   }
 
   playNoiseCrack(duration = 0.2, filterFreq = 1200, gainVal = 0.4) {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.sharedNoiseBuffer) return;
     try {
-      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
+      const now = this.ctx.currentTime;
       const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
+      noise.buffer = this.sharedNoiseBuffer;
+      noise.loop = true;
+
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(filterFreq, this.ctx.currentTime);
+      filter.frequency.setValueAtTime(filterFreq, now);
+
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      gain.gain.setValueAtTime(gainVal, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
       noise.connect(filter);
       filter.connect(gain);
       gain.connect(this.sfxGain);
-      noise.start();
+
+      noise.start(now);
+      noise.stop(now + duration);
     } catch (e) {}
   }
 
@@ -604,18 +616,13 @@ class SoundFX {
 
   // Arena Corner Crowd Cheering Roar
   playCrowdCheer() {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.sharedNoiseBuffer) return;
     const now = this.ctx.currentTime;
     try {
       const duration = 1.0;
-      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
       const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
+      noise.buffer = this.sharedNoiseBuffer;
+      noise.loop = true;
 
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'bandpass';
@@ -631,6 +638,7 @@ class SoundFX {
       filter.connect(gain);
       gain.connect(this.sfxGain);
       noise.start(now);
+      noise.stop(now + duration);
     } catch (e) {}
   }
 
@@ -693,36 +701,6 @@ class SoundFX {
         setTimeout(() => speechChord(523, 0.6, 'square'), 600);
         break;
     }
-  }
-
-  // Helper: Noise burst
-  playNoiseCrack(duration, freq, vol) {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    const bufferSize = Math.floor(this.ctx.sampleRate * duration);
-    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
-    }
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(freq, now);
-    filter.Q.setValueAtTime(1.5, now);
-
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.sfxGain);
-
-    noise.start(now);
-    noise.stop(now + duration);
   }
 
   // --- Dynamic Arcade Fight Background Music ---
@@ -798,32 +776,28 @@ class SoundFX {
       osc.stop(time + 0.12);
 
       // Snare rattle
-      const bufferSize = this.ctx.sampleRate * 0.1;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.setValueAtTime(1000, time);
-      const ngain = this.ctx.createGain();
-      ngain.gain.setValueAtTime(0.18, time);
-      ngain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-      noise.connect(filter);
-      filter.connect(ngain);
-      ngain.connect(this.musicGain);
-      noise.start(time);
-      noise.stop(time + 0.1);
+      if (this.sharedNoiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.sharedNoiseBuffer;
+        noise.loop = true;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(1000, time);
+        const ngain = this.ctx.createGain();
+        ngain.gain.setValueAtTime(0.18, time);
+        ngain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+        noise.connect(filter);
+        filter.connect(ngain);
+        ngain.connect(this.musicGain);
+        noise.start(time);
+        noise.stop(time + 0.1);
+      }
     }
 
-    if (isHat) {
-      const bufferSize = this.ctx.sampleRate * 0.04;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    if (isHat && this.sharedNoiseBuffer) {
       const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
+      noise.buffer = this.sharedNoiseBuffer;
+      noise.loop = true;
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'highpass';
       filter.frequency.setValueAtTime(6000, time);

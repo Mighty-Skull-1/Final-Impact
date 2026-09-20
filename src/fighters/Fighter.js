@@ -501,13 +501,13 @@ export class Fighter {
       }
     }
 
-    // Normal Attacks
-    const lpTrigger = inputState.lpJust || inputState.lp || (inputManager && inputManager.peekAction(pNum) === 'LP');
-    const hpTrigger = inputState.hpJust || inputState.hp || (inputManager && inputManager.peekAction(pNum) === 'HP');
-    const lkTrigger = inputState.lkJust || inputState.lk || (inputManager && inputManager.peekAction(pNum) === 'LK');
-    const hkTrigger = inputState.hkJust || inputState.hk || (inputManager && inputManager.peekAction(pNum) === 'HK');
-    const sp1Trigger = inputState.sp1Just || inputState.sp1 || (inputManager && inputManager.peekAction(pNum) === 'SP1');
-    const sp2Trigger = inputState.sp2Just || inputState.sp2 || (inputManager && inputManager.peekAction(pNum) === 'SP2');
+    // Normal Attacks: Only trigger on leading-edge press or buffered intent (prevents sticky attack loops)
+    const lpTrigger = inputState.lpJust || (inputManager && inputManager.peekAction(pNum) === 'LP');
+    const hpTrigger = inputState.hpJust || (inputManager && inputManager.peekAction(pNum) === 'HP');
+    const lkTrigger = inputState.lkJust || (inputManager && inputManager.peekAction(pNum) === 'LK');
+    const hkTrigger = inputState.hkJust || (inputManager && inputManager.peekAction(pNum) === 'HK');
+    const sp1Trigger = inputState.sp1Just || (inputManager && inputManager.peekAction(pNum) === 'SP1');
+    const sp2Trigger = inputState.sp2Just || (inputManager && inputManager.peekAction(pNum) === 'SP2');
 
     if (!this.isGrounded) {
       if (this.state === FIGHTER_STATE.JUMP) {

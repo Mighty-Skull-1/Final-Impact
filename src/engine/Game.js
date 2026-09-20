@@ -190,7 +190,9 @@ export class Game {
         if (soundFX.musicPlaying) soundFX.stopMusic();
         else soundFX.startMusic('fight');
       }
-      if (e.code === 'Escape') {
+      if (e.code === 'Escape' || e.code === 'Tab' || e.code === 'Backquote') {
+        e.preventDefault();
+        e.stopPropagation();
         if (this.settingsManager.isOpen) {
           this.settingsManager.toggle();
         } else if (this.screen === GAME_SCREENS.MODE_SELECT) {
@@ -218,6 +220,7 @@ export class Game {
         }
       }
       if (e.code === 'KeyP') {
+        e.preventDefault();
         this.settingsManager.toggle();
       }
 

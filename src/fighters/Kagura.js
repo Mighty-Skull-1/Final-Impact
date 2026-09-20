@@ -87,9 +87,9 @@ export class Kagura extends Fighter {
       return;
     }
 
-    // 4. Special Moves
+    // 4. Special Moves (Leading-edge and buffer only)
     // Crescent Gale
-    const isCrescent = (inputManager.checkQCF(pNum) && (inputState.lkJust || inputState.hkJust || inputState.lk || inputState.hk)) || inputState.sp2Just || inputState.sp2 || inputManager.peekAction(pNum) === 'SP2';
+    const isCrescent = (inputManager.checkQCF(pNum) && (inputState.lkJust || inputState.hkJust)) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
     if (isCrescent) {
       inputManager.consumeBuffer(pNum);
       this.startCrescentGale();
@@ -97,7 +97,7 @@ export class Kagura extends Fighter {
     }
 
     // Shadow Warp
-    const isWarp = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust || inputState.lp || inputState.hp)) || inputState.sp1Just || inputState.sp1 || inputManager.peekAction(pNum) === 'SP1';
+    const isWarp = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isWarp) {
       inputManager.consumeBuffer(pNum);
       this.startShadowWarp(opponent);
@@ -105,7 +105,7 @@ export class Kagura extends Fighter {
     }
 
     // Ki Kunai
-    const isKunai = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust || inputState.lp || inputState.hp)) || inputState.sp3Just || inputState.sp3 || inputManager.peekAction(pNum) === 'SP3';
+    const isKunai = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isKunai) {
       inputManager.consumeBuffer(pNum);
       this.startKunai();
@@ -124,11 +124,11 @@ export class Kagura extends Fighter {
       }
     }
 
-    // 6. Normal Ground Attacks
-    const lpTrigger = inputState.lpJust || inputState.lp || inputManager.peekAction(pNum) === 'LP';
-    const hpTrigger = inputState.hpJust || inputState.hp || inputManager.peekAction(pNum) === 'HP';
-    const lkTrigger = inputState.lkJust || inputState.lk || inputManager.peekAction(pNum) === 'LK';
-    const hkTrigger = inputState.hkJust || inputState.hk || inputManager.peekAction(pNum) === 'HK';
+    // 6. Normal Ground Attacks (Leading-edge and buffer only)
+    const lpTrigger = inputState.lpJust || inputManager.peekAction(pNum) === 'LP';
+    const hpTrigger = inputState.hpJust || inputManager.peekAction(pNum) === 'HP';
+    const lkTrigger = inputState.lkJust || inputManager.peekAction(pNum) === 'LK';
+    const hkTrigger = inputState.hkJust || inputManager.peekAction(pNum) === 'HK';
 
     if (inputState.down) {
       if (lpTrigger) {

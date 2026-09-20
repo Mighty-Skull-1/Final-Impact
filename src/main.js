@@ -15,25 +15,30 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('click', unlockAudio);
   window.addEventListener('keydown', unlockAudio);
 
-  // Bulletproof 60 FPS Game Loop with exception safety and lag protection
+  // Bulletproof 60 FPS Game Loop with VSync cadence tolerance and stutter protection
   let lastTime = performance.now();
-  const tickInterval = 1000 / 60;
+  const targetFPS = 60;
+  const tickInterval = 1000 / targetFPS; // 16.666ms
   let accumulator = 0;
 
   function loop(currentTime) {
     requestAnimationFrame(loop); // Schedule next frame immediately
 
     try {
-      // Clamp delta to 100ms max to prevent freeze/spiral of death when tab is backgrounded
-      const delta = Math.min(currentTime - lastTime, 100);
+      let delta = currentTime - lastTime;
       lastTime = currentTime;
+
+      // Clamp delta to prevent spiral of death when tab is unfocused (100ms max)
+      if (delta > 100) delta = 100;
+      if (delta < 0) delta = 0;
+
       accumulator += delta;
 
-      // Run fixed-step updates (max 3 ticks per frame to guarantee 60fps responsiveness)
+      // Allow 1.8ms slack to match display VSync (prevents 59.9Hz / 60Hz stutter & judder)
       let steps = 0;
-      while (accumulator >= tickInterval && steps < 3) {
+      while (accumulator >= tickInterval - 1.8 && steps < 3) {
         game.update();
-        accumulator -= tickInterval;
+        accumulator = Math.max(0, accumulator - tickInterval);
         steps++;
       }
       if (steps >= 3) {

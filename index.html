@@ -245,19 +245,50 @@
       }
     });
 
-    // Fullscreen toggle
-    document.getElementById('fullscreenBtn').addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => alert(err.message));
+    // Fullscreen toggle with Keyboard Lock API (Prevents Escape from exiting fullscreen)
+    async function toggleFullscreen() {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+          if (navigator.keyboard && navigator.keyboard.lock) {
+            await navigator.keyboard.lock(['Escape']);
+          }
+        } else {
+          if (navigator.keyboard && navigator.keyboard.unlock) {
+            navigator.keyboard.unlock();
+          }
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.warn('Fullscreen toggle:', err);
+      }
+    }
+
+    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+
+    document.addEventListener('fullscreenchange', async () => {
+      if (document.fullscreenElement) {
+        if (navigator.keyboard && navigator.keyboard.lock) {
+          try {
+            await navigator.keyboard.lock(['Escape']);
+          } catch (e) {
+            console.warn('Keyboard lock failed:', e);
+          }
+        }
       } else {
-        document.exitFullscreen();
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+          navigator.keyboard.unlock();
+        }
       }
     });
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyF') {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-        else document.exitFullscreen();
+        toggleFullscreen();
+      }
+      if (e.code === 'Escape' && document.fullscreenElement) {
+        // Prevent default browser escape-from-fullscreen behavior so Escape acts only as in-game menu/back
+        e.preventDefault();
       }
     });
   </script>

@@ -41,7 +41,7 @@ export class InputManager {
   }
 
   onKeyDown(e) {
-    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Escape'].includes(e.code)) {
       e.preventDefault();
     }
     if (!this.keys[e.code]) {
@@ -197,14 +197,14 @@ export class InputManager {
 
     if (this.isJustPressed(p1FwdKey)) {
       const now = performance.now();
-      if (now - this.p1LastFwdTap < 260) {
+      if (now - this.p1LastFwdTap < 200) {
         this.p1DashFwd = true;
       }
       this.p1LastFwdTap = now;
     }
     if (this.isJustPressed(p1BackKey)) {
       const now = performance.now();
-      if (now - this.p1LastBackTap < 260) {
+      if (now - this.p1LastBackTap < 200) {
         this.p1DashBack = true;
       }
       this.p1LastBackTap = now;
@@ -218,20 +218,20 @@ export class InputManager {
 
     if (this.isJustPressed(p2FwdKey)) {
       const now = performance.now();
-      if (now - this.p2LastFwdTap < 260) {
+      if (now - this.p2LastFwdTap < 200) {
         this.p2DashFwd = true;
       }
       this.p2LastFwdTap = now;
     }
     if (this.isJustPressed(p2BackKey)) {
       const now = performance.now();
-      if (now - this.p2LastBackTap < 260) {
+      if (now - this.p2LastBackTap < 200) {
         this.p2DashBack = true;
       }
       this.p2LastBackTap = now;
     }
 
-    // 3. Action Queue (16-frame buffer for responsive combo execution)
+    // 3. Action Queue (6-frame input buffer for responsive combos without ghost delays)
     if (s1.ultimateJust) this.queueAction(1, 'ULTIMATE');
     else if (s1.dirtyJust) this.queueAction(1, 'DIRTY');
     else if (s1.sp3Just) this.queueAction(1, 'SP3');
@@ -286,7 +286,7 @@ export class InputManager {
     const queue = playerNum === 1 ? this.p1ActionQueue : this.p2ActionQueue;
     // Keep freshest intent
     queue.length = 0;
-    queue.push({ action, frames: 16 });
+    queue.push({ action, frames: 6 });
   }
 
   peekAction(playerNum) {
