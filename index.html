@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FINAL IMPACT - 16-Bit Arcade Fighting Game</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="arcade-cabinet">
+    <!-- Arcade Header Marquee -->
+    <header class="marquee">
+      <div class="marquee-glow">
+        <h1 class="logo">FINAL IMPACT</h1>
+        <span class="edition">ARCADE CHAMPIONSHIP EDITION</span>
+      </div>
+    </header>
+
+    <!-- CRT Bezel & Screen Wrapper -->
+    <main class="screen-container">
+      <div class="crt-bezel">
+        <canvas id="gameCanvas" width="640" height="360"></canvas>
+        <div id="crtOverlay" class="crt-overlay"></div>
+      </div>
+    </main>
+
+    <!-- Arcade Control Dashboard & Shortcuts -->
+    <footer class="control-panel">
+      <div class="panel-section">
+        <h3>PLAYER 1 (KEYBOARD)</h3>
+        <div class="control-keys">
+          <span><strong>MOVE:</strong> W (Jump), A (Back), S (Crouch), D (Fwd)</span>
+          <span><strong>PUNCHES:</strong> U (Light), I (Heavy), O (Special 1)</span>
+          <span><strong>KICKS:</strong> J (Light), K (Heavy), L (Special 2)</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>SPECIAL & ULTIMATE COMMANDS</h3>
+        <div class="control-keys">
+          <span><strong>HADOUKEN / SONIC / KUNAI:</strong> ↓ ↘ → + Punch (or O)</span>
+          <span><strong>SHORYUKEN / SOMERSAULT:</strong> → ↓ ↘ + Punch / Kick (or L)</span>
+          <span><strong>HURRICANE / BLITZ / WARP:</strong> ↓ ↙ ← + Kick / Punch</span>
+          <span style="color:#fde047"><strong>★ NARUTO ULTIMATE (OUGI):</strong> [SPACE] (When Meter is 100%!)</span>
+          <span><strong>DASH:</strong> Double tap [D, D] (Fwd) or [A, A] (Back)</span>
+        </div>
+      </div>
+
+      <div class="panel-section toggles">
+        <h3>SHORTCUTS</h3>
+        <div class="button-group">
+          <button id="settingsBtn" class="arcade-btn highlight-btn">⚙️ SETTINGS [ESC / P]</button>
+          <button id="toggleCrtBtn" class="arcade-btn">CRT SCANLINES: ON</button>
+          <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF [H]</button>
+          <button id="toggleEasyBtn" class="arcade-btn">EASY SPECIALS: OFF [E]</button>
+          <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN [F]</button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Settings Overlay Modal -->
+    <div id="settingsModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>⚙️ ARCADE SETTINGS</h2>
+          <button id="closeSettingsX" class="close-btn">✕</button>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-row">
+            <label for="masterVol">Master Volume: <span id="masterVolVal">80%</span></label>
+            <input type="range" id="masterVol" min="0" max="100" value="80">
+          </div>
+
+          <div class="setting-row">
+            <label for="musicVol">Music Volume: <span id="musicVolVal">70%</span></label>
+            <input type="range" id="musicVol" min="0" max="100" value="70">
+          </div>
+
+          <div class="setting-row">
+            <label for="sfxVol">Sound FX Volume: <span id="sfxVolVal">90%</span></label>
+            <input type="range" id="sfxVol" min="0" max="100" value="90">
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-row">
+            <label for="gameSpeedSelect">Game Speed (Pacing):</label>
+            <select id="gameSpeedSelect" class="arcade-select">
+              <option value="50">50% (Slow Motion / Relaxed)</option>
+              <option value="75">75% (Smooth & Relaxed)</option>
+              <option value="100" selected>100% (Standard 60 FPS)</option>
+              <option value="125">125% (Turbo Speed)</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label for="aiDiffSelect">AI Difficulty:</label>
+            <select id="aiDiffSelect" class="arcade-select">
+              <option value="easy">Beginner / Casual</option>
+              <option value="normal" selected>Normal Arcade</option>
+              <option value="hard">Master / Tournament</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <label for="shakeSelect">Screen Shake:</label>
+            <select id="shakeSelect" class="arcade-select">
+              <option value="off">Off (Zero Shake)</option>
+              <option value="low">Low Shake</option>
+              <option value="full" selected>Full Impact</option>
+            </select>
+          </div>
+
+          <div class="setting-row checkbox-row">
+            <label>
+              <input type="checkbox" id="easyInputsCheck"> Easy Specials & 1-Button Ultimates
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="closeSettingsBtn" class="arcade-btn primary-btn">RESUME FIGHT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+  <script>
+    // CRT toggle
+    const crtBtn = document.getElementById('toggleCrtBtn');
+    const crtOverlay = document.getElementById('crtOverlay');
+    let crtOn = true;
+    crtBtn.addEventListener('click', () => {
+      crtOn = !crtOn;
+      crtOverlay.style.display = crtOn ? 'block' : 'none';
+      crtBtn.textContent = `CRT SCANLINES: ${crtOn ? 'ON' : 'OFF'}`;
+    });
+
+    // Hitboxes toggle button
+    const hitboxBtn = document.getElementById('toggleHitboxBtn');
+    hitboxBtn.addEventListener('click', () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' }));
+      setTimeout(() => {
+        hitboxBtn.textContent = `HITBOXES: ${window.__GAME_HITBOXES ? 'ON' : 'OFF'} [H]`;
+      }, 50);
+    });
+
+    // Easy specials button
+    const easyBtn = document.getElementById('toggleEasyBtn');
+    easyBtn.addEventListener('click', () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
+      setTimeout(() => {
+        easyBtn.textContent = `EASY SPECIALS: ${window.__GAME_EASY ? 'ON' : 'OFF'} [E]`;
+      }, 50);
+    });
+
+    // Settings Modal
+    const settingsBtn = document.getElementById('settingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const closeSettingsX = document.getElementById('closeSettingsX');
+
+    settingsBtn.addEventListener('click', () => {
+      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.toggle();
+    });
+    closeSettingsBtn.addEventListener('click', () => {
+      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
+    });
+    closeSettingsX.addEventListener('click', () => {
+      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
+    });
+
+    // Sliders & Selects
+    const masterVol = document.getElementById('masterVol');
+    const musicVol = document.getElementById('musicVol');
+    const sfxVol = document.getElementById('sfxVol');
+    const gameSpeedSelect = document.getElementById('gameSpeedSelect');
+    const aiDiffSelect = document.getElementById('aiDiffSelect');
+    const shakeSelect = document.getElementById('shakeSelect');
+    const easyCheck = document.getElementById('easyInputsCheck');
+
+    masterVol.addEventListener('input', (e) => {
+      document.getElementById('masterVolVal').textContent = `${e.target.value}%`;
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.masterVolume = Number(e.target.value);
+        window.__GAME_SETTINGS.applySettings();
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    musicVol.addEventListener('input', (e) => {
+      document.getElementById('musicVolVal').textContent = `${e.target.value}%`;
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.musicVolume = Number(e.target.value);
+        window.__GAME_SETTINGS.applySettings();
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    sfxVol.addEventListener('input', (e) => {
+      document.getElementById('sfxVolVal').textContent = `${e.target.value}%`;
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.sfxVolume = Number(e.target.value);
+        window.__GAME_SETTINGS.applySettings();
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    gameSpeedSelect.addEventListener('change', (e) => {
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.gameSpeed = Number(e.target.value);
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    aiDiffSelect.addEventListener('change', (e) => {
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.difficulty = e.target.value;
+        window.__GAME_SETTINGS.applySettings();
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    shakeSelect.addEventListener('change', (e) => {
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.screenShake = e.target.value;
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    easyCheck.addEventListener('change', (e) => {
+      if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.settings.easyInputs = e.target.checked;
+        window.__GAME_SETTINGS.applySettings();
+        window.__GAME_SETTINGS.save();
+      }
+    });
+
+    // Fullscreen toggle
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => alert(err.message));
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyF') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+      }
+    });
+  </script>
+</body>
+</html>

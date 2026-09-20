@@ -1,0 +1,13 @@
+{
+  "name": "final-impact",
+  "version": "1.0.0",
+  "description": "16-Bit Retro Pixel Art Street Fighter style fighting game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["fighting-game", "pixel-art", "street-fighter", "retro", "arcade", "canvas"],
+  "author": "Final Impact Team",
+  "license": "MIT"
+}
