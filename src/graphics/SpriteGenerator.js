@@ -146,6 +146,25 @@ export class SpriteGenerator {
         flameMid: '#f97316',
         flameOuter: '#fbbf24',
         glow: '#a855f7'
+      },
+      mighty: {
+        skinHighlight: '#fef08a',
+        skinMid: '#facc15',
+        skinShadow: '#ca8a04',
+        skinDeep: '#854d0e',
+        hair: '#fbbf24',
+        hairShadow: '#b45309',
+        armorGold: '#f59e0b',
+        tankGreen: '#0f172a',
+        tankShadow: '#020617',
+        glovesRed: '#eab308',
+        glovesShadow: '#ca8a04',
+        beltGold: '#fde047',
+        shortsRed: '#1e1b4b',
+        shortsShadow: '#0f172a',
+        shoesYellow: '#f59e0b',
+        eyeGlow: '#38bdf8',
+        glow: '#facc15'
       }
     };
 
@@ -159,7 +178,8 @@ export class SpriteGenerator {
       fang: this.buildGenericFrames.bind(this),
       zephyr: this.buildGenericFrames.bind(this),
       colossus: this.buildGenericFrames.bind(this),
-      endless_dragon: this.buildGenericFrames.bind(this)
+      endless_dragon: this.buildGenericFrames.bind(this),
+      mighty: this.buildGenericFrames.bind(this)
     };
 
     const builder = frameBuilders[fighterId] || frameBuilders.kazuki;
@@ -1797,10 +1817,11 @@ export class SpriteGenerator {
     };
 
     // Determine body proportions based on palette
-    const isColossus = !!p.glovesRed;
+    const isMighty = !!p.armorGold;
+    const isColossus = !isMighty && !!p.glovesRed;
     const isDragon = !!p.scalesLight;
-    const bodyW = isColossus ? 36 : (isDragon ? 34 : 28);
-    const bodyH = isColossus ? 28 : 26;
+    const bodyW = (isColossus || isMighty) ? 36 : (isDragon ? 34 : 28);
+    const bodyH = (isColossus || isMighty) ? 28 : 26;
 
     // Pick main colors from whatever palette keys exist
     const skinH = p.skinHighlight || p.scalesLight || '#ccc';
@@ -1851,7 +1872,10 @@ export class SpriteGenerator {
         this.drawPixel(ctx, bx + 4, by + 2, bodyW - 8, 8, skinM);
 
         // Eyes
-        if (isDragon) {
+        if (isMighty) {
+          this.drawPixel(ctx, bx + 7, by + 3, 4, 3, '#38bdf8');
+          this.drawPixel(ctx, bx + bodyW - 11, by + 3, 4, 3, '#38bdf8');
+        } else if (isDragon) {
           this.drawPixel(ctx, bx + 8, by + 4, 4, 3, p.eyeGlow);
           this.drawPixel(ctx, bx + bodyW - 12, by + 4, 4, 3, p.eyeGlow);
         } else {
@@ -1910,6 +1934,16 @@ export class SpriteGenerator {
           ctx.globalAlpha = 1.0;
         }
 
+        // Divine God Aura for M1GHTY
+        if (isMighty) {
+          ctx.globalAlpha = 0.35 + Math.sin(i * 1.5) * 0.2;
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath();
+          ctx.arc(40, by + 18, 30 + Math.sin(i * 2.0) * 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+
         // Dragon flame aura
         if (isDragon && (state === 'idle' || state.includes('special') || state === 'ultimate')) {
           ctx.globalAlpha = 0.35;
@@ -1938,29 +1972,29 @@ export class SpriteGenerator {
 
     // Map to uppercase FIGHTER_STATE keys for engine rendering
     const upperMap = {
-      idle: ['IDLE'],
+      idle: ['IDLE', 'WINDED', 'VICTORY'],
       walk: ['WALK_FWD', 'WALK_BACK'],
-      jump: ['JUMP', 'FALL', 'LAND'],
+      jump: ['JUMP', 'FALL', 'LAND', 'WALL_REBOUND'],
       crouch: ['CROUCH'],
-      hit: ['HIT'],
-      knockdown: ['KNOCKDOWN'],
-      block: ['BLOCK'],
-      light_punch: ['ATTACK_LP'],
-      heavy_punch: ['ATTACK_HP'],
-      light_kick: ['ATTACK_LK'],
-      heavy_kick: ['ATTACK_HK'],
-      crouch_lp: ['CROUCH_LP'],
-      crouch_hp: ['CROUCH_HP'],
-      crouch_lk: ['CROUCH_LK'],
-      crouch_hk: ['CROUCH_HK'],
+      hit: ['HIT', 'HIT_CROUCH', 'HIT_AIR', 'BLIND_STUN', 'SUBMISSION_LOCK', 'OVERHEAT_STUN'],
+      knockdown: ['KNOCKDOWN', 'DEFEAT'],
+      block: ['BLOCK', 'CROUCH_BLOCK'],
+      light_punch: ['ATTACK_LP', 'ATTACK_LIGHT_PUNCH'],
+      heavy_punch: ['ATTACK_HP', 'ATTACK_HEAVY_PUNCH', 'PICKUP_ATTACK'],
+      light_kick: ['ATTACK_LK', 'ATTACK_LIGHT_KICK'],
+      heavy_kick: ['ATTACK_HK', 'ATTACK_HEAVY_KICK'],
+      crouch_lp: ['CROUCH_LP', 'CROUCH_LIGHT_PUNCH'],
+      crouch_hp: ['CROUCH_HP', 'CROUCH_HEAVY_PUNCH'],
+      crouch_lk: ['CROUCH_LK', 'CROUCH_LIGHT_KICK'],
+      crouch_hk: ['CROUCH_HK', 'CROUCH_HEAVY_KICK'],
       jump_punch: ['JUMP_PUNCH'],
       jump_kick: ['JUMP_KICK'],
       special_1: ['SPECIAL_1'],
       special_2: ['SPECIAL_2'],
       special_3: ['SPECIAL_3'],
-      ultimate: ['ULTIMATE'],
+      ultimate: ['ULTIMATE', 'SUPER'],
       dirty: ['DIRTY_TACTIC'],
-      dash: ['DASH']
+      dash: ['DASH_FWD', 'DASH_BACK']
     };
     for (const [s, keys] of Object.entries(upperMap)) {
       if (frames[s]) {
@@ -1969,6 +2003,8 @@ export class SpriteGenerator {
         }
       }
     }
+    // Guarantee IDLE is always present
+    if (!frames.IDLE && frames.idle) frames.IDLE = frames.idle;
 
     return frames;
   }

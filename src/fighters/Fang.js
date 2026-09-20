@@ -204,7 +204,8 @@ export class Fang extends Fighter {
   }
 
   updateState(opponent) {
-    super.updateState(opponent);
+    this.animTimer++;
+    const frames = this.sprites[this.state] || this.sprites.IDLE;
 
     switch (this.state) {
       case FIGHTER_STATE.ATTACK_LIGHT_PUNCH:
@@ -363,6 +364,36 @@ export class Fang extends Fighter {
         } else if (this.stateTimer > 80) {
           this.isInvincible = false;
           this.changeState(FIGHTER_STATE.IDLE);
+        }
+        break;
+
+      case FIGHTER_STATE.DIRTY_TACTIC:
+        if (this.stateTimer <= 6) {
+          this.animFrame = 0;
+        } else if (this.stateTimer <= 15) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 18, 70, 38);
+          this.currentAttackData = {
+            damage: 50,
+            hitStun: 70,
+            blockStun: 20,
+            pushback: 4,
+            height: ATTACK_HEIGHT.UNBLOCKABLE,
+            hitType: HIT_TYPE.DIRTY_STUN,
+            stunFrames: 70
+          };
+        } else if (this.stateTimer <= 25) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
+        } else {
+          this.changeState(FIGHTER_STATE.IDLE);
+        }
+        break;
+
+      default:
+        if (frames && frames.length > 0 && this.animTimer >= this.animSpeed) {
+          this.animTimer = 0;
+          this.animFrame = (this.animFrame + 1) % frames.length;
         }
         break;
     }

@@ -16,6 +16,7 @@ import { Kagura } from '../fighters/Kagura.js';
 import { Fang } from '../fighters/Fang.js';
 import { Zephyr } from '../fighters/Zephyr.js';
 import { Colossus } from '../fighters/Colossus.js';
+import { Mighty } from '../fighters/Mighty.js';
 import { AlleyPickup } from './Projectiles.js';
 
 // Boss Imports
@@ -218,7 +219,8 @@ export class Game {
       fang: '"Eight limbs of devastation. That is the art of Muay Thai."',
       zephyr: '"Can\'t hit what flows like the wind, my friend."',
       colossus: '"Iron fists. Iron will. You never had a chance."',
-      endless_dragon: '"Mortals cannot extinguish an eternal flame."'
+      endless_dragon: '"Mortals cannot extinguish an eternal flame."',
+      mighty: '"Absolute divinity. One hit is all reality allows."'
     };
 
     // Global Key Listener for Debug & Shortcuts
@@ -302,6 +304,37 @@ export class Game {
         }
       }
 
+      // Character Select Secret Code modal key handling & [C] shortcut
+      if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+        if (this.charSelect.showCodeModal) {
+          if (e.code === 'Escape') {
+            e.preventDefault();
+            this.charSelect.closeCodeModal();
+            return;
+          }
+          if (e.code === 'Enter') {
+            e.preventDefault();
+            this.charSelect.submitCode();
+            return;
+          }
+          if (e.code === 'Backspace') {
+            e.preventDefault();
+            this.charSelect.handleBackspace();
+            return;
+          }
+          if (e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            this.charSelect.handleChar(e.key);
+            return;
+          }
+          return;
+        } else if (e.code === 'KeyC') {
+          e.preventDefault();
+          this.charSelect.openCodeModal();
+          return;
+        }
+      }
+
       // Screen navigation on enter / space
       if (['Space', 'Enter'].includes(e.code) && !this.settingsManager.isOpen) {
         this.handleConfirmPress();
@@ -336,6 +369,18 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+      if (this.charSelect.showCodeModal) {
+        this.charSelect.submitCode();
+        return;
+      }
+      const isP1 = !this.isOnline || this.netplay.isHost;
+      if (this.charSelect.isCurrentSelectionLocked(isP1)) {
+        try { soundFX.playBlock(); } catch (e) {}
+        this.charSelect.openCodeModal();
+        this.charSelect.codeFeedback = '🔒 M1GHTY IS LOCKED! ENTER CODE TO UNLOCK.';
+        this.charSelect.codeFeedbackColor = '#fbbf24';
+        return;
+      }
       if (this.isOnline) {
         if (this.netplay.isHost) {
           this.netplay.send({
@@ -729,6 +774,7 @@ export class Game {
     else if (id === 'fang') fighter = new Fang(opts);
     else if (id === 'zephyr') fighter = new Zephyr(opts);
     else if (id === 'colossus') fighter = new Colossus(opts);
+    else if (id === 'mighty') fighter = new Mighty(opts);
     else if (id === 'riot_cop') fighter = new RiotCop(opts);
     else if (id === 'promoter') fighter = new Promoter(opts);
     else if (id === 'boris') fighter = new BorisBouncer(opts);

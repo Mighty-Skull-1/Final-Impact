@@ -183,6 +183,66 @@ export class SettingsManager {
     const genCharBtn = document.getElementById('generalCharSelectBtn');
     if (genCharBtn) genCharBtn.addEventListener('click', () => handleLeave('CHAR_SELECT'));
 
+    // Secret Unlock Code handlers
+    const codeInput = document.getElementById('secretCodeInput');
+    const submitCodeBtn = document.getElementById('submitSecretCodeBtn');
+    const relockCodeBtn = document.getElementById('relockSecretCodeBtn');
+    const codeFeedback = document.getElementById('secretCodeFeedback');
+
+    const handleSecretCodeSubmit = () => {
+      if (!codeInput || !codeFeedback) return;
+      const val = (codeInput.value || '').trim().toUpperCase();
+      if (val === 'M1GHTY') {
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('final_impact_unlocked_mighty', 'true');
+          }
+          if (soundFX && typeof soundFX.playUltimateActivation === 'function') {
+            soundFX.playUltimateActivation();
+          }
+        } catch (err) {}
+        codeFeedback.style.color = '#4ade80';
+        codeFeedback.textContent = '✨ CODE ACCEPTED! SECRET FIGHTER "M1GHTY" UNLOCKED! ✨';
+        codeInput.value = '';
+        if (this.game && this.game.charSelect && typeof this.game.charSelect.unlockMighty === 'function') {
+          this.game.charSelect.unlockMighty();
+        }
+      } else {
+        codeFeedback.style.color = '#ef4444';
+        codeFeedback.textContent = '❌ INVALID CODE. TRY AGAIN.';
+        try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (err) {}
+      }
+    };
+
+    if (submitCodeBtn) {
+      submitCodeBtn.addEventListener('click', handleSecretCodeSubmit);
+    }
+    if (codeInput) {
+      codeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSecretCodeSubmit();
+        }
+      });
+    }
+    if (relockCodeBtn) {
+      relockCodeBtn.addEventListener('click', () => {
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('final_impact_unlocked_mighty');
+          }
+          if (soundFX && typeof soundFX.playWhoosh === 'function') soundFX.playWhoosh('light');
+        } catch (err) {}
+        if (codeFeedback) {
+          codeFeedback.style.color = '#fbbf24';
+          codeFeedback.textContent = '🔒 M1GHTY HAS BEEN RE-LOCKED.';
+        }
+        if (this.game && this.game.charSelect && typeof this.game.charSelect.lockMighty === 'function') {
+          this.game.charSelect.lockMighty();
+        }
+      });
+    }
+
     // Global keydown listener for rebind capture (runs in capture phase)
     window.addEventListener('keydown', (e) => {
       if (!this.isRebinding || !this.rebindingAction) return;
@@ -481,6 +541,13 @@ export class SettingsManager {
     if (masterLabel) masterLabel.textContent = `${this.settings.masterVolume}%`;
     if (musicLabel) musicLabel.textContent = `${this.settings.musicVolume}%`;
     if (sfxLabel) sfxLabel.textContent = `${this.settings.sfxVolume}%`;
+
+    const codeFeedback = document.getElementById('secretCodeFeedback');
+    if (codeFeedback) {
+      const isUnlocked = typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_unlocked_mighty') === 'true';
+      codeFeedback.style.color = isUnlocked ? '#4ade80' : '#94a3b8';
+      codeFeedback.textContent = isUnlocked ? '👑 "M1GHTY" IS CURRENTLY UNLOCKED' : '🔒 "M1GHTY" IS CURRENTLY LOCKED';
+    }
 
     this.renderKeybinds();
 

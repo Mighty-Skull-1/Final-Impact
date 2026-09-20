@@ -971,7 +971,8 @@ export class Fighter {
                    (this.state === FIGHTER_STATE.DIRTY_TACTIC ? (this.sprites.ATTACK_HP || this.sprites.IDLE) : null) ||
                    (this.state === FIGHTER_STATE.BLIND_STUN ? (this.sprites.HIT || this.sprites.IDLE) : null) ||
                    (this.state === FIGHTER_STATE.WALL_REBOUND ? (this.sprites.JUMP || this.sprites.IDLE) : null) ||
-                   this.sprites.IDLE;
+                   this.sprites.IDLE || [];
+    if (!frames || frames.length === 0) return;
     const currentImg = frames[Math.min(this.animFrame, frames.length - 1)];
 
     if (!currentImg) return;

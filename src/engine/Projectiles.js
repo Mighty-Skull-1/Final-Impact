@@ -115,6 +115,38 @@ export class Projectile {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(this.x + 8, this.y + 1, 8, 3);
       ctx.fillRect(this.x + 12, this.y + 9, 8, 3);
+    } else if (this.type === 'god_palm') {
+      // Massive radiating golden beam & palm blast with divine spark particles
+      const pulse = Math.sin(this.frame * 0.5) * 4;
+      const trail = this.vx > 0 ? -1 : 1;
+
+      // Radiant God Aura
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.45)';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 28 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Blazing Solar Core
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pure White Divine Energy
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Trailing holy beams
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(this.x + (trail * 16), this.y - 2, 24, 6);
+      ctx.fillRect(this.x + (trail * 24), this.y + 10, 30, 8);
+      ctx.fillRect(this.x + (trail * 14), this.y + 22, 20, 6);
+
+      // Divine rays
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(this.x + (trail * 8), this.y + 6, 12, 14);
     }
 
     ctx.restore();
