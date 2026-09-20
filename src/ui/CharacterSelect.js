@@ -110,6 +110,22 @@ export class CharacterSelect {
           { name: 'Apex Shatter', cmd: '→ ↓ ↘ + P (or SP2)', desc: 'Invincible 9999 Uppercut' },
           { name: 'Void Tremor', cmd: '↓ ↙ ← + P (or SP3)', desc: 'Instant 9999 Warp Strike' }
         ]
+      },
+      {
+        id: 'endless_dragon',
+        name: 'ENDLESS DRAGON',
+        title: 'ANCIENT VOID EMPEROR',
+        style: 'Draconic Cataclysm & Flight',
+        origin: 'Primeval Realm',
+        power: 5,
+        speed: 4,
+        defense: 5,
+        isBoss: true,
+        specials: [
+          { name: 'Dragon Claw', cmd: '↓ ↘ → + P (or SP1)', desc: 'Brutal Rend Slash' },
+          { name: 'Tail Sweep', cmd: '→ ↓ ↘ + K (or SP2)', desc: 'Low Knockdown Sweep' },
+          { name: 'Dragon Flight', cmd: 'SP3 (or Aerial)', desc: 'Fly freely & divebomb' }
+        ]
       }
     ];
 
@@ -123,7 +139,7 @@ export class CharacterSelect {
     this.p1Index = 0;
     this.p2Index = 1;
     this.stageIndex = 0;
-    this.gameMode = 'campaign'; // 'campaign', 'cpu', '2p', '2v2', 'training'
+    this.gameMode = 'campaign'; // 'campaign', 'cpu', '2p', '2v2', 'training', 'coop_campaign'
     this.cpuDifficulty = 'normal';
     this.localPlayerNum = 1;
     this.p1Locked = false;
@@ -215,10 +231,41 @@ export class CharacterSelect {
     }
   }
 
+  isDragonUnlocked() {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_unlocked_dragon') === 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  hasBeatenDragon() {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_beaten_dragon') === 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  unlockDragon() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('final_impact_unlocked_dragon', 'true');
+        localStorage.setItem('final_impact_beaten_dragon', 'true');
+      }
+      if (!this.previewSprites['endless_dragon']) {
+        this.previewSprites['endless_dragon'] = spriteGenerator.generateFighterSprites('endless_dragon');
+      }
+    } catch (e) {}
+  }
+
   isCurrentSelectionLocked(isP1 = true) {
     const idx = isP1 ? this.p1Index : this.p2Index;
     const char = this.characters[idx];
-    return char && char.id === 'mighty' && !this.isMightyUnlocked();
+    if (!char) return false;
+    if (char.id === 'mighty' && !this.isMightyUnlocked()) return 'mighty';
+    if (char.id === 'endless_dragon' && !this.isDragonUnlocked()) return 'dragon';
+    return false;
   }
 
   setMode(mode, difficulty = 'normal', localPlayerNum = 1) {
@@ -325,13 +372,13 @@ export class CharacterSelect {
       return true;
     }
 
-    // Check Character Cards (7 cards total)
-    const cardW = 82;
+    // Check Character Cards (8 cards total)
+    const cardW = 72;
     const cardH = 224;
-    const gap = 6;
+    const gap = 5;
     const totalCardsW = this.characters.length * cardW + (this.characters.length - 1) * gap;
     const startX = (W - totalCardsW) / 2;
-    const cardY = 80;
+    const cardY = 78;
 
     if (y >= cardY && y <= cardY + cardH) {
       for (let idx = 0; idx < this.characters.length; idx++) {
@@ -348,6 +395,8 @@ export class CharacterSelect {
           // If clicking locked Mighty, open the secret code modal!
           if (char.id === 'mighty' && !this.isMightyUnlocked()) {
             this.openCodeModal();
+          } else if (char.id === 'endless_dragon' && !this.isDragonUnlocked()) {
+            try { soundFX.playBlock(); } catch (e) {}
           }
           return true;
         }
@@ -362,11 +411,14 @@ export class CharacterSelect {
     if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
       if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
         // Prevent starting if current selection is locked
-        if (this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1)) {
+        const lockedType = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
+        if (lockedType) {
           try { soundFX.playBlock(); } catch (e) {}
-          this.openCodeModal();
-          this.codeFeedback = '🔒 M1GHTY IS LOCKED! ENTER CODE TO UNLOCK.';
-          this.codeFeedbackColor = '#fbbf24';
+          if (lockedType === 'mighty') {
+            this.openCodeModal();
+            this.codeFeedback = '🔒 M1GHTY IS LOCKED! ENTER CODE TO UNLOCK.';
+            this.codeFeedbackColor = '#fbbf24';
+          }
           return true;
         }
         if (onConfirm) onConfirm();
@@ -384,6 +436,8 @@ export class CharacterSelect {
     }
 
     const mightyUnlocked = this.isMightyUnlocked();
+    const dragonUnlocked = this.isDragonUnlocked();
+    const hasBeatenDragon = this.hasBeatenDragon();
 
     // 1. Arcade Background with grid
     ctx.fillStyle = '#090a15';
@@ -431,121 +485,166 @@ export class CharacterSelect {
     ctx.textAlign = 'center';
     ctx.fillText(mightyUnlocked ? '👑 M1GHTY UNLOCKED' : '🔑 SECRET CODE [C]', codeBtnX + codeBtnW / 2, 24);
 
-    // Header Title
+    // Header Title & Dragon Slayer Crest
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('SELECT YOUR FIGHTER', W / 2, 30);
+    if (hasBeatenDragon) {
+      ctx.fillStyle = '#c084fc';
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('SELECT YOUR FIGHTER  [🐉 DRAGON SLAYER]', W / 2, 28);
+    } else {
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillText('SELECT YOUR FIGHTER', W / 2, 30);
+    }
 
     // Active Game Mode Display
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 11px monospace';
     const modeLabels = {
       campaign: '🏆 MODE: CAMPAIGN (8 Scaling Bosses & The Endless Dragon)',
+      coop_campaign: '🤝 MODE: CO-OP CAMPAIGN (2-Player Online Boss Raid)',
       cpu: `⚔️ MODE: 1V1 VS CPU (AI Difficulty: ${(this.cpuDifficulty || 'normal').toUpperCase()})`,
       '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER VERSUS',
       '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL',
       online: '🌐 MODE: ONLINE VERSUS (P2P WEBRTC NETPLAY)',
       training: '🥋 MODE: PRACTICE / TRAINING DOJO'
     };
-    ctx.fillText(modeLabels[this.gameMode] || modeLabels.campaign, W / 2, 48);
+    ctx.fillText(modeLabels[this.gameMode] || modeLabels.campaign, W / 2, 47);
 
     // Stage Selector & Navigation instructions
     ctx.fillStyle = '#ec4899';
-    ctx.font = '10.5px monospace';
-    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ STAGE]  [A/D CHOOSE]  [C CODE]  [ENTER START]`, W / 2, 66);
+    ctx.font = '10px monospace';
+    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ STAGE]  [A/D CHOOSE]  [C CODE]  [ENTER START]`, W / 2, 64);
 
-    // 2. Character Cards (7 Fighters Roster)
-    const cardW = 82;
+    // 2. Character Cards (8 Fighters Roster)
+    const cardW = 72;
     const cardH = 224;
-    const gap = 6;
+    const gap = 5;
     const totalCardsW = this.characters.length * cardW + (this.characters.length - 1) * gap;
     const startX = (W - totalCardsW) / 2;
-    const cardY = 78;
+    const cardY = 76;
 
     this.characters.forEach((char, idx) => {
       const cx = startX + idx * (cardW + gap);
       const isP1Hover = this.p1Index === idx;
       const isP2Hover = this.p2Index === idx;
-      const isSecretLocked = char.id === 'mighty' && !mightyUnlocked;
+      const isMightyLocked = char.id === 'mighty' && !mightyUnlocked;
+      const isDragonLocked = char.id === 'endless_dragon' && !dragonUnlocked;
+      const isLocked = isMightyLocked || isDragonLocked;
 
       // Card Background
-      ctx.fillStyle = isSecretLocked ? '#0b0f19' : (char.id === 'mighty' ? '#1c1917' : '#111827');
+      if (isDragonLocked) {
+        ctx.fillStyle = '#130924';
+      } else if (char.id === 'endless_dragon') {
+        ctx.fillStyle = '#1c0d38';
+      } else if (isMightyLocked) {
+        ctx.fillStyle = '#0b0f19';
+      } else if (char.id === 'mighty') {
+        ctx.fillStyle = '#1c1917';
+      } else {
+        ctx.fillStyle = '#111827';
+      }
       ctx.fillRect(cx, cardY, cardW, cardH);
 
       // Card Border & Highlight
-      if (isP1Hover && isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online')) {
+      if (isP1Hover && isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online' || this.gameMode === 'coop_campaign')) {
         ctx.strokeStyle = '#a855f7';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         ctx.fillStyle = '#a855f7';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText('P1 & P2', cx + cardW / 2, cardY - 5);
+        ctx.font = 'bold 9.5px monospace';
+        const tag = this.gameMode === 'coop_campaign' ? 'DUO' : 'P1 & P2';
+        ctx.fillText(tag, cx + cardW / 2, cardY - 5);
       } else if (isP1Hover) {
-        ctx.strokeStyle = isSecretLocked ? '#f59e0b' : (char.id === 'mighty' ? '#fbbf24' : '#38bdf8');
+        ctx.strokeStyle = isLocked ? '#f59e0b' : (char.id === 'mighty' ? '#fbbf24' : (char.id === 'endless_dragon' ? '#c084fc' : '#38bdf8'));
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         ctx.fillStyle = ctx.strokeStyle;
-        ctx.font = 'bold 10px monospace';
-        const p1Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'HOST' : 'YOU') : 'P1';
+        ctx.font = 'bold 9.5px monospace';
+        let p1Tag = 'P1';
+        if (this.gameMode === 'coop_campaign') {
+          p1Tag = this.localPlayerNum === 2 ? 'HOST' : 'YOU (P1)';
+        } else if (this.gameMode === 'online') {
+          p1Tag = this.localPlayerNum === 2 ? 'HOST' : 'YOU';
+        }
         ctx.fillText(p1Tag, cx + cardW / 2, cardY - 5);
-      } else if (isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online')) {
-        ctx.strokeStyle = '#ef4444';
+      } else if (isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online' || this.gameMode === 'coop_campaign')) {
+        ctx.strokeStyle = this.gameMode === 'coop_campaign' ? '#22c55e' : '#ef4444';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
-        ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 10px monospace';
-        const p2Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'YOU' : 'RIVAL') : 'P2';
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = 'bold 9.5px monospace';
+        let p2Tag = 'P2';
+        if (this.gameMode === 'coop_campaign') {
+          p2Tag = this.localPlayerNum === 2 ? 'YOU (ALLY)' : 'ALLY (P2)';
+        } else if (this.gameMode === 'online') {
+          p2Tag = this.localPlayerNum === 2 ? 'YOU' : 'RIVAL';
+        }
         ctx.fillText(p2Tag, cx + cardW / 2, cardY - 5);
       } else {
-        ctx.strokeStyle = isSecretLocked ? '#78350f' : (char.id === 'mighty' ? '#b45309' : '#334155');
+        ctx.strokeStyle = isLocked ? '#581c87' : (char.id === 'mighty' ? '#b45309' : (char.id === 'endless_dragon' ? '#7e22ce' : '#334155'));
         ctx.lineWidth = 1;
         ctx.strokeRect(cx, cardY, cardW, cardH);
       }
 
-      if (isSecretLocked) {
+      if (isLocked) {
         // Locked Card Rendering
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
         ctx.fillRect(cx + 2, cardY + 2, cardW - 4, cardH - 4);
 
         // Lock icon
         ctx.textAlign = 'center';
-        ctx.font = '32px monospace';
-        ctx.fillText('🔒', cx + cardW / 2, cardY + 58);
+        ctx.font = '28px monospace';
+        ctx.fillText('🔒', cx + cardW / 2, cardY + 54);
 
         // Status text
-        ctx.fillStyle = '#f59e0b';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText('LOCKED', cx + cardW / 2, cardY + 84);
+        ctx.fillStyle = isDragonLocked ? '#c084fc' : '#f59e0b';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText('LOCKED', cx + cardW / 2, cardY + 78);
 
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '7.5px monospace';
-        ctx.fillText('SECRET FIGHTER', cx + cardW / 2, cardY + 98);
-
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText('M1GHTY', cx + cardW / 2, cardY + 116);
-
-        // Code Box Button prompt
-        ctx.fillStyle = 'rgba(180, 83, 9, 0.35)';
-        ctx.fillRect(cx + 6, cardY + 135, cardW - 12, 45);
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(cx + 6, cardY + 135, cardW - 12, 45);
-
-        ctx.fillStyle = '#fde047';
-        ctx.font = 'bold 7.5px monospace';
-        ctx.fillText('ENTER CODE:', cx + cardW / 2, cardY + 150);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText('"M1GHTY"', cx + cardW / 2, cardY + 162);
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '6.5px monospace';
-        ctx.fillText('PRESS [C] / CLICK', cx + cardW / 2, cardY + 173);
-
-        ctx.fillStyle = '#64748b';
         ctx.font = '7px monospace';
-        ctx.fillText('1-HIT KO GOD', cx + cardW / 2, cardY + 205);
+        ctx.fillText(isDragonLocked ? 'FINAL BOSS' : 'SECRET FIGHTER', cx + cardW / 2, cardY + 92);
+
+        ctx.fillStyle = isDragonLocked ? '#e9d5ff' : '#fbbf24';
+        ctx.font = 'bold 8.5px monospace';
+        ctx.fillText(isDragonLocked ? 'E. DRAGON' : 'M1GHTY', cx + cardW / 2, cardY + 110);
+
+        // Box Button prompt
+        ctx.fillStyle = isDragonLocked ? 'rgba(88, 28, 135, 0.4)' : 'rgba(180, 83, 9, 0.35)';
+        ctx.fillRect(cx + 4, cardY + 130, cardW - 8, 48);
+        ctx.strokeStyle = isDragonLocked ? '#9333ea' : '#d97706';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx + 4, cardY + 130, cardW - 8, 48);
+
+        if (isDragonLocked) {
+          ctx.fillStyle = '#fde047';
+          ctx.font = 'bold 7px monospace';
+          ctx.fillText('DEFEAT IN', cx + cardW / 2, cardY + 145);
+          ctx.fillStyle = '#c084fc';
+          ctx.fillText('CAMPAIGN', cx + cardW / 2, cardY + 157);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '6px monospace';
+          ctx.fillText('STAGE 8 BOSS', cx + cardW / 2, cardY + 170);
+
+          ctx.fillStyle = '#a855f7';
+          ctx.font = '6.5px monospace';
+          ctx.fillText('AERIAL RAID', cx + cardW / 2, cardY + 205);
+        } else {
+          ctx.fillStyle = '#fde047';
+          ctx.font = 'bold 7px monospace';
+          ctx.fillText('ENTER CODE:', cx + cardW / 2, cardY + 145);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillText('"M1GHTY"', cx + cardW / 2, cardY + 157);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '6px monospace';
+          ctx.fillText('PRESS [C]', cx + cardW / 2, cardY + 170);
+
+          ctx.fillStyle = '#64748b';
+          ctx.font = '6.5px monospace';
+          ctx.fillText('1-HIT KO GOD', cx + cardW / 2, cardY + 205);
+        }
         ctx.restore();
       } else {
         // Unlocked Fighter Sprite Preview
@@ -556,32 +655,37 @@ export class CharacterSelect {
           ctx.drawImage(frameImg, cx + (cardW - 80) / 2, cardY + 8);
         }
 
-        // God aura particle effect on card for Mighty
+        // God aura or dragon aura on card
         if (char.id === 'mighty') {
           ctx.fillStyle = 'rgba(250, 204, 21, 0.15)';
+          ctx.fillRect(cx + 2, cardY + 2, cardW - 4, cardH - 4);
+        } else if (char.id === 'endless_dragon') {
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
           ctx.fillRect(cx + 2, cardY + 2, cardW - 4, cardH - 4);
         }
 
         // Fighter Name & Bio
         ctx.textAlign = 'center';
-        ctx.fillStyle = char.id === 'mighty' ? '#fde047' : '#ffffff';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(char.name, cx + cardW / 2, cardY + 104);
+        ctx.fillStyle = char.id === 'mighty' ? '#fde047' : (char.id === 'endless_dragon' ? '#e9d5ff' : '#ffffff');
+        ctx.font = 'bold 9.5px monospace';
+        const displayName = char.id === 'endless_dragon' ? 'E. DRAGON' : char.name;
+        ctx.fillText(displayName, cx + cardW / 2, cardY + 104);
 
-        ctx.fillStyle = char.id === 'mighty' ? '#facc15' : '#94a3b8';
-        ctx.font = '7px monospace';
-        ctx.fillText(char.title, cx + cardW / 2, cardY + 116);
+        ctx.fillStyle = char.id === 'mighty' ? '#facc15' : (char.id === 'endless_dragon' ? '#c084fc' : '#94a3b8');
+        ctx.font = '6.5px monospace';
+        const displayTitle = char.id === 'endless_dragon' ? 'VOID EMPEROR' : char.title;
+        ctx.fillText(displayTitle, cx + cardW / 2, cardY + 116);
 
         // Stat Bars
         const drawStat = (label, val, y) => {
           ctx.textAlign = 'left';
           ctx.fillStyle = '#64748b';
-          ctx.font = 'bold 7px monospace';
-          ctx.fillText(label, cx + 5, y);
+          ctx.font = 'bold 6.5px monospace';
+          ctx.fillText(label, cx + 4, y);
 
           for (let i = 0; i < 5; i++) {
-            ctx.fillStyle = i < val ? (char.id === 'mighty' ? '#f59e0b' : '#facc15') : '#334155';
-            ctx.fillRect(cx + 28 + i * 9, y - 5, 7, 4);
+            ctx.fillStyle = i < val ? (char.id === 'mighty' ? '#f59e0b' : (char.id === 'endless_dragon' ? '#a855f7' : '#facc15')) : '#334155';
+            ctx.fillRect(cx + 24 + i * 8, y - 5, 6, 4);
           }
         };
 
@@ -591,22 +695,27 @@ export class CharacterSelect {
 
         // Move list summary
         ctx.textAlign = 'left';
-        ctx.fillStyle = char.id === 'mighty' ? '#fbbf24' : '#38bdf8';
-        ctx.font = '6.5px monospace';
-        ctx.fillText(`★ ${char.specials[0].name}`, cx + 4, cardY + 170);
+        ctx.fillStyle = char.id === 'mighty' ? '#fbbf24' : (char.id === 'endless_dragon' ? '#c084fc' : '#38bdf8');
+        ctx.font = '6px monospace';
+        ctx.fillText(`★ ${char.specials[0].name}`, cx + 3, cardY + 170);
         ctx.fillStyle = '#64748b';
-        ctx.fillText(`  ${char.specials[0].cmd.split(' (')[0]}`, cx + 4, cardY + 180);
+        ctx.fillText(`  ${char.specials[0].cmd.split(' (')[0]}`, cx + 3, cardY + 180);
 
-        ctx.fillStyle = char.id === 'mighty' ? '#fbbf24' : '#38bdf8';
-        ctx.fillText(`★ ${char.specials[1].name}`, cx + 4, cardY + 194);
+        ctx.fillStyle = char.id === 'mighty' ? '#fbbf24' : (char.id === 'endless_dragon' ? '#c084fc' : '#38bdf8');
+        ctx.fillText(`★ ${char.specials[1].name}`, cx + 3, cardY + 194);
         ctx.fillStyle = '#64748b';
-        ctx.fillText(`  ${char.specials[1].cmd.split(' (')[0]}`, cx + 4, cardY + 204);
+        ctx.fillText(`  ${char.specials[1].cmd.split(' (')[0]}`, cx + 3, cardY + 204);
 
         if (char.id === 'mighty') {
           ctx.textAlign = 'center';
           ctx.fillStyle = '#ef4444';
-          ctx.font = 'bold 7px monospace';
-          ctx.fillText('⚡ 1-HIT OBLITERATION ⚡', cx + cardW / 2, cardY + 218);
+          ctx.font = 'bold 6.5px monospace';
+          ctx.fillText('⚡ 1-HIT KO ⚡', cx + cardW / 2, cardY + 218);
+        } else if (char.id === 'endless_dragon') {
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#a855f7';
+          ctx.font = 'bold 6.5px monospace';
+          ctx.fillText('⚡ DRAGON FLIGHT ⚡', cx + cardW / 2, cardY + 218);
         }
       }
     });
@@ -620,7 +729,7 @@ export class CharacterSelect {
 
     const currentLocked = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
 
-    if (currentLocked) {
+    if (currentLocked === 'mighty') {
       ctx.fillStyle = 'rgba(120, 53, 15, 0.9)';
       ctx.fillRect(btnX, btnY, btnW, btnH);
       ctx.strokeStyle = '#f59e0b';
@@ -630,6 +739,16 @@ export class CharacterSelect {
       ctx.fillStyle = '#fde047';
       ctx.font = 'bold 11px monospace';
       ctx.fillText('🔒 M1GHTY IS LOCKED! PRESS [C] TO ENTER UNLOCK CODE', W / 2, btnY + 17);
+    } else if (currentLocked === 'dragon') {
+      ctx.fillStyle = 'rgba(88, 28, 135, 0.9)';
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+      ctx.fillStyle = '#e9d5ff';
+      ctx.font = 'bold 10.5px monospace';
+      ctx.fillText('🔒 DEFEAT THE ENDLESS DRAGON IN CAMPAIGN TO UNLOCK', W / 2, btnY + 17);
     } else if (this.gameMode === 'online' && this.localPlayerNum === 2) {
       const pulse = Math.floor(Date.now() / 350) % 2 === 0;
       ctx.fillStyle = pulse ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.9)';

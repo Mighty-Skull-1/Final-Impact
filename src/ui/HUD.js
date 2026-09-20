@@ -216,7 +216,7 @@ export class HUD {
     };
   }
 
-  render(ctx, f1, f2, W, H) {
+  render(ctx, f1, f2, W, H, f3 = null, f4 = null) {
     ctx.save();
 
     // ==========================================
@@ -382,6 +382,45 @@ export class HUD {
       ctx.fillStyle = '#000000';
       ctx.font = 'bold 8px monospace';
       ctx.fillText('V', p2X + 11 + r * 16, barY + barH + 13);
+    }
+
+    // Secondary / Ally Combatant Gauges (Co-op Campaign & 2v2 Tag War)
+    const allyBarY = limbY + 11;
+    if (f3) {
+      const f3W = 110;
+      const f3H = 8;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(p1X, allyBarY, f3W, f3H);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(p1X, allyBarY, f3W, f3H);
+
+      const f3Pct = Math.max(0, Math.min(1, f3.health / f3.maxHealth));
+      ctx.fillStyle = f3.isDead ? '#475569' : '#10b981';
+      ctx.fillRect(p1X + 1, allyBarY + 1, (f3W - 2) * f3Pct, f3H - 2);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 7.5px monospace';
+      ctx.fillText(`ALLY [${f3.name}]: ${Math.round(Math.max(0, f3.health))}`, p1X + 2, allyBarY - 2);
+    }
+
+    if (f4) {
+      const f4W = 110;
+      const f4H = 8;
+      const f4X = p2X + barW - f4W;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(f4X, allyBarY, f4W, f4H);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(f4X, allyBarY, f4W, f4H);
+
+      const f4Pct = Math.max(0, Math.min(1, f4.health / f4.maxHealth));
+      ctx.fillStyle = f4.isDead ? '#475569' : '#f97316';
+      ctx.fillRect(f4X + 1, allyBarY + 1, (f4W - 2) * f4Pct, f4H - 2);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 7.5px monospace';
+      ctx.fillText(`[${f4.name}]: ${Math.round(Math.max(0, f4.health))}`, f4X + 2, allyBarY - 2);
     }
 
     // ==========================================

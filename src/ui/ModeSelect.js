@@ -9,8 +9,16 @@ export class ModeSelect {
         badge: 'STORY MODE',
         title: '🏆 CAMPAIGN',
         subtitle: 'THE 7 UNDERGROUND BOSSES',
-        description: 'Battle through 7 scaling urban crime bosses. Overcome corrupt armor, 2v1 brawls, and the brutal 2-Phase Elden Ring Primeval Apex final boss.',
+        description: 'Battle through 7 scaling crime bosses and face the 2-Phase Elden Ring Primeval Apex & Endless Dragon.',
         color: '#facc15'
+      },
+      {
+        id: 'coop_campaign',
+        badge: '2P CO-OP RAID',
+        title: '🤝 CO-OP CAMPAIGN',
+        subtitle: 'ONLINE 2-PLAYER BOSS RAID',
+        description: 'Team up with an online friend to conquer all 8 campaign bosses together. Face 2v1 boss raids, 2v2 Bouncer Twins, and the Ascended Endless Dragon.',
+        color: '#a855f7'
       },
       {
         id: 'cpu',
@@ -98,9 +106,9 @@ export class ModeSelect {
     }
 
     // Check Mode Cards
-    const startY = 48;
-    const cardH = 35;
-    const cardGap = 5;
+    const startY = 44;
+    const cardH = 30;
+    const cardGap = 4;
     const cardW = 540;
     const cardX = (W - cardW) / 2;
 
@@ -158,17 +166,17 @@ export class ModeSelect {
     // Header Title
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('SELECT GAME MODE', W / 2, 26);
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('SELECT GAME MODE', W / 2, 24);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText('CHOOSE YOUR DISCIPLINE FOR THE CONCRETE ARENA', W / 2, 40);
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText('CHOOSE YOUR DISCIPLINE FOR THE CONCRETE ARENA', W / 2, 37);
 
     // 2. Mode Cards Layout
-    const startY = 48;
-    const cardH = 35;
-    const cardGap = 5;
+    const startY = 44;
+    const cardH = 30;
+    const cardGap = 4;
     const cardW = 540;
     const cardX = (W - cardW) / 2;
 
@@ -193,9 +201,9 @@ export class ModeSelect {
 
         // Little arrow cursor
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px monospace';
+        ctx.font = 'bold 13px monospace';
         ctx.textAlign = 'right';
-        ctx.fillText('▶', cardX - 8, y + cardH / 2 + 5);
+        ctx.fillText('▶', cardX - 8, y + cardH / 2 + 4);
       } else {
         ctx.fillStyle = 'rgba(15, 12, 30, 0.65)';
         ctx.fillRect(cardX, y, cardW, cardH);
@@ -208,41 +216,41 @@ export class ModeSelect {
       ctx.textAlign = 'left';
       ctx.fillStyle = isSelected ? m.color : '#64748b';
       ctx.font = 'bold 8px monospace';
-      ctx.fillText(`[ ${m.badge} ]`, cardX + 16, y + 12);
+      ctx.fillText(`[ ${m.badge} ]`, cardX + 16, y + 10);
 
       // Title
       ctx.fillStyle = isSelected ? '#ffffff' : '#cbd5e1';
-      ctx.font = isSelected ? 'bold 13px monospace' : '12px monospace';
-      ctx.fillText(m.title, cardX + 16, y + 27);
+      ctx.font = isSelected ? 'bold 12px monospace' : '11px monospace';
+      ctx.fillText(m.title, cardX + 16, y + 23);
 
       // Subtitle / Difficulty on Right
       if (m.id === 'cpu') {
         const diffColor = this.currentDifficulty === 'hard' ? '#ef4444' : (this.currentDifficulty === 'normal' ? '#f59e0b' : '#22c55e');
         ctx.textAlign = 'right';
         ctx.fillStyle = diffColor;
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText(`DIFFICULTY: ◄ ${this.currentDifficulty.toUpperCase()} ►`, cardX + cardW - 14, y + 22);
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(`DIFFICULTY: ◄ ${this.currentDifficulty.toUpperCase()} ►`, cardX + cardW - 14, y + 19);
       } else {
         ctx.textAlign = 'right';
         ctx.fillStyle = isSelected ? '#38bdf8' : '#475569';
         ctx.font = 'bold 9px monospace';
-        ctx.fillText(m.subtitle, cardX + cardW - 14, y + 22);
+        ctx.fillText(m.subtitle, cardX + cardW - 14, y + 19);
       }
     });
 
     // 3. Selected Mode Description Box
-    const descY = H - 62;
+    const descY = 286;
     const current = this.modes[this.selectedIndex];
     ctx.fillStyle = 'rgba(10, 8, 22, 0.9)';
-    ctx.fillRect(cardX, descY, cardW, 34);
+    ctx.fillRect(cardX, descY, cardW, 36);
     ctx.strokeStyle = '#332a58';
     ctx.lineWidth = 1;
-    ctx.strokeRect(cardX, descY, cardW, 34);
+    ctx.strokeRect(cardX, descY, cardW, 36);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '10px monospace';
-    ctx.fillText(current.description, W / 2, descY + 21);
+    ctx.fillText(current.description, W / 2, descY + 22);
 
     // 4. Controls Footer
     ctx.fillStyle = '#94a3b8';

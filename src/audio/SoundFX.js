@@ -741,7 +741,8 @@ class SoundFX {
   startMusic(track = 'fight') {
     this.ensureContext();
     if (this.musicPlaying) this.stopMusic();
-    if (this.ctx && this.musicGain) {
+    if (!this.ctx) return;
+    if (this.musicGain) {
       try {
         const now = this.ctx.currentTime;
         this.musicGain.gain.cancelScheduledValues(now);

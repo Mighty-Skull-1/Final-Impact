@@ -8,6 +8,7 @@ export class OnlineLobby {
 
     this.subState = 'MENU'; // 'MENU' | 'HOSTING' | 'JOINING' | 'CONNECTED'
     this.menuIndex = 0; // 0: Host, 1: Join
+    this.matchMode = 'versus'; // 'versus' | 'coop_campaign'
     this.joinInputCode = '';
     this.copiedToastTimer = 0;
     this.animTimer = 0;
@@ -27,11 +28,14 @@ export class OnlineLobby {
     }
   }
 
-  reset() {
+  reset(preserveMode = false) {
     this.subState = 'MENU';
     this.menuIndex = 0;
     this.joinInputCode = '';
     this.copiedToastTimer = 0;
+    if (!preserveMode) {
+      this.matchMode = 'versus';
+    }
   }
 
   copyInviteLink() {
@@ -65,6 +69,11 @@ export class OnlineLobby {
   }
 
   handleInput(inputState) {
+    if (inputState.toggleMode && (this.subState === 'MENU' || this.subState === 'HOSTING')) {
+      this.matchMode = (this.matchMode === 'versus') ? 'coop_campaign' : 'versus';
+      soundFX.playWhoosh('light');
+    }
+
     // 1. MENU Substate (Select Host or Join)
     if (this.subState === 'MENU') {
       if (inputState.up || inputState.down) {
@@ -151,11 +160,24 @@ export class OnlineLobby {
       return true;
     }
 
+    // Mode Toggle Pill Button Check (MENU or HOSTING)
+    if (this.subState === 'MENU' || this.subState === 'HOSTING') {
+      const pillW = 280;
+      const pillH = 22;
+      const pillX = W / 2 - pillW / 2;
+      const pillY = 54;
+      if (x >= pillX && x <= pillX + pillW && y >= pillY && y <= pillY + pillH) {
+        this.matchMode = (this.matchMode === 'versus') ? 'coop_campaign' : 'versus';
+        soundFX.playWhoosh('light');
+        return true;
+      }
+    }
+
     if (this.subState === 'MENU') {
       const boxW = 420;
-      const boxH = 64;
-      const startY = 100;
-      const gapY = 80;
+      const boxH = 62;
+      const startY = 88;
+      const gapY = 76;
       if (x >= W / 2 - boxW / 2 && x <= W / 2 + boxW / 2 && y >= startY && y <= startY + boxH) {
         this.menuIndex = 0;
         this.handleInput({ confirm: true });
@@ -219,25 +241,43 @@ export class OnlineLobby {
     // Title Header
     ctx.textAlign = 'center';
     ctx.fillStyle = '#c084fc';
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('🌐 FINAL IMPACT - ONLINE VERSUS', W / 2, 36);
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('🌐 FINAL IMPACT - ONLINE NETPLAY', W / 2, 26);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '11px monospace';
-    ctx.fillText('WEBRTC ZERO-SETUP PEER-TO-PEER NETPLAY', W / 2, 54);
+    ctx.font = '10px monospace';
+    ctx.fillText('WEBRTC ZERO-SETUP PEER-TO-PEER NETPLAY', W / 2, 40);
+
+    // Mode Toggle Pill (Host / Menu)
+    const isCoop = this.matchMode === 'coop_campaign';
+    const pillW = 280;
+    const pillH = 22;
+    const pillX = W / 2 - pillW / 2;
+    const pillY = 54;
+
+    ctx.fillStyle = isCoop ? 'rgba(88, 28, 135, 0.85)' : 'rgba(30, 27, 75, 0.85)';
+    ctx.fillRect(pillX, pillY, pillW, pillH);
+    ctx.strokeStyle = isCoop ? '#facc15' : '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(pillX, pillY, pillW, pillH);
+
+    ctx.fillStyle = isCoop ? '#fde047' : '#38bdf8';
+    ctx.font = 'bold 10px monospace';
+    const modeLabel = isCoop ? '🤝 MODE: CO-OP CAMPAIGN (2P RAID)' : '⚔️ MODE: 1V1 VERSUS';
+    ctx.fillText(`${modeLabel} ⟳ [M]`, W / 2, pillY + 15);
 
     // ==========================================
     // Sub-Screen: MENU (Choose Host or Join)
     // ==========================================
     if (this.subState === 'MENU') {
       const boxW = 420;
-      const boxH = 64;
-      const startY = 100;
-      const gapY = 80;
+      const boxH = 62;
+      const startY = 88;
+      const gapY = 76;
 
       const options = [
-        { title: '👑 HOST A MATCH', desc: 'Generate a Room Code and invite your friend' },
-        { title: '⚔️ JOIN A MATCH', desc: 'Enter a 5-digit Room Code to connect' }
+        { title: '👑 HOST A MATCH', desc: isCoop ? 'Host a 2P Co-Op Boss Raid & generate Room Code' : 'Generate a Room Code and invite your friend' },
+        { title: '⚔️ JOIN A MATCH', desc: isCoop ? 'Enter 5-digit Room Code to join Co-Op Raid' : 'Enter a 5-digit Room Code to connect' }
       ];
 
       options.forEach((opt, idx) => {
@@ -247,7 +287,7 @@ export class OnlineLobby {
         ctx.fillStyle = isSelected ? '#1e1b4b' : '#0f0c24';
         ctx.fillRect(W / 2 - boxW / 2, y, boxW, boxH);
 
-        ctx.strokeStyle = isSelected ? '#a855f7' : '#3b2d6b';
+        ctx.strokeStyle = isSelected ? (isCoop ? '#facc15' : '#a855f7') : '#3b2d6b';
         ctx.lineWidth = isSelected ? 2 : 1;
         ctx.strokeRect(W / 2 - boxW / 2, y, boxW, boxH);
 
@@ -268,7 +308,7 @@ export class OnlineLobby {
 
       ctx.fillStyle = '#facc15';
       ctx.font = '12px monospace';
-      ctx.fillText('[W / S] TO SELECT  |  [ENTER / SPACE] CONFIRM  |  [B / ESC] BACK', W / 2, H - 28);
+      ctx.fillText('[W / S] NAVIGATE  |  [M] TOGGLE MODE  |  [ENTER] CONFIRM  |  [B / ESC] BACK', W / 2, H - 24);
     }
 
     // ==========================================

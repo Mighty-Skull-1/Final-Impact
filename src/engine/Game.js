@@ -70,7 +70,10 @@ export class Game {
     // Listen for Netplay peer connection
     this.netplay.onConnect((isHost) => {
       this.isOnline = true;
-      this.charSelect.setMode('online', 'normal', isHost ? 1 : 2);
+      const isCoop = this.onlineLobby && this.onlineLobby.matchMode === 'coop_campaign';
+      this.isCoopCampaign = isCoop;
+      const modeToSet = isCoop ? 'coop_campaign' : 'online';
+      this.charSelect.setMode(modeToSet, 'normal', isHost ? 1 : 2);
       this.screen = GAME_SCREENS.CHAR_SELECT;
       soundFX.playMenuSelect();
     });
@@ -79,6 +82,7 @@ export class Game {
     this.netplay.onDisconnect(() => {
       if (this.isOnline) {
         this.isOnline = false;
+        this.isCoopCampaign = false;
         soundFX.playBlock();
         if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER) {
           this.onlineLobby.reset();
@@ -98,6 +102,11 @@ export class Game {
         if (!this.netplay.isHost) {
           if (msg.p1Index !== undefined) this.charSelect.p1Index = msg.p1Index;
           if (msg.stageIndex !== undefined) this.charSelect.stageIndex = msg.stageIndex;
+          if (msg.matchMode) {
+            this.onlineLobby.matchMode = msg.matchMode;
+            this.isCoopCampaign = (msg.matchMode === 'coop_campaign');
+            this.charSelect.gameMode = msg.matchMode;
+          }
         } else {
           if (msg.p2Index !== undefined) this.charSelect.p2Index = msg.p2Index;
         }
@@ -106,6 +115,26 @@ export class Game {
           soundFX.startMusic('fight');
           this.startMatch();
         }
+      } else if (msg.type === 'CAMPAIGN_NEXT_STAGE') {
+        this.bossIndex = msg.bossIndex;
+        if (this.f1) this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
+        if (this.f3) this.f3.health = Math.min(this.f3.maxHealth, this.f3.health + 500);
+        this.setupCampaignStage(this.f1 ? this.f1.id : 'kazuki', false);
+        this.screen = GAME_SCREENS.FIGHT;
+        this.slowMotion = false;
+        soundFX.startMusic('fight');
+        soundFX.playAnnouncer('ROUND1');
+      } else if (msg.type === 'CAMPAIGN_VICTORY') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem('final_impact_unlocked_dragon', 'true');
+            window.localStorage.setItem('final_impact_beaten_dragon', 'true');
+          } catch (e) {}
+        }
+        if (this.charSelect) this.charSelect.unlockDragon();
+        this.initVictoryScreen();
+        this.winner = this.f1;
+        soundFX.playAnnouncer('YOU_WIN');
       } else if (msg.type === 'REMATCH_VOTE') {
         this.handleOpponentRematchVote(msg.vote);
       } else if (msg.type === 'REMATCH') {
@@ -197,6 +226,7 @@ export class Game {
 
     // Mode Flags & Campaign Queue
     this.isCampaign = false;
+    this.isCoopCampaign = false;
     this.is2v2 = false;
     this.isTraining = false;
     this.bossQueue = ['riot_cop', 'promoter', 'bouncer_twins', 'matriarch', 'street_lord', 'urban_legend', 'champion', 'endless_dragon'];
@@ -295,10 +325,12 @@ export class Game {
         this.settingsManager.toggle();
       }
 
-      // Online Lobby Key forwarding (C to copy link in HOSTING, typing in JOINING)
+      // Online Lobby Key forwarding (C to copy link in HOSTING, typing in JOINING, M to toggle mode)
       if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
         if (e.code === 'KeyC' && this.onlineLobby.subState === 'HOSTING') {
           this.onlineLobby.handleInput({ copy: true });
+        } else if (e.code === 'KeyM' && (this.onlineLobby.subState === 'MENU' || this.onlineLobby.subState === 'HOSTING')) {
+          this.onlineLobby.handleInput({ toggleMode: true });
         } else if (this.onlineLobby.subState === 'JOINING' && e.code !== 'Space' && e.code !== 'Enter') {
           this.onlineLobby.handleInput({ key: e.key });
         }
@@ -353,8 +385,17 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playGong();
+      if (this.modeSelect.selectedMode === 'coop_campaign') {
+        this.onlineLobby.reset(true);
+        this.onlineLobby.matchMode = 'coop_campaign';
+        this.isCoopCampaign = true;
+        this.screen = GAME_SCREENS.ONLINE_LOBBY;
+        return;
+      }
       if (this.modeSelect.selectedMode === 'online') {
-        this.onlineLobby.reset();
+        this.onlineLobby.reset(true);
+        this.onlineLobby.matchMode = 'versus';
+        this.isCoopCampaign = false;
         this.screen = GAME_SCREENS.ONLINE_LOBBY;
         return;
       }
@@ -387,6 +428,7 @@ export class Game {
             type: 'CHAR_SYNC',
             p1Index: this.charSelect.p1Index,
             stageIndex: this.charSelect.stageIndex,
+            matchMode: this.onlineLobby.matchMode,
             startMatch: true
           });
           soundFX.playAnnouncer('ROUND1');
@@ -571,6 +613,7 @@ export class Game {
     this.projectiles = [];
     this.pickups = [];
     this.isCampaign = false;
+    this.isCoopCampaign = false;
     this.is2v2 = false;
     this.isTraining = false;
     this.bossIndex = 0;
@@ -598,10 +641,11 @@ export class Game {
     this.projectiles = [];
     this.spawnDefaultPickups();
 
-    this.isCampaign = (mode === 'campaign');
+    this.isCoopCampaign = (mode === 'coop_campaign') || (this.isOnline && this.onlineLobby?.matchMode === 'coop_campaign');
+    this.isCampaign = (mode === 'campaign') || this.isCoopCampaign;
     this.is2v2 = (mode === '2v2');
     this.isTraining = (mode === 'training');
-    this.isOnline = (mode === 'online') || (this.netplay && this.netplay.isConnected);
+    this.isOnline = (mode === 'online') || this.isCoopCampaign || (this.netplay && this.netplay.isConnected);
 
     if (this.isCampaign) {
       // If rematching after defeat, keep current boss stage; otherwise reset to Stage 1
@@ -653,6 +697,7 @@ export class Game {
   setupCampaignStage(p1Id, isFreshStart = false) {
     const currentBossId = this.bossQueue[this.bossIndex];
     const stageNum = this.bossIndex + 1;
+    const isCoop = this.isCoopCampaign;
     this.projectiles.forEach(p => { if (p && p.destroy) p.destroy(); });
     this.projectiles = [];
     this.spawnDefaultPickups();
@@ -666,7 +711,8 @@ export class Game {
     this.ai.setDifficulty('campaign', stageNum);
     this.ai3.setDifficulty('campaign', stageNum);
 
-    const p1StartX = currentBossId === 'bouncer_twins' ? 200 : 220;
+    const p1StartX = currentBossId === 'bouncer_twins' ? (isCoop ? 160 : 200) : (isCoop ? 180 : 220);
+    const p3StartX = isCoop ? (p1StartX - 90) : 100;
 
     // Always create a fresh P1 instance if starting anew, on stage 1, or after defeat
     if (!this.f1 || isFreshStart || this.bossIndex === 0 || !this.campaignStageWon || this.f1.health <= 0) {
@@ -681,44 +727,61 @@ export class Game {
       this.f1.changeState(FIGHTER_STATE.IDLE);
     }
 
+    if (isCoop) {
+      const p2AllyId = this.charSelect.characters[this.charSelect.p2Index]?.id || 'raven';
+      if (!this.f3 || isFreshStart || this.bossIndex === 0 || !this.campaignStageWon || this.f3.health <= 0) {
+        this.f3 = this.createFighter(p2AllyId, p3StartX, true, 3, false);
+      } else {
+        this.f3.x = p3StartX;
+        this.f3.y = 300;
+        this.f3.vx = 0;
+        this.f3.vy = 0;
+        this.f3.isGrounded = true;
+        this.f3.isDead = false;
+        this.f3.changeState(FIGHTER_STATE.IDLE);
+      }
+    } else {
+      this.f3 = null;
+    }
+
+    const hpScale = isCoop ? 1.25 : 1.0;
+
     if (currentBossId === 'bouncer_twins') {
-      // Stage 3: 2v1 Bouncer Twins Encounter! Boris & Viktor
+      // Stage 3: Bouncer Twins Encounter! Boris & Viktor
       this.f2 = this.createFighter('boris', 680, false, 2, true);
       this.f4 = this.createFighter('viktor', 780, false, 4, true);
-      this.f3 = null;
-      this.allFighters = [this.f1, this.f2, this.f4];
+      this.allFighters = isCoop ? [this.f1, this.f3, this.f2, this.f4] : [this.f1, this.f2, this.f4];
     } else {
       this.f2 = this.createFighter(currentBossId, 700, false, 2, true);
+      this.f4 = null;
 
       // Progressive Boss Stat Scaling for each level
       if (currentBossId === 'riot_cop') {
-        this.f2.maxHealth = 850;
-        this.f2.health = 850;
+        this.f2.maxHealth = Math.round(850 * hpScale);
+        this.f2.health = this.f2.maxHealth;
       } else if (currentBossId === 'promoter') {
-        this.f2.maxHealth = 950;
-        this.f2.health = 950;
+        this.f2.maxHealth = Math.round(950 * hpScale);
+        this.f2.health = this.f2.maxHealth;
         this.f2.walkSpeed = 4.4;
       } else if (currentBossId === 'matriarch') {
-        this.f2.maxHealth = 1050;
-        this.f2.health = 1050;
+        this.f2.maxHealth = Math.round(1050 * hpScale);
+        this.f2.health = this.f2.maxHealth;
       } else if (currentBossId === 'street_lord') {
-        this.f2.maxHealth = 1250;
-        this.f2.health = 1250;
+        this.f2.maxHealth = Math.round(1250 * hpScale);
+        this.f2.health = this.f2.maxHealth;
       } else if (currentBossId === 'urban_legend') {
-        this.f2.maxHealth = 1100;
-        this.f2.health = 1100;
+        this.f2.maxHealth = Math.round(1100 * hpScale);
+        this.f2.health = this.f2.maxHealth;
         this.f2.walkSpeed = 4.4;
       } else if (currentBossId === 'champion') {
-        this.f2.maxHealth = 1000;
-        this.f2.health = 1000;
+        this.f2.maxHealth = Math.round(1000 * hpScale);
+        this.f2.health = this.f2.maxHealth;
       } else if (currentBossId === 'endless_dragon') {
-        this.f2.maxHealth = 2500;
-        this.f2.health = 2500;
+        this.f2.maxHealth = Math.round(2500 * hpScale);
+        this.f2.health = this.f2.maxHealth;
       }
 
-      this.f3 = null;
-      this.f4 = null;
-      this.allFighters = [this.f1, this.f2];
+      this.allFighters = isCoop ? [this.f1, this.f3, this.f2] : [this.f1, this.f2];
     }
 
     // Restore P1 physical limbs, health, and state for the stage
@@ -742,9 +805,32 @@ export class Game {
       this.f1.projectileCooldown = 0;
       this.f1.activeProjectileCount = 0;
     }
+
+    // Restore P2 Ally physical limbs, health, and state in Co-op Campaign
+    if (this.f3) {
+      if (isFreshStart || this.bossIndex === 0 || !this.campaignStageWon || this.f3.health <= 0) {
+        this.f3.health = this.f3.maxHealth;
+      } else {
+        this.f3.health = Math.max(500, Math.min(this.f3.maxHealth, this.f3.health));
+      }
+      this.f3.stamina = this.f3.maxStamina;
+      this.f3.isDead = false;
+      this.f3.limbs = { leadArm: 100, rearArm: 100, leadLeg: 100, rearLeg: 100, torso: 100, head: 100 };
+      this.f3.statusEffects = [];
+      this.f3.heldPickup = null;
+      this.f3.submissionStruggle = 0;
+      this.f3.isRageMode = false;
+      this.f3.isInvincible = false;
+      this.f3.hitStun = 0;
+      this.f3.blockStun = 0;
+      this.f3.projectileCooldown = 0;
+      this.f3.activeProjectileCount = 0;
+    }
+
     this.projectiles = [];
     input.consumeBuffer(1);
     input.consumeBuffer(2);
+    input.consumeBuffer(3);
     this.cameraX = 0;
 
     // Reset HUD timer to full 99 seconds for the stage and calibrate red health bars
@@ -752,8 +838,9 @@ export class Game {
     this.hud.p1RedHealth = this.f1 ? this.f1.health : 1000;
     this.hud.p2RedHealth = this.f2 ? this.f2.health : 1000;
 
-    const bossName = currentBossId === 'bouncer_twins' ? 'THE BOUNCER TWINS (2v1)' : this.f2.name;
-    this.hud.setAnnouncement(`STAGE ${stageNum}: ${bossName}`, 120);
+    const raidTag = isCoop ? ' [2P RAID]' : '';
+    const bossName = currentBossId === 'bouncer_twins' ? (isCoop ? 'THE BOUNCER TWINS (2v2)' : 'THE BOUNCER TWINS (2v1)') : this.f2.name;
+    this.hud.setAnnouncement(`STAGE ${stageNum}: ${bossName}${raidTag}`, 120);
   }
 
   spawnDefaultPickups() {
@@ -824,6 +911,11 @@ export class Game {
       this.f3.x = 100;
       this.f2.x = 720;
       this.f4.x = 810;
+    } else if (this.isCoopCampaign) {
+      this.f1.x = 180;
+      if (this.f3) this.f3.x = 90;
+      this.f2.x = 700;
+      if (this.f4) this.f4.x = 790;
     } else if (this.isCampaign && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
       this.f1.x = 200;
       this.f2.x = 680;
@@ -1099,7 +1191,8 @@ export class Game {
       this.netplay.send({
         type: 'CHAR_SYNC',
         p1Index: this.charSelect.p1Index,
-        stageIndex: this.charSelect.stageIndex
+        stageIndex: this.charSelect.stageIndex,
+        matchMode: this.onlineLobby.matchMode
       });
     } else {
       this.netplay.send({
@@ -1111,6 +1204,243 @@ export class Game {
 
   updateOnlineMatch() {
     const isHost = this.netplay.isHost;
+
+    // ==========================================
+    // CO-OP CAMPAIGN RAID NETPLAY STREAMING
+    // ==========================================
+    if (this.isCoopCampaign) {
+      const targetForP1 = this.getNearestOpponent(this.f1);
+      const targetForF3 = this.f3 ? this.getNearestOpponent(this.f3) : targetForP1;
+
+      if (isHost) {
+        // Host controls f1 via local P1 controls
+        const localInput = input.getState(1, this.f1.facingRight);
+        this.netplay.sendInput(localInput);
+        this.f1.handleInput(localInput, input, targetForP1);
+
+        if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+          if (localInput.lpJust || localInput.hpJust || localInput.lkJust || localInput.hkJust || localInput.dirtyJust) {
+            this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
+            soundFX.playWhoosh('light');
+          }
+        }
+
+        // Challenger remote input drives f3 (Player 2 Ally)
+        if (this.f3 && !this.f3.isDead) {
+          const remoteInput = this.netplay.remoteInputState || {};
+          if (remoteInput.ultimateJust) input.queueAction(3, 'ULTIMATE');
+          else if (remoteInput.dirtyJust) input.queueAction(3, 'DIRTY');
+          else if (remoteInput.sp3Just) input.queueAction(3, 'SP3');
+          else if (remoteInput.sp2Just) input.queueAction(3, 'SP2');
+          else if (remoteInput.sp1Just) input.queueAction(3, 'SP1');
+          else if (remoteInput.hpJust) input.queueAction(3, 'HP');
+          else if (remoteInput.hkJust) input.queueAction(3, 'HK');
+          else if (remoteInput.lpJust) input.queueAction(3, 'LP');
+          else if (remoteInput.lkJust) input.queueAction(3, 'LK');
+
+          this.f3.handleInput(remoteInput, input, targetForF3);
+
+          remoteInput.lpJust = false;
+          remoteInput.hpJust = false;
+          remoteInput.lkJust = false;
+          remoteInput.hkJust = false;
+          remoteInput.sp1Just = false;
+          remoteInput.sp2Just = false;
+          remoteInput.sp3Just = false;
+          remoteInput.dirtyJust = false;
+          remoteInput.ultimateJust = false;
+
+          if (this.f3.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+            if (remoteInput.lpJust || remoteInput.hpJust || remoteInput.lkJust || remoteInput.hkJust || remoteInput.dirtyJust) {
+              this.f3.submissionStruggle = Math.min(100, (this.f3.submissionStruggle || 0) + 14);
+              soundFX.playWhoosh('light');
+            }
+          }
+        }
+
+        // Host AI simulates Boss (f2) and optional second boss (f4)
+        if (this.f2 && !this.f2.isDead && this.f2.isCpu) {
+          const targetForF2 = this.getNearestOpponent(this.f2);
+          const f2Input = this.ai.update(this.f2, targetForF2);
+          this.f2.handleInput(f2Input, input, targetForF2);
+        }
+
+        if (this.f4 && !this.f4.isDead && this.f4.isCpu) {
+          const targetForF4 = this.getNearestOpponent(this.f4);
+          const f4Input = this.ai3.update(this.f4, targetForF4);
+          this.f4.handleInput(f4Input, input, targetForF4);
+        }
+
+        // Host streams authoritative snapshot
+        this.onlineSyncTick++;
+        if (this.onlineSyncTick % 4 === 0) {
+          this.netplay.sendSnapshot({
+            isCoop: true,
+            bossIndex: this.bossIndex,
+            f1: {
+              x: Math.round(this.f1.x),
+              y: Math.round(this.f1.y),
+              vx: this.f1.vx,
+              vy: this.f1.vy,
+              health: this.f1.health,
+              stamina: this.f1.stamina,
+              superMeter: this.f1.superMeter,
+              state: this.f1.state,
+              facingRight: this.f1.facingRight,
+              isDead: this.f1.isDead
+            },
+            f3: this.f3 ? {
+              x: Math.round(this.f3.x),
+              y: Math.round(this.f3.y),
+              vx: this.f3.vx,
+              vy: this.f3.vy,
+              health: this.f3.health,
+              stamina: this.f3.stamina,
+              superMeter: this.f3.superMeter,
+              state: this.f3.state,
+              facingRight: this.f3.facingRight,
+              isDead: this.f3.isDead
+            } : null,
+            f2: this.f2 ? {
+              x: Math.round(this.f2.x),
+              y: Math.round(this.f2.y),
+              vx: this.f2.vx,
+              vy: this.f2.vy,
+              health: this.f2.health,
+              stamina: this.f2.stamina,
+              superMeter: this.f2.superMeter,
+              state: this.f2.state,
+              facingRight: this.f2.facingRight,
+              isDead: this.f2.isDead,
+              phase: this.f2.phase,
+              isFlying: this.f2.isFlying
+            } : null,
+            f4: this.f4 ? {
+              x: Math.round(this.f4.x),
+              y: Math.round(this.f4.y),
+              vx: this.f4.vx,
+              vy: this.f4.vy,
+              health: this.f4.health,
+              stamina: this.f4.stamina,
+              superMeter: this.f4.superMeter,
+              state: this.f4.state,
+              facingRight: this.f4.facingRight,
+              isDead: this.f4.isDead
+            } : null,
+            round: this.round,
+            timer: this.hud.timer
+          });
+        }
+      } else {
+        // Client / Challenger controls f3 via local controls
+        if (this.f3 && !this.f3.isDead) {
+          const localInput = input.getState(1, this.f3.facingRight);
+          if (localInput.ultimateJust) input.queueAction(3, 'ULTIMATE');
+          else if (localInput.dirtyJust) input.queueAction(3, 'DIRTY');
+          else if (localInput.sp3Just) input.queueAction(3, 'SP3');
+          else if (localInput.sp2Just) input.queueAction(3, 'SP2');
+          else if (localInput.sp1Just) input.queueAction(3, 'SP1');
+          else if (localInput.hpJust) input.queueAction(3, 'HP');
+          else if (localInput.hkJust) input.queueAction(3, 'HK');
+          else if (localInput.lpJust) input.queueAction(3, 'LP');
+          else if (localInput.lkJust) input.queueAction(3, 'LK');
+
+          this.netplay.sendInput(localInput);
+          this.f3.handleInput(localInput, input, targetForF3);
+
+          if (this.f3.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+            if (localInput.lpJust || localInput.hpJust || localInput.lkJust || localInput.hkJust || localInput.dirtyJust) {
+              this.f3.submissionStruggle = Math.min(100, (this.f3.submissionStruggle || 0) + 14);
+              soundFX.playWhoosh('light');
+            }
+          }
+        }
+
+        // Challenger applies Host remote inputs to f1
+        const remoteInput = this.netplay.remoteInputState || {};
+        if (this.f1 && !this.f1.isDead) {
+          if (remoteInput.ultimateJust) input.queueAction(1, 'ULTIMATE');
+          else if (remoteInput.dirtyJust) input.queueAction(1, 'DIRTY');
+          else if (remoteInput.sp3Just) input.queueAction(1, 'SP3');
+          else if (remoteInput.sp2Just) input.queueAction(1, 'SP2');
+          else if (remoteInput.sp1Just) input.queueAction(1, 'SP1');
+          else if (remoteInput.hpJust) input.queueAction(1, 'HP');
+          else if (remoteInput.hkJust) input.queueAction(1, 'HK');
+          else if (remoteInput.lpJust) input.queueAction(1, 'LP');
+          else if (remoteInput.lkJust) input.queueAction(1, 'LK');
+
+          this.f1.handleInput(remoteInput, input, targetForP1);
+
+          remoteInput.lpJust = false;
+          remoteInput.hpJust = false;
+          remoteInput.lkJust = false;
+          remoteInput.hkJust = false;
+          remoteInput.sp1Just = false;
+          remoteInput.sp2Just = false;
+          remoteInput.sp3Just = false;
+          remoteInput.dirtyJust = false;
+          remoteInput.ultimateJust = false;
+        }
+
+        // Reconcile client fighters with authoritative host snapshot
+        if (this.netplay.latestSnapshot) {
+          const snap = this.netplay.latestSnapshot;
+          if (snap.bossIndex !== undefined && snap.bossIndex !== this.bossIndex) {
+            this.bossIndex = snap.bossIndex;
+            this.setupCampaignStage(this.f1 ? this.f1.id : 'kazuki', false);
+          }
+          if (snap.f1 && this.f1) {
+            this.f1.health = snap.f1.health;
+            this.f1.stamina = snap.f1.stamina;
+            this.f1.superMeter = snap.f1.superMeter;
+            this.f1.isDead = snap.f1.isDead;
+            if (Math.abs(this.f1.x - snap.f1.x) > 40) this.f1.x = snap.f1.x;
+            else this.f1.x += (snap.f1.x - this.f1.x) * 0.25;
+            if (Math.abs(this.f1.y - snap.f1.y) > 40) this.f1.y = snap.f1.y;
+            else this.f1.y += (snap.f1.y - this.f1.y) * 0.25;
+          }
+          if (snap.f3 && this.f3) {
+            this.f3.health = snap.f3.health;
+            this.f3.stamina = snap.f3.stamina;
+            this.f3.superMeter = snap.f3.superMeter;
+            this.f3.isDead = snap.f3.isDead;
+            if (Math.abs(this.f3.x - snap.f3.x) > 50) this.f3.x = snap.f3.x;
+            else this.f3.x += (snap.f3.x - this.f3.x) * 0.2;
+            if (Math.abs(this.f3.y - snap.f3.y) > 50) this.f3.y = snap.f3.y;
+            else this.f3.y += (snap.f3.y - this.f3.y) * 0.2;
+          }
+          if (snap.f2 && this.f2) {
+            this.f2.health = snap.f2.health;
+            this.f2.stamina = snap.f2.stamina;
+            this.f2.superMeter = snap.f2.superMeter;
+            this.f2.isDead = snap.f2.isDead;
+            if (snap.f2.phase !== undefined) this.f2.phase = snap.f2.phase;
+            if (snap.f2.isFlying !== undefined) this.f2.isFlying = snap.f2.isFlying;
+            if (Math.abs(this.f2.x - snap.f2.x) > 50) this.f2.x = snap.f2.x;
+            else this.f2.x += (snap.f2.x - this.f2.x) * 0.2;
+            if (Math.abs(this.f2.y - snap.f2.y) > 50) this.f2.y = snap.f2.y;
+            else this.f2.y += (snap.f2.y - this.f2.y) * 0.2;
+          }
+          if (snap.f4 && this.f4) {
+            this.f4.health = snap.f4.health;
+            this.f4.stamina = snap.f4.stamina;
+            this.f4.isDead = snap.f4.isDead;
+            if (Math.abs(this.f4.x - snap.f4.x) > 50) this.f4.x = snap.f4.x;
+            else this.f4.x += (snap.f4.x - this.f4.x) * 0.2;
+            if (Math.abs(this.f4.y - snap.f4.y) > 50) this.f4.y = snap.f4.y;
+            else this.f4.y += (snap.f4.y - this.f4.y) * 0.2;
+          }
+          if (snap.timer !== undefined && this.hud) {
+            this.hud.timer = snap.timer;
+          }
+        }
+      }
+      return;
+    }
+
+    // ==========================================
+    // STANDARD 1V1 ONLINE VERSUS
+    // ==========================================
     const targetForP1 = this.getNearestOpponent(this.f1);
     const targetForF2 = this.f2 ? this.getNearestOpponent(this.f2) : this.f1;
 
@@ -1285,7 +1615,12 @@ export class Game {
         if (p.active && !p.isAirborne && Math.abs(f.x - p.x) < 45) {
           let wantsPickup = false;
           if (this.isOnline) {
-            const isLocal = (this.netplay.isHost && f.playerNum === 1) || (!this.netplay.isHost && f.playerNum === 2);
+            let isLocal = false;
+            if (this.isCoopCampaign) {
+              isLocal = (this.netplay.isHost && f.playerNum === 1) || (!this.netplay.isHost && f.playerNum === 3);
+            } else {
+              isLocal = (this.netplay.isHost && f.playerNum === 1) || (!this.netplay.isHost && f.playerNum === 2);
+            }
             if (isLocal) {
               wantsPickup = (input.isDown('KeyS') && input.isJustPressed('KeyC'));
             } else {
@@ -1499,7 +1834,9 @@ export class Game {
       const bossDead = isBouncerStage
         ? (this.f2.isDead && (!this.f4 || this.f4.isDead))
         : (this.f2.isDead);
-      const playerDead = this.f1.isDead;
+      const playerDead = this.isCoopCampaign
+        ? (this.f1.isDead && (!this.f3 || this.f3.isDead))
+        : (this.f1.isDead);
       const isTimeOver = this.hud.timer <= 0;
 
       let stageWon = false;
@@ -1512,7 +1849,8 @@ export class Game {
       } else if (isTimeOver) {
         // Time Over resolution based on remaining health
         const bossHealth = isBouncerStage ? (this.f2.health + (this.f4 ? this.f4.health : 0)) : this.f2.health;
-        if (this.f1.health > bossHealth) {
+        const playerHealth = this.isCoopCampaign ? (this.f1.health + (this.f3 ? this.f3.health : 0)) : this.f1.health;
+        if (playerHealth > bossHealth) {
           stageWon = true;
         } else {
           stageLost = true;
@@ -1527,12 +1865,13 @@ export class Game {
         soundFX.stopMusic();
 
         if (stageWon && (isChampionStage || isDragonStage) && this.f2.phase === 2) {
-          this.hud.setAnnouncement(isDragonStage ? 'ANCIENT DRAGON VANQUISHED' : 'LEGEND VANQUISHED', 150);
+          const vanquishMsg = isDragonStage ? (this.isCoopCampaign ? 'ANCIENT DRAGON SLAIN (2P RAID CLEAR!)' : 'ANCIENT DRAGON VANQUISHED') : 'LEGEND VANQUISHED';
+          this.hud.setAnnouncement(vanquishMsg, 150);
         } else if (isTimeOver) {
           this.hud.setAnnouncement(stageWon ? 'TIME OVER - STAGE CLEAR!' : 'TIME OVER - DEFEAT', 130);
           soundFX.playAnnouncer('TIME_OVER');
         } else {
-          this.hud.setAnnouncement(stageWon ? 'STAGE CLEAR!' : 'DEFEAT', 120);
+          this.hud.setAnnouncement(stageWon ? (this.isCoopCampaign ? 'STAGE CLEAR (DUO RAID)!' : 'STAGE CLEAR!') : 'DEFEAT', 120);
         }
         this.hud.triggerShake(14);
       }
@@ -1541,18 +1880,48 @@ export class Game {
         this.roundOverTimer--;
         if (this.roundOverTimer <= 0) {
           if (this.campaignStageWon) {
+            // Defeating Stage 8 Endless Dragon unlocks the dragon & Dragon Slayer badge!
+            if (isDragonStage) {
+              if (typeof window !== 'undefined' && window.localStorage) {
+                try {
+                  window.localStorage.setItem('final_impact_unlocked_dragon', 'true');
+                  window.localStorage.setItem('final_impact_beaten_dragon', 'true');
+                } catch (e) {}
+              }
+              if (this.charSelect) {
+                this.charSelect.unlockDragon();
+              }
+            }
+
             this.bossIndex++;
             if (this.bossIndex < this.bossQueue.length) {
               // Advance to next boss! Heal player 50%
               this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
               this.f1.stamina = this.f1.maxStamina;
+              if (this.f3) {
+                this.f3.health = Math.min(this.f3.maxHealth, this.f3.health + 500);
+                this.f3.stamina = this.f3.maxStamina;
+              }
               this.setupCampaignStage(this.f1.id, false);
               this.screen = GAME_SCREENS.FIGHT;
               this.slowMotion = false;
               soundFX.startMusic('fight');
               soundFX.playAnnouncer('ROUND1');
+
+              // Sync next stage to Challenger in Co-Op Campaign
+              if (this.isCoopCampaign && this.netplay.isHost) {
+                this.netplay.send({
+                  type: 'CAMPAIGN_NEXT_STAGE',
+                  bossIndex: this.bossIndex
+                });
+              }
             } else {
-              // All 8 bosses defeated! Campaign Champion!
+              // All 8 bosses defeated! Campaign Champion & Dragon Slayer!
+              if (this.isCoopCampaign && this.netplay.isHost) {
+                this.netplay.send({
+                  type: 'CAMPAIGN_VICTORY'
+                });
+              }
               this.initVictoryScreen();
               this.winner = this.f1;
               soundFX.playAnnouncer('YOU_WIN');
@@ -1767,7 +2136,7 @@ export class Game {
 
     // 3. Render HUD (Health, Stamina, Timer, Super, Announcements)
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
-    this.hud.render(ctx, this.f1, primaryEnemy, W, H);
+    this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4);
 
     // Online Connection & Ping Badge
     if (this.isOnline && this.netplay) {
@@ -1873,10 +2242,17 @@ export class Game {
     ctx.font = 'bold 18px monospace';
 
     if (this.isCampaign && this.winner === this.f1) {
-      ctx.fillText('🏆 CAMPAIGN CONQUEROR! 🏆', W / 2, 38);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '9px monospace';
-      ctx.fillText('ALL 7 BOSSES & THE PRIMEVAL APEX FELLED', W / 2, 52);
+      if (this.isCoopCampaign) {
+        ctx.fillText('🐉 DRAGON SLAYER DUO! 🐉', W / 2, 38);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText('CO-OP RAID COMPLETE: THE ANCIENT VOID EMPEROR HAS FALLEN!', W / 2, 52);
+      } else {
+        ctx.fillText('🏆 CAMPAIGN CONQUEROR! 🏆', W / 2, 38);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '9px monospace';
+        ctx.fillText('ALL 8 BOSSES & THE ENDLESS DRAGON FELLED', W / 2, 52);
+      }
     } else {
       ctx.fillText(`${this.winner ? this.winner.name : 'PLAYER'} WINS!`, W / 2, 38);
       ctx.fillStyle = '#38bdf8';
@@ -1896,7 +2272,13 @@ export class Game {
       const quote = this.victoryQuotes[this.winner.id] || '"Victory belongs to the swift and disciplined!"';
       ctx.fillStyle = '#cbd5e1';
       ctx.font = 'italic 10px monospace';
-      ctx.fillText(quote, W / 2, 184);
+      ctx.fillText(quote, W / 2, 180);
+
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_beaten_dragon') === 'true') {
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 8.5px monospace';
+        ctx.fillText('✨ UNLOCKED: PLAYABLE ENDLESS DRAGON & [🐉 DRAGON SLAYER] TITLE ✨', W / 2, 192);
+      }
     }
 
     // Interactive Menu Area
