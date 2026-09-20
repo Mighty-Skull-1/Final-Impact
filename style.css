@@ -288,9 +288,20 @@ body {
 
 .modal-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   border-top: 2px solid #1e293b;
   padding-top: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-footer-left,
+.modal-footer-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .primary-btn {

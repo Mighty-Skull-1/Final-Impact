@@ -162,6 +162,27 @@ export class SettingsManager {
       resetBtn.addEventListener('click', () => this.resetKeybinds());
     }
 
+    // Leave game / return to menu handlers
+    const handleLeave = (target) => {
+      if (this.game && typeof this.game.leaveGame === 'function') {
+        this.game.leaveGame(target);
+      } else {
+        this.close();
+      }
+    };
+
+    const leaveFightBtn = document.getElementById('leaveFightBtn');
+    if (leaveFightBtn) leaveFightBtn.addEventListener('click', () => handleLeave('MODE_SELECT'));
+
+    const charSelectBtn = document.getElementById('charSelectBtn');
+    if (charSelectBtn) charSelectBtn.addEventListener('click', () => handleLeave('CHAR_SELECT'));
+
+    const genLeaveBtn = document.getElementById('generalLeaveMatchBtn');
+    if (genLeaveBtn) genLeaveBtn.addEventListener('click', () => handleLeave('MODE_SELECT'));
+
+    const genCharBtn = document.getElementById('generalCharSelectBtn');
+    if (genCharBtn) genCharBtn.addEventListener('click', () => handleLeave('CHAR_SELECT'));
+
     // Global keydown listener for rebind capture (runs in capture phase)
     window.addEventListener('keydown', (e) => {
       if (!this.isRebinding || !this.rebindingAction) return;
@@ -462,5 +483,79 @@ export class SettingsManager {
     if (sfxLabel) sfxLabel.textContent = `${this.settings.sfxVolume}%`;
 
     this.renderKeybinds();
+
+    // Dynamic Leave Game buttons in modal footer and general tab
+    const inFight = this.game && (
+      this.game.screen === 'FIGHT' ||
+      this.game.screen === 'ROUND_OVER' ||
+      this.game.screen === 'VICTORY'
+    );
+    const inCharSelect = this.game && (
+      this.game.screen === 'CHAR_SELECT' ||
+      this.game.screen === 'ONLINE_LOBBY'
+    );
+
+    const leaveBtn = document.getElementById('leaveFightBtn');
+    const charBtn = document.getElementById('charSelectBtn');
+    const resumeBtn = document.getElementById('closeSettingsBtn');
+    const matchGroup = document.getElementById('matchActionsGroup');
+    const genLeaveBtn = document.getElementById('generalLeaveMatchBtn');
+    const genCharBtn = document.getElementById('generalCharSelectBtn');
+
+    if (inFight) {
+      if (leaveBtn) {
+        leaveBtn.style.display = 'inline-block';
+        leaveBtn.textContent = '🚪 LEAVE GAME';
+      }
+      if (charBtn) {
+        charBtn.style.display = (this.game && this.game.isOnline) ? 'none' : 'inline-block';
+        charBtn.textContent = '👥 CHAR SELECT';
+      }
+      if (resumeBtn) {
+        resumeBtn.textContent = 'RESUME FIGHT [P]';
+      }
+      if (matchGroup) {
+        matchGroup.style.display = 'flex';
+      }
+      if (genLeaveBtn) {
+        genLeaveBtn.textContent = '🚪 LEAVE GAME (QUIT TO MENU)';
+      }
+      if (genCharBtn) {
+        genCharBtn.style.display = (this.game && this.game.isOnline) ? 'none' : 'inline-block';
+      }
+    } else if (inCharSelect) {
+      if (leaveBtn) {
+        leaveBtn.style.display = 'inline-block';
+        leaveBtn.textContent = '🚪 BACK TO MODES';
+      }
+      if (charBtn) {
+        charBtn.style.display = 'none';
+      }
+      if (resumeBtn) {
+        resumeBtn.textContent = 'CLOSE [P]';
+      }
+      if (matchGroup) {
+        matchGroup.style.display = 'flex';
+      }
+      if (genLeaveBtn) {
+        genLeaveBtn.textContent = '🚪 BACK TO MODE SELECT';
+      }
+      if (genCharBtn) {
+        genCharBtn.style.display = 'none';
+      }
+    } else {
+      if (leaveBtn) {
+        leaveBtn.style.display = 'none';
+      }
+      if (charBtn) {
+        charBtn.style.display = 'none';
+      }
+      if (resumeBtn) {
+        resumeBtn.textContent = 'CLOSE [P]';
+      }
+      if (matchGroup) {
+        matchGroup.style.display = 'none';
+      }
+    }
   }
 }

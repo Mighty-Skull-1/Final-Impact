@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FINAL IMPACT - 16-Bit Arcade Fighting Game</title>
-  <link rel="stylesheet" href="style.css?v=2.7.0">
+  <link rel="stylesheet" href="style.css?v=2.8.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -129,6 +129,17 @@
               </label>
             </div>
           </div>
+
+          <!-- Match / Session Actions (Leave Game / Character Select) -->
+          <div class="setting-group" id="matchActionsGroup">
+            <div class="setting-row">
+              <label style="color: #f87171; font-weight: bold;">MATCH CONTROLS:</label>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                <button id="generalLeaveMatchBtn" class="arcade-btn danger-btn">🚪 LEAVE GAME (QUIT TO MENU)</button>
+                <button id="generalCharSelectBtn" class="arcade-btn">👥 CHARACTER SELECT</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Controls / Keybinds Tab -->
@@ -148,7 +159,13 @@
         </div>
 
         <div class="modal-footer">
-          <button id="closeSettingsBtn" class="arcade-btn primary-btn">RESUME FIGHT [P]</button>
+          <div class="modal-footer-left">
+            <button id="leaveFightBtn" class="arcade-btn danger-btn">🚪 LEAVE GAME</button>
+            <button id="charSelectBtn" class="arcade-btn">👥 CHAR SELECT</button>
+          </div>
+          <div class="modal-footer-right">
+            <button id="closeSettingsBtn" class="arcade-btn primary-btn">RESUME FIGHT [P]</button>
+          </div>
         </div>
       </div>
     </div>
@@ -156,7 +173,7 @@
 
   <!-- PeerJS WebRTC P2P Library for Online Multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script type="module" src="src/main.js?v=2.7.0"></script>
+  <script type="module" src="src/main.js?v=2.8.0"></script>
   <script>
     // CRT toggle
     const crtBtn = document.getElementById('toggleCrtBtn');
@@ -200,6 +217,26 @@
     closeSettingsX.addEventListener('click', () => {
       if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
     });
+
+    const triggerLeaveGame = (target) => {
+      if (window.__GAME_INSTANCE && typeof window.__GAME_INSTANCE.leaveGame === 'function') {
+        window.__GAME_INSTANCE.leaveGame(target);
+      } else if (window.__GAME_SETTINGS && window.__GAME_SETTINGS.game && typeof window.__GAME_SETTINGS.game.leaveGame === 'function') {
+        window.__GAME_SETTINGS.game.leaveGame(target);
+      } else if (window.__GAME_SETTINGS) {
+        window.__GAME_SETTINGS.close();
+      }
+    };
+
+    const leaveFightBtn = document.getElementById('leaveFightBtn');
+    const charSelectBtn = document.getElementById('charSelectBtn');
+    const genLeaveBtn = document.getElementById('generalLeaveMatchBtn');
+    const genCharBtn = document.getElementById('generalCharSelectBtn');
+
+    if (leaveFightBtn) leaveFightBtn.addEventListener('click', () => triggerLeaveGame('MODE_SELECT'));
+    if (charSelectBtn) charSelectBtn.addEventListener('click', () => triggerLeaveGame('CHAR_SELECT'));
+    if (genLeaveBtn) genLeaveBtn.addEventListener('click', () => triggerLeaveGame('MODE_SELECT'));
+    if (genCharBtn) genCharBtn.addEventListener('click', () => triggerLeaveGame('CHAR_SELECT'));
 
     // Sliders & Selects
     const masterVol = document.getElementById('masterVol');

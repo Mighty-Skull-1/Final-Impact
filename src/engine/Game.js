@@ -111,12 +111,13 @@ export class Game {
     });
 
     // Universal canvas click delegation across screens
-    this.canvas.addEventListener('click', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const scaleX = this.canvas.width / (rect.width || 1);
-      const scaleY = this.canvas.height / (rect.height || 1);
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
+    if (this.canvas && typeof this.canvas.addEventListener === 'function') {
+      this.canvas.addEventListener('click', (e) => {
+        const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, width: this.canvas.width || 640, height: this.canvas.height || 360 };
+        const scaleX = this.canvas.width / (rect.width || 1);
+        const scaleY = this.canvas.height / (rect.height || 1);
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
       if (this.screen === GAME_SCREENS.MODE_SELECT) {
         this.modeSelect.handleClick(x, y, () => {
@@ -142,6 +143,7 @@ export class Game {
         this.handleVictoryClick(x, y);
       }
     });
+    }
 
     // URL Query Parameter ?room=XXXX auto-join
     if (typeof window !== 'undefined' && window.location && window.location.search) {
@@ -168,6 +170,7 @@ export class Game {
 
     this.settingsManager = new SettingsManager(this);
     window.__GAME_SETTINGS = this.settingsManager;
+    window.__GAME_INSTANCE = this;
     this.gameSpeedTick = 0;
 
     this.stage = new Stage('suzaku');
@@ -470,6 +473,56 @@ export class Game {
       }
     }
     return false;
+  }
+
+  leaveGame(target = 'MODE_SELECT') {
+    // 1. Close settings modal if open
+    if (this.settingsManager) {
+      this.settingsManager.close();
+    }
+
+    // 2. Stop battle music & play retro menu chime
+    try {
+      soundFX.stopMusic();
+      soundFX.playMenuSelect();
+    } catch (e) {}
+
+    // 3. Clean up online match & disconnect P2P session
+    if (this.isOnline) {
+      try {
+        if (this.netplay) {
+          this.netplay.send({ type: 'FORFEIT' });
+          this.netplay.disconnect();
+        }
+      } catch (e) {}
+      this.isOnline = false;
+      if (this.onlineLobby) {
+        this.onlineLobby.reset();
+      }
+    }
+
+    // 4. Reset match entities and campaign/mode trackers
+    this.f1 = null;
+    this.f2 = null;
+    this.f3 = null;
+    this.f4 = null;
+    this.allFighters = [];
+    this.projectiles = [];
+    this.pickups = [];
+    this.isCampaign = false;
+    this.is2v2 = false;
+    this.isTraining = false;
+    this.bossIndex = 0;
+    this.round = 1;
+    this.slowMotion = false;
+    this.winner = null;
+
+    // 5. Navigate to destination screen
+    if (target === 'CHAR_SELECT') {
+      this.screen = GAME_SCREENS.CHAR_SELECT;
+    } else {
+      this.screen = GAME_SCREENS.MODE_SELECT;
+    }
   }
 
   startMatch() {
