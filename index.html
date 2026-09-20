@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FINAL IMPACT - 16-Bit Arcade Fighting Game</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.7.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -29,19 +29,17 @@
 
     <!-- Arcade Control Dashboard & Shortcuts -->
     <footer class="control-panel">
-      <div class="panel-section">
-        <h3>CONTROLS & TACTICS</h3>
+      <div class="panel-section inputs">
+        <h3>PLAYER 1 CONTROLS</h3>
         <div class="control-keys">
-          <span><strong>MOVE:</strong> W (Jump), A (Back/Guard), S (Crouch), D (Fwd) | P2: Arrow Keys</span>
-          <span><strong>NORMALS:</strong> U (LP), I (HP), J (LK), K (HK) | P2: Numpad 4, 5, 1, 2</span>
-          <span><strong>SPECIALS:</strong> Q / O (Sp1), E / L (Sp2), R / ; (Sp3) | P2: Numpad 7, 8, 9</span>
-          <span style="color:#fbbf24"><strong>⚡ DIRTY TACTIC (UNBLOCKABLE COMEBACK):</strong> [C] or [↓↓ + Punch] (P2: [Numpad 3])</span>
-          <span style="color:#ef4444"><strong>🔥 ADRENALINE & RAGE MODE:</strong> Auto-triggers at HP ≤ 30%! (+25% Damage, +50% EX gain, Heavy Super Armor)</span>
+          <span><strong>MOVE / JUMP / CROUCH:</strong> W, A, S, D</span>
+          <span><strong>ATTACKS:</strong> U (Light Punch), I (Heavy Punch), J (Light Kick), K (Heavy Kick)</span>
+          <span><strong>DIRTY TACTIC (DESPERATION):</strong> C</span>
         </div>
       </div>
 
-      <div class="panel-section">
-        <h3>SPECIAL, ULTIMATE & ARENA MECHANICS</h3>
+      <div class="panel-section specials">
+        <h3>SPECIAL MOVES (QUICK KEYS / MOTIONS)</h3>
         <div class="control-keys">
           <span><strong>SPECIAL 1 (FIREBALL / SONIC / WARP):</strong> Q or O (or ↓ ↘ → + Punch)</span>
           <span><strong>SPECIAL 2 (UPPERCUT / SOMERSAULT / SPIRAL):</strong> E or L (or → ↓ ↘ + Punch/Kick)</span>
@@ -55,11 +53,11 @@
       <div class="panel-section toggles">
         <h3>SHORTCUTS</h3>
         <div class="button-group">
-          <button id="settingsBtn" class="arcade-btn highlight-btn">⚙️ SETTINGS [ESC / P]</button>
+          <button id="settingsBtn" class="arcade-btn highlight-btn">⚙️ PAUSE / SETTINGS [P]</button>
           <button id="toggleCrtBtn" class="arcade-btn">CRT SCANLINES: ON</button>
           <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF [H]</button>
           <button id="toggleEasyBtn" class="arcade-btn">EASY SPECIALS: OFF [T]</button>
-          <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN [F]</button>
+          <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN [F11]</button>
         </div>
       </div>
     </footer>
@@ -150,7 +148,7 @@
         </div>
 
         <div class="modal-footer">
-          <button id="closeSettingsBtn" class="arcade-btn primary-btn">RESUME FIGHT</button>
+          <button id="closeSettingsBtn" class="arcade-btn primary-btn">RESUME FIGHT [P]</button>
         </div>
       </div>
     </div>
@@ -158,7 +156,7 @@
 
   <!-- PeerJS WebRTC P2P Library for Online Multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/main.js?v=2.7.0"></script>
   <script>
     // CRT toggle
     const crtBtn = document.getElementById('toggleCrtBtn');
@@ -288,9 +286,13 @@
       }
     }
 
-    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 
     document.addEventListener('fullscreenchange', async () => {
+      if (fullscreenBtn) {
+        fullscreenBtn.textContent = document.fullscreenElement ? 'EXIT FULLSCREEN [F11]' : 'FULLSCREEN [F11]';
+      }
       if (document.fullscreenElement) {
         if (navigator.keyboard && navigator.keyboard.lock) {
           try {
@@ -307,11 +309,12 @@
     });
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyF') {
+      if (e.code === 'F11') {
+        e.preventDefault();
         toggleFullscreen();
       }
       if (e.code === 'Escape' && document.fullscreenElement) {
-        // Prevent default browser escape-from-fullscreen behavior so Escape acts only as in-game menu/back
+        // Prevent default browser escape-from-fullscreen behavior so Escape doesn't exit fullscreen
         e.preventDefault();
       }
     });

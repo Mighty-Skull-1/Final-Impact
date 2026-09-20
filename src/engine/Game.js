@@ -218,11 +218,22 @@ export class Game {
           // Key is currently being captured by keybind rebinding
           return;
         }
-        if (e.code === 'Escape' || e.code === 'KeyP') {
+        // ONLY P key resumes/pauses as requested
+        if (e.code === 'KeyP') {
           e.preventDefault();
           this.settingsManager.close();
           return;
         }
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          return;
+        }
+        return;
+      }
+
+      // In a fight, Escape must NEVER pause or back out (P is the dedicated pause key)
+      if (this.screen === GAME_SCREENS.FIGHT && e.code === 'Escape') {
+        e.preventDefault();
         return;
       }
 
@@ -242,9 +253,7 @@ export class Game {
       if (isBackKey) {
         e.preventDefault();
         e.stopPropagation();
-        if (this.settingsManager.isOpen) {
-          this.settingsManager.toggle();
-        } else if (this.screen === GAME_SCREENS.MODE_SELECT) {
+        if (this.screen === GAME_SCREENS.MODE_SELECT) {
           this.screen = GAME_SCREENS.TITLE;
         } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
           if (this.onlineLobby.subState === 'MENU') {
@@ -260,8 +269,6 @@ export class Game {
           } else {
             this.screen = GAME_SCREENS.MODE_SELECT;
           }
-        } else if (this.screen === GAME_SCREENS.FIGHT) {
-          this.settingsManager.toggle();
         } else if (this.screen === GAME_SCREENS.VICTORY) {
           if (this.isOnline) {
             this.voteRematch('no');

@@ -171,34 +171,166 @@ export class SettingsManager {
 
       if (e.code === 'Escape') {
         this.cancelRebinding();
-        try { soundFX.playBlock(); } catch (err) {}
-        this.renderKeybinds();
+        try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (err) {}
         return;
       }
 
       // Rebind to captured code
       this.finishRebinding(e.code);
     }, true);
+
+    // Click delegation for keybinds list (click row or button to rebind)
+    const container = document.getElementById('keybindsContainer');
+    if (container) {
+      container.addEventListener('click', (e) => {
+        const row = e.target.closest('.keybind-row');
+        if (!row) return;
+        const actionKey = row.getAttribute('data-action');
+        if (!actionKey) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.isRebinding && this.rebindingAction === actionKey) {
+          this.cancelRebinding();
+          return;
+        }
+
+        this.startRebinding(actionKey);
+      });
+    }
+  }
+
+  getActionLabel(actionKey) {
+    for (const g of ACTION_GROUPS) {
+      const found = g.actions.find(a => a.key === actionKey);
+      if (found) return found.label;
+    }
+    return actionKey;
   }
 
   startRebinding(actionKey) {
+    const container = document.getElementById('keybindsContainer');
+    const pKey = this.selectedPlayer === 1 ? 'P1' : 'P2';
+    const activeControls = input.controls[pKey] || {};
+
+    // Clear previous rebinding styling without destroying DOM or resetting scroll position
+    if (container) {
+      const allRows = container.querySelectorAll('.keybind-row');
+      allRows.forEach(r => {
+        r.classList.remove('rebinding-active');
+        const btn = r.querySelector('.keybind-key-btn');
+        const act = r.getAttribute('data-action');
+        if (btn && act) {
+          btn.classList.remove('rebinding');
+          btn.textContent = formatKey(activeControls[act]);
+        }
+      });
+
+      const targetRow = container.querySelector(`.keybind-row[data-action="${actionKey}"]`);
+      if (targetRow) {
+        targetRow.classList.add('rebinding-active');
+        const targetBtn = targetRow.querySelector('.keybind-key-btn');
+        if (targetBtn) {
+          targetBtn.classList.add('rebinding');
+          targetBtn.textContent = 'PRESS KEY...';
+        }
+      }
+    }
+
     this.isRebinding = true;
     this.rebindingAction = actionKey;
-    try { soundFX.playHitLight(); } catch (e) {}
-    this.renderKeybinds();
+
+    const hintEl = document.querySelector('.controls-hint');
+    if (hintEl) {
+      const label = this.getActionLabel(actionKey);
+      hintEl.innerHTML = `<span style="color: #facc15; animation: pulse-rebinding 0.8s infinite alternate;">🎯 REBINDING: [ ${label.toUpperCase()} ]<br>PRESS ANY KEY ON YOUR KEYBOARD (ESC TO CANCEL)</span>`;
+    }
+
+    try {
+      if (soundFX && typeof soundFX.playHitLight === 'function') soundFX.playHitLight();
+    } catch (e) {}
   }
 
   finishRebinding(keyCode) {
     if (!this.rebindingAction) return;
-    input.setKeybind(this.selectedPlayer, this.rebindingAction, keyCode);
-    try { soundFX.playHitLight(); } catch (e) {}
+    const actionKey = this.rebindingAction;
+    const hintEl = document.querySelector('.controls-hint');
+
+    // Reserved keys protection
+    if (keyCode === 'KeyP') {
+      if (hintEl) {
+        hintEl.innerHTML = `<span style="color: #ef4444; font-weight: bold;">⚠ [P] IS RESERVED FOR PAUSE / SETTINGS. CHOOSE ANOTHER KEY.</span>`;
+      }
+      try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (e) {}
+      return;
+    }
+    if (keyCode === 'F11') {
+      if (hintEl) {
+        hintEl.innerHTML = `<span style="color: #ef4444; font-weight: bold;">⚠ [F11] IS RESERVED FOR FULLSCREEN. CHOOSE ANOTHER KEY.</span>`;
+      }
+      try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (e) {}
+      return;
+    }
+
+    // Save customized keybind
+    input.setKeybind(this.selectedPlayer, actionKey, keyCode);
+
+    const container = document.getElementById('keybindsContainer');
+    if (container) {
+      const targetRow = container.querySelector(`.keybind-row[data-action="${actionKey}"]`);
+      if (targetRow) {
+        targetRow.classList.remove('rebinding-active');
+        const targetBtn = targetRow.querySelector('.keybind-key-btn');
+        if (targetBtn) {
+          targetBtn.classList.remove('rebinding');
+          targetBtn.textContent = formatKey(keyCode);
+        }
+      }
+    }
+
+    const label = this.getActionLabel(actionKey);
+    if (hintEl) {
+      hintEl.innerHTML = `<span style="color: #4ade80;">✓ BOUND [ ${label.toUpperCase()} ] ➔ ${formatKey(keyCode)}</span>`;
+    }
+
     this.isRebinding = false;
     this.rebindingAction = null;
-    this.renderKeybinds();
+
+    try {
+      if (soundFX && typeof soundFX.playHitLight === 'function') soundFX.playHitLight();
+    } catch (e) {}
 
     // Blur active element to prevent Space / Enter from triggering synthetic click events
     if (typeof document !== 'undefined' && document.activeElement && document.activeElement.blur) {
       document.activeElement.blur();
+    }
+  }
+
+  cancelRebinding() {
+    if (this.rebindingAction) {
+      const container = document.getElementById('keybindsContainer');
+      const pKey = this.selectedPlayer === 1 ? 'P1' : 'P2';
+      const activeControls = input.controls[pKey] || {};
+      if (container) {
+        const targetRow = container.querySelector(`.keybind-row[data-action="${this.rebindingAction}"]`);
+        if (targetRow) {
+          targetRow.classList.remove('rebinding-active');
+          const targetBtn = targetRow.querySelector('.keybind-key-btn');
+          if (targetBtn) {
+            targetBtn.classList.remove('rebinding');
+            targetBtn.textContent = formatKey(activeControls[this.rebindingAction]);
+          }
+        }
+      }
+    }
+
+    this.isRebinding = false;
+    this.rebindingAction = null;
+
+    const hintEl = document.querySelector('.controls-hint');
+    if (hintEl) {
+      hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A KEY TO REBIND. ESCAPE TO CANCEL.`;
     }
   }
 
@@ -234,11 +366,6 @@ export class SettingsManager {
     this.renderKeybinds();
   }
 
-  cancelRebinding() {
-    this.isRebinding = false;
-    this.rebindingAction = null;
-  }
-
   toggle() {
     this.isOpen = !this.isOpen;
     const modal = document.getElementById('settingsModal');
@@ -260,7 +387,9 @@ export class SettingsManager {
 
   resetKeybinds() {
     input.resetDefaultControls();
-    try { soundFX.playHitHeavy(); } catch (e) {}
+    try {
+      if (soundFX && typeof soundFX.playHitHeavy === 'function') soundFX.playHitHeavy();
+    } catch (e) {}
     this.cancelRebinding();
     this.renderKeybinds();
   }
@@ -269,19 +398,11 @@ export class SettingsManager {
     const container = document.getElementById('keybindsContainer');
     if (!container) return;
 
-    // Update dynamic hint banner
+    this.cancelRebinding();
+
     const hintEl = document.querySelector('.controls-hint');
     if (hintEl) {
-      if (this.isRebinding && this.rebindingAction) {
-        let actionName = this.rebindingAction;
-        for (const g of ACTION_GROUPS) {
-          const found = g.actions.find(a => a.key === this.rebindingAction);
-          if (found) { actionName = found.label; break; }
-        }
-        hintEl.innerHTML = `<span style="color: #facc15; animation: pulse-rebinding 0.8s infinite alternate;">🎯 REBINDING: [ ${actionName.toUpperCase()} ]<br>PRESS ANY KEY ON YOUR KEYBOARD (ESC TO CANCEL)</span>`;
-      } else {
-        hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A KEY TO REBIND. ESCAPE TO CANCEL.`;
-      }
+      hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A KEY TO REBIND. ESCAPE TO CANCEL.`;
     }
 
     container.innerHTML = '';
@@ -297,10 +418,7 @@ export class SettingsManager {
       group.actions.forEach(action => {
         const row = document.createElement('div');
         row.className = 'keybind-row';
-        const isThisRebinding = this.isRebinding && this.rebindingAction === action.key;
-        if (isThisRebinding) {
-          row.classList.add('rebinding-active');
-        }
+        row.setAttribute('data-action', action.key);
 
         const nameLabel = document.createElement('span');
         nameLabel.className = 'keybind-action-name';
@@ -309,24 +427,8 @@ export class SettingsManager {
         const keyBtn = document.createElement('button');
         keyBtn.type = 'button';
         keyBtn.className = 'keybind-key-btn';
-
-        if (isThisRebinding) {
-          keyBtn.classList.add('rebinding');
-          keyBtn.textContent = 'PRESS KEY...';
-        } else {
-          const currentCode = activeControls[action.key];
-          keyBtn.textContent = formatKey(currentCode);
-        }
-
-        // Clicking either the button OR the entire row activates rebinding!
-        const triggerRebind = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.startRebinding(action.key);
-        };
-
-        row.addEventListener('click', triggerRebind);
-        keyBtn.addEventListener('click', triggerRebind);
+        keyBtn.setAttribute('data-action', action.key);
+        keyBtn.textContent = formatKey(activeControls[action.key]);
 
         row.appendChild(nameLabel);
         row.appendChild(keyBtn);
