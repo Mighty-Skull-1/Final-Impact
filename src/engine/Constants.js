@@ -54,6 +54,10 @@ export const FIGHTER_STATE = {
   KNOCKDOWN: 'KNOCKDOWN',
   BLIND_STUN: 'BLIND_STUN',
   WALL_REBOUND: 'WALL_REBOUND',
+  WINDED: 'WINDED',
+  SUBMISSION_LOCK: 'SUBMISSION_LOCK',
+  OVERHEAT_STUN: 'OVERHEAT_STUN',
+  PICKUP_ATTACK: 'PICKUP_ATTACK',
   WAKEUP: 'WAKEUP',
   
   // Endings
@@ -73,7 +77,39 @@ export const HIT_TYPE = {
   HEAVY: 'HEAVY',
   KNOCKDOWN: 'KNOCKDOWN',
   WALL_BOUNCE: 'WALL_BOUNCE',
-  DIRTY_STUN: 'DIRTY_STUN'
+  DIRTY_STUN: 'DIRTY_STUN',
+  BLEED_SLASH: 'BLEED_SLASH',
+  SUBMISSION_LOCK: 'SUBMISSION_LOCK'
+};
+
+export const LIMB_ZONE = {
+  LEAD_ARM: 'leadArm',
+  REAR_ARM: 'rearArm',
+  LEAD_LEG: 'leadLeg',
+  REAR_LEG: 'rearLeg',
+  TORSO: 'torso',
+  HEAD: 'head'
+};
+
+export const STATUS_EFFECT = {
+  BLEED: 'BLEED',
+  OVERHEAT: 'OVERHEAT',
+  PARALYSIS: 'PARALYSIS',
+  WINDED: 'WINDED'
+};
+
+export const GAME_MODE = {
+  VERSUS_CPU: 'cpu',
+  VERSUS_2P: '2p',
+  BRAWL_2V2: '2v2',
+  BOSS_GAUNTLET: 'boss_gauntlet',
+  TRAINING: 'training'
+};
+
+export const PICKUP_TYPE = {
+  BOTTLE: 'bottle',
+  BRICK: 'brick',
+  LUMBER: 'lumber'
 };
 
 // Default Player Controls

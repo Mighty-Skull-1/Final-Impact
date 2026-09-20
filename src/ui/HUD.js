@@ -279,6 +279,48 @@ export class HUD {
       ctx.fillText('[ RAGE MODE ]', p2X + barW - 170, barY - 6);
     }
 
+    // Stamina Bars (Directly below health bars)
+    const stamY = barY + barH + 2;
+    const stamH = 4;
+    // P1 Stamina
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(p1X, stamY, barW, stamH);
+    const p1StamW = ((f1.stamina || 100) / 100) * barW;
+    ctx.fillStyle = f1.state === 'WINDED' ? '#ef4444' : '#10b981';
+    ctx.fillRect(p1X + barW - p1StamW, stamY, p1StamW, stamH);
+
+    // P2 Stamina
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(p2X, stamY, barW, stamH);
+    const p2StamW = ((f2.stamina || 100) / 100) * barW;
+    ctx.fillStyle = f2.state === 'WINDED' ? '#ef4444' : '#10b981';
+    ctx.fillRect(p2X, stamY, p2StamW, stamH);
+
+    // Anatomical Limb Status Indicators
+    const limbY = stamY + 9;
+    ctx.font = 'bold 8px monospace';
+    // P1 Limbs
+    const p1ArmColor = f1.limbs?.leadArm <= 0 ? '#ef4444' : (f1.limbs?.leadArm <= 40 ? '#f59e0b' : '#94a3b8');
+    const p1LegColor = f1.limbs?.leadLeg <= 0 ? '#ef4444' : (f1.limbs?.leadLeg <= 40 ? '#f59e0b' : '#94a3b8');
+    const p1TorsoColor = f1.limbs?.torso <= 30 ? '#ef4444' : '#94a3b8';
+    ctx.fillStyle = p1ArmColor;
+    ctx.fillText(f1.limbs?.leadArm <= 0 ? 'ARM:BRK' : `ARM:${Math.round(f1.limbs?.leadArm || 100)}`, p1X, limbY);
+    ctx.fillStyle = p1LegColor;
+    ctx.fillText(f1.limbs?.leadLeg <= 0 ? 'LEG:BRK' : `LEG:${Math.round(f1.limbs?.leadLeg || 100)}`, p1X + 50, limbY);
+    ctx.fillStyle = p1TorsoColor;
+    ctx.fillText(f1.limbs?.torso <= 30 ? 'RIB:BRK' : `RIB:${Math.round(f1.limbs?.torso || 100)}`, p1X + 100, limbY);
+
+    // P2 Limbs
+    const p2ArmColor = f2.limbs?.leadArm <= 0 ? '#ef4444' : (f2.limbs?.leadArm <= 40 ? '#f59e0b' : '#94a3b8');
+    const p2LegColor = f2.limbs?.leadLeg <= 0 ? '#ef4444' : (f2.limbs?.leadLeg <= 40 ? '#f59e0b' : '#94a3b8');
+    const p2TorsoColor = f2.limbs?.torso <= 30 ? '#ef4444' : '#94a3b8';
+    ctx.fillStyle = p2ArmColor;
+    ctx.fillText(f2.limbs?.leadArm <= 0 ? 'ARM:BRK' : `ARM:${Math.round(f2.limbs?.leadArm || 100)}`, p2X + barW - 140, limbY);
+    ctx.fillStyle = p2LegColor;
+    ctx.fillText(f2.limbs?.leadLeg <= 0 ? 'LEG:BRK' : `LEG:${Math.round(f2.limbs?.leadLeg || 100)}`, p2X + barW - 90, limbY);
+    ctx.fillStyle = p2TorsoColor;
+    ctx.fillText(f2.limbs?.torso <= 30 ? 'RIB:BRK' : `RIB:${Math.round(f2.limbs?.torso || 100)}`, p2X + barW - 40, limbY);
+
     // Round Win Emblems (Golden "V" badges)
     for (let r = 0; r < f1.roundsWon; r++) {
       ctx.fillStyle = '#facc15';
@@ -491,6 +533,30 @@ export class HUD {
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('★ CROWD SHOVE! ★', W / 2, bannerY + 16);
+      ctx.restore();
+    }
+
+    // 10. MMA Submission Lock Struggle Overlay
+    if (f1.state === 'SUBMISSION_LOCK' || f2.state === 'SUBMISSION_LOCK') {
+      const victim = f1.state === 'SUBMISSION_LOCK' ? f1 : f2;
+      ctx.save();
+      const sY = H / 2 + 25;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.fillRect(W / 2 - 130, sY - 20, 260, 42);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W / 2 - 130, sY - 20, 260, 42);
+
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️ MASH BUTTONS TO ESCAPE SUBMISSION! ⚠️', W / 2, sY - 6);
+
+      // Meter bar
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(W / 2 - 100, sY + 4, 200, 10);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(W / 2 - 100, sY + 4, Math.min(200, ((victim.submissionStruggle || 0) / 100) * 200), 10);
       ctx.restore();
     }
 

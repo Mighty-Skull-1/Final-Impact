@@ -1,10 +1,8 @@
-// Final Impact - Enhanced Base Fighter Engine
-// Features attack state protection, combo chaining on hit, hitstop micro-freeze, and dashing
-
-import { FIGHTER_STATE, GROUND_Y, ATTACK_HEIGHT, HIT_TYPE } from '../engine/Constants.js';
+import { FIGHTER_STATE, GROUND_Y, ATTACK_HEIGHT, HIT_TYPE, LIMB_ZONE, STATUS_EFFECT, PICKUP_TYPE } from '../engine/Constants.js';
 import { Box } from '../engine/Hitbox.js';
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
+import { AlleyPickup } from '../engine/Projectiles.js';
 
 export class Fighter {
   constructor({
@@ -24,13 +22,31 @@ export class Fighter {
     this.facingRight = facingRight;
     this.playerNum = playerNum;
     this.isCpu = isCpu;
+    this.team = (playerNum === 1 || playerNum === 3) ? 1 : 2;
 
-    // Combat Stats
+    // Combat Stats & Vitality
     this.maxHealth = 1000;
     this.health = 1000;
     this.superMeter = 0;
     this.maxSuperMeter = 100;
     this.roundsWon = 0;
+
+    // Stamina & Limb Fatigue System
+    this.maxStamina = 100;
+    this.stamina = 100;
+    this.staminaRegenRate = 0.32;
+    this.windedTimer = 0;
+    this.limbs = {
+      leadArm: 100,
+      rearArm: 100,
+      leadLeg: 100,
+      rearLeg: 100,
+      torso: 100,
+      head: 100
+    };
+    this.statusEffects = [];
+    this.heldPickup = null;
+    this.submissionStruggle = 0;
 
     // State Machine
     this.state = FIGHTER_STATE.IDLE;
@@ -75,6 +91,31 @@ export class Fighter {
 
     // Sprites
     this.sprites = spriteGenerator.generateFighterSprites(this.id);
+  }
+
+  consumeStamina(amount) {
+    this.stamina = Math.max(0, this.stamina - amount);
+    if (this.stamina <= 0 && this.state !== FIGHTER_STATE.WINDED && this.isGrounded && !this.isDead) {
+      this.changeState(FIGHTER_STATE.WINDED);
+      this.windedTimer = 65;
+    }
+  }
+
+  damageLimb(zone, amount) {
+    if (this.limbs[zone] === undefined) return;
+    const oldVal = this.limbs[zone];
+    this.limbs[zone] = Math.max(0, this.limbs[zone] - amount);
+    if (oldVal > 0 && this.limbs[zone] === 0) {
+      soundFX.playKnockdown();
+    }
+  }
+
+  applyStatusEffect(effect, duration) {
+    this.statusEffects.push({ effect, duration });
+  }
+
+  hasStatusEffect(effect) {
+    return this.statusEffects.some(s => s.effect === effect && s.duration > 0);
   }
 
   isAttacking() {
@@ -170,11 +211,16 @@ export class Fighter {
 
   // Double-tap Dashing
   startDash(forward = true) {
-    if (this.isAttacking() || !this.isGrounded || this.hitStun > 0 || this.blockStun > 0) return;
+    if (this.isAttacking() || !this.isGrounded || this.hitStun > 0 || this.blockStun > 0 || this.stamina < 8 || this.state === FIGHTER_STATE.WINDED) return;
+    this.consumeStamina(12);
     soundFX.playDash();
     this.changeState(forward ? FIGHTER_STATE.DASH_FWD : FIGHTER_STATE.DASH_BACK);
+    let speed = forward ? this.dashSpeed : this.dashSpeed * 0.7;
+    if (this.limbs.leadLeg <= 0) {
+      speed *= 0.52; // Broken lead leg slows dash to a staggering limp
+    }
     const dir = this.facingRight ? (forward ? 1 : -1) : (forward ? -1 : 1);
-    this.vx = dir * (forward ? this.dashSpeed : this.dashSpeed * 0.7);
+    this.vx = dir * speed;
   }
 
   update(opponent, stageWidth = 960) {
@@ -186,6 +232,54 @@ export class Fighter {
 
     this.stateTimer++;
     if (this.armorFlash > 0) this.armorFlash--;
+
+    // Handle Winded state (0 Stamina exhaustion)
+    if (this.state === FIGHTER_STATE.WINDED) {
+      this.windedTimer--;
+      this.vx *= 0.8;
+      if (this.stateTimer % 10 === 0) {
+        this.sweatParticles.push({
+          x: this.x + 40 + (Math.random() - 0.5) * 12,
+          y: this.y - 75,
+          vy: 1.5,
+          alpha: 1.0
+        });
+      }
+      if (this.windedTimer <= 0) {
+        this.stamina = 35;
+        this.changeState(FIGHTER_STATE.IDLE);
+      }
+      return;
+    }
+
+    // Passive Stamina Regeneration
+    if (!this.isAttacking() && this.state !== FIGHTER_STATE.BLOCK && this.state !== FIGHTER_STATE.CROUCH_BLOCK && !this.isDead) {
+      const torsoMult = this.limbs.torso <= 30 ? 0.5 : 1.0;
+      this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * torsoMult);
+    }
+
+    // Status Effects (Bleed, Paralysis)
+    for (let i = this.statusEffects.length - 1; i >= 0; i--) {
+      const se = this.statusEffects[i];
+      se.duration--;
+      if (se.effect === STATUS_EFFECT.BLEED) {
+        if (se.duration % 30 === 0 && !this.isDead) {
+          this.health = Math.max(1, this.health - 6);
+          this.tacticalParticles.push({
+            x: this.x + 40 + (Math.random() - 0.5) * 12,
+            y: this.y - 50 + (Math.random() - 0.5) * 15,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: 1.5,
+            size: 3,
+            alpha: 1.0,
+            color: '#b71c1c'
+          });
+        }
+      }
+      if (se.duration <= 0) {
+        this.statusEffects.splice(i, 1);
+      }
+    }
 
     // 2. Adrenaline & Rage Threshold Check (HP <= 30%)
     if (!this.isRageMode && this.health <= this.maxHealth * 0.30 && !this.isDead) {
@@ -349,6 +443,233 @@ export class Fighter {
     this.updateState(opponent);
   }
 
+  executePickupAttack(type, opponent) {
+    const item = this.heldPickup;
+    this.heldPickup = null;
+    this.consumeStamina(10);
+
+    if (item === 'brick' || item === 'bottle') {
+      if (this.spawnProjectile) {
+        const p = new AlleyPickup(item, this.x, this.y - 45);
+        p.throw(this, this.facingRight);
+        this.spawnProjectile(p);
+      }
+      soundFX.playWhoosh('heavy');
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH);
+    } else if (item === 'lumber') {
+      soundFX.playWhoosh('heavy');
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH);
+      this.activeHitbox = new Box(35, 15, 75, 55);
+      this.currentAttackData = {
+        damage: 85,
+        hitStun: 30,
+        blockStun: 18,
+        pushback: 8,
+        height: ATTACK_HEIGHT.MID,
+        hitType: HIT_TYPE.KNOCKDOWN,
+        chipDamage: 15
+      };
+    }
+  }
+
+  handleInput(inputState, inputManager, opponent) {
+    if (this.hitStun > 0 || this.blockStun > 0 || this.state === FIGHTER_STATE.KNOCKDOWN || this.state === FIGHTER_STATE.BLIND_STUN || this.state === FIGHTER_STATE.WINDED || this.state === FIGHTER_STATE.OVERHEAT_STUN) {
+      return;
+    }
+
+    if (this.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+      if (inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust || inputState.dirtyJust || inputState.lp || inputState.hp) {
+        this.submissionStruggle = Math.min(100, (this.submissionStruggle || 0) + 14);
+        soundFX.playWhoosh('light');
+      }
+      return;
+    }
+
+    this.isHoldingBack = !!inputState.back;
+    this.isCrouching = !!inputState.down;
+
+    const pNum = this.playerNum;
+
+    // Environmental Weapon Pickup Attack
+    if (this.heldPickup) {
+      const wantsAttack = inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust || inputState.dirtyJust || (inputManager && (inputManager.peekAction(pNum) === 'LP' || inputManager.peekAction(pNum) === 'HP' || inputManager.peekAction(pNum) === 'DIRTY'));
+      if (wantsAttack && !this.isAttacking()) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.executePickupAttack(this.heldPickup, opponent);
+        return;
+      }
+    }
+
+    // Normal Attacks
+    const lpTrigger = inputState.lpJust || (inputManager && inputManager.peekAction(pNum) === 'LP');
+    const hpTrigger = inputState.hpJust || (inputManager && inputManager.peekAction(pNum) === 'HP');
+    const lkTrigger = inputState.lkJust || (inputManager && inputManager.peekAction(pNum) === 'LK');
+    const hkTrigger = inputState.hkJust || (inputManager && inputManager.peekAction(pNum) === 'HK');
+    const sp1Trigger = inputState.sp1 || (inputManager && inputManager.peekAction(pNum) === 'SP1');
+    const sp2Trigger = inputState.sp2 || (inputManager && inputManager.peekAction(pNum) === 'SP2');
+
+    if (!this.isGrounded) {
+      if (this.state === FIGHTER_STATE.JUMP) {
+        if (lpTrigger || hpTrigger) {
+          if (inputManager) inputManager.consumeAction(pNum);
+          this.changeState(FIGHTER_STATE.JUMP_PUNCH);
+          soundFX.playWhoosh('light');
+        } else if (lkTrigger || hkTrigger) {
+          if (inputManager) inputManager.consumeAction(pNum);
+          this.changeState(FIGHTER_STATE.JUMP_KICK);
+          soundFX.playWhoosh('heavy');
+        }
+      }
+      return;
+    }
+
+    if (this.isAttacking() && !this.canCancelOnHit()) {
+      return;
+    }
+
+    if (sp1Trigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.SPECIAL_1);
+      soundFX.playWhoosh('heavy');
+      return;
+    }
+
+    if (sp2Trigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.SPECIAL_2);
+      soundFX.playWhoosh('heavy');
+      return;
+    }
+
+    if (inputState.down) {
+      if (lpTrigger) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_PUNCH, true);
+        soundFX.playWhoosh('light');
+        return;
+      }
+      if (hpTrigger) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_PUNCH, true);
+        soundFX.playWhoosh('heavy');
+        return;
+      }
+      if (lkTrigger) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_LIGHT_KICK, true);
+        soundFX.playWhoosh('light');
+        return;
+      }
+      if (hkTrigger) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.changeState(FIGHTER_STATE.CROUCH_HEAVY_KICK, true);
+        soundFX.playWhoosh('heavy');
+        return;
+      }
+      if (!this.isAttacking()) {
+        this.changeState(FIGHTER_STATE.CROUCH);
+      }
+      return;
+    }
+
+    if (lpTrigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_PUNCH, true);
+      soundFX.playWhoosh('light');
+      return;
+    }
+    if (hpTrigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_PUNCH, true);
+      soundFX.playWhoosh('heavy');
+      return;
+    }
+    if (lkTrigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.ATTACK_LIGHT_KICK, true);
+      soundFX.playWhoosh('light');
+      return;
+    }
+    if (hkTrigger) {
+      if (inputManager) inputManager.consumeAction(pNum);
+      this.changeState(FIGHTER_STATE.ATTACK_HEAVY_KICK, true);
+      soundFX.playWhoosh('heavy');
+      return;
+    }
+
+    // Movement
+    if (this.isAttacking() || this.state === FIGHTER_STATE.DASH_FWD || this.state === FIGHTER_STATE.DASH_BACK) {
+      return;
+    }
+
+    if (inputState.dashFwd) {
+      this.startDash(true);
+      return;
+    }
+    if (inputState.dashBack) {
+      this.startDash(false);
+      return;
+    }
+
+    if (inputState.up) {
+      this.vy = this.jumpForce;
+      this.isGrounded = false;
+      this.changeState(FIGHTER_STATE.JUMP);
+      if (inputState.fwd) this.vx = (this.facingRight ? 1 : -1) * 3.8;
+      else if (inputState.back) this.vx = (this.facingRight ? -1 : 1) * 3.8;
+      soundFX.playJump();
+      return;
+    }
+
+    if (inputState.fwd) {
+      this.vx = (this.facingRight ? 1 : -1) * this.walkSpeed;
+      this.changeState(FIGHTER_STATE.WALK_FWD);
+    } else if (inputState.back) {
+      this.vx = (this.facingRight ? -1 : 1) * (this.walkSpeed * 0.75);
+      this.changeState(FIGHTER_STATE.WALK_BACK);
+    } else {
+      this.changeState(FIGHTER_STATE.IDLE);
+    }
+  }
+
+  updateState(opponent) {
+    this.animTimer++;
+    const frames = this.sprites[this.state] || this.sprites.IDLE;
+
+    if (this.isAttacking()) {
+      if (this.stateTimer <= 4) {
+        this.animFrame = 0;
+      } else if (this.stateTimer <= 13) {
+        this.animFrame = 1;
+        if (!this.activeHitbox) {
+          const isCrouch = this.state.startsWith('CROUCH_');
+          const isHeavy = this.state.includes('HEAVY') || this.state.includes('HK') || this.state.includes('HP');
+          this.activeHitbox = new Box(36, isCrouch ? 48 : 22, 58, 28);
+          this.currentAttackData = {
+            damage: isHeavy ? 80 : 45,
+            hitStun: isHeavy ? 24 : 14,
+            blockStun: isHeavy ? 16 : 10,
+            pushback: isHeavy ? 6 : 4,
+            height: isCrouch ? ATTACK_HEIGHT.LOW : (isHeavy ? ATTACK_HEIGHT.MID : ATTACK_HEIGHT.HIGH),
+            hitType: isHeavy ? HIT_TYPE.HEAVY : HIT_TYPE.LIGHT
+          };
+        }
+      } else if (this.stateTimer <= 19) {
+        this.animFrame = 2;
+        this.activeHitbox = null;
+      } else {
+        this.activeHitbox = null;
+        this.changeState(this.isCrouching ? FIGHTER_STATE.CROUCH : FIGHTER_STATE.IDLE);
+      }
+      return;
+    }
+
+    if (this.animTimer >= this.animSpeed) {
+      this.animTimer = 0;
+      this.animFrame = (this.animFrame + 1) % (frames ? frames.length : 1);
+    }
+  }
+
   canTurnAround() {
     return [
       FIGHTER_STATE.IDLE,
@@ -425,6 +746,8 @@ export class Fighter {
       soundFX.playBlock();
       const chip = attackData.chipDamage || 0;
       this.health = Math.max(1, this.health - chip);
+      this.consumeStamina(attackData.damage * 0.15);
+      this.damageLimb(LIMB_ZONE.LEAD_ARM, attackData.damage * 0.18);
       this.blockStun = attackData.blockStun || 12;
       this.vx = (this.facingRight ? -1 : 1) * (attackData.pushback * 0.7);
       const isCrouching = this.state === FIGHTER_STATE.CROUCH || this.isCrouching;
@@ -437,6 +760,22 @@ export class Fighter {
 
     this.health = Math.max(0, this.health - attackData.damage);
     this.addSuper(attackData.damage * 0.08);
+
+    // Apply Arterial Bleed
+    if (attackData.hitType === HIT_TYPE.BLEED_SLASH) {
+      this.applyStatusEffect(STATUS_EFFECT.BLEED, 240);
+    }
+
+    // Limb fatigue distribution
+    if (attackData.height === ATTACK_HEIGHT.LOW) {
+      this.damageLimb(LIMB_ZONE.LEAD_LEG, attackData.damage * 0.35);
+    } else if (attackData.height === ATTACK_HEIGHT.MID) {
+      this.damageLimb(LIMB_ZONE.TORSO, attackData.damage * 0.22);
+      this.damageLimb(LIMB_ZONE.LEAD_ARM, attackData.damage * 0.15);
+    } else if (attackData.height === ATTACK_HEIGHT.HIGH) {
+      this.damageLimb(LIMB_ZONE.HEAD, attackData.damage * 0.30);
+      this.damageLimb(LIMB_ZONE.LEAD_ARM, attackData.damage * 0.15);
+    }
 
     if (this.health <= 0) {
       this.die();
@@ -462,7 +801,11 @@ export class Fighter {
       return 'knockdown';
     }
 
-    this.hitStun = attackData.hitStun || 16;
+    let stunVal = attackData.hitStun || 16;
+    if (this.limbs.head <= 30) {
+      stunVal += 3; // Concussed head extends flinch
+    }
+    this.hitStun = stunVal;
     this.vx = (this.facingRight ? -1 : 1) * attackData.pushback;
     const isCrouching = this.state === FIGHTER_STATE.CROUCH || this.isCrouching;
     this.changeState(isCrouching ? FIGHTER_STATE.HIT_CROUCH : FIGHTER_STATE.HIT);
@@ -651,6 +994,38 @@ export class Fighter {
         ctx.fillRect(sx - 1, sy - 3, 2, 6);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(sx - 1, sy - 1, 2, 2);
+      }
+      ctx.restore();
+    }
+
+    // 5. 2V2 Cel-Shaded Team Ground Indicator
+    ctx.save();
+    ctx.fillStyle = this.team === 1 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(244, 63, 94, 0.45)';
+    ctx.beginPath();
+    ctx.ellipse(this.x + 40, this.y, 20, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 6. Held Environmental Weapon Pickup
+    if (this.heldPickup) {
+      ctx.save();
+      const pickX = this.facingRight ? this.x + 55 : this.x + 10;
+      const pickY = this.y - 45;
+      if (this.heldPickup === 'bottle') {
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(pickX, pickY, 5, 12);
+        ctx.fillStyle = '#6ee7b7';
+        ctx.fillRect(pickX + 1, pickY - 4, 3, 4);
+      } else if (this.heldPickup === 'brick') {
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillRect(pickX, pickY, 10, 7);
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(pickX + 1, pickY + 1, 7, 4);
+      } else if (this.heldPickup === 'lumber') {
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(pickX - 4, pickY - 18, 7, 36);
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(pickX - 2, pickY - 16, 3, 32);
       }
       ctx.restore();
     }

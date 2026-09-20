@@ -86,13 +86,12 @@ export class CharacterSelect {
         }
 
         // Change mode with Up/Down
+        const modes = ['boss_gauntlet', '2v2', 'cpu', '2p', 'training'];
         if (inputState.up) {
-          const modes = ['cpu', '2p', 'training'];
           const idx = (modes.indexOf(this.gameMode) - 1 + modes.length) % modes.length;
           this.gameMode = modes[idx];
           soundFX.playWhoosh('light');
         } else if (inputState.down) {
-          const modes = ['cpu', '2p', 'training'];
           const idx = (modes.indexOf(this.gameMode) + 1) % modes.length;
           this.gameMode = modes[idx];
           soundFX.playWhoosh('light');
@@ -143,11 +142,13 @@ export class CharacterSelect {
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 12px monospace';
     const modeLabels = {
-      cpu: 'MODE: ARCADE [VS CPU]  (Press W/S to change)',
-      '2p': 'MODE: VERSUS [LOCAL 2-PLAYER]  (Press W/S to change)',
-      training: 'MODE: TRAINING [PRACTICE]  (Press W/S to change)'
+      boss_gauntlet: '👑 MODE: ARCADE BOSS GAUNTLET (7 Bosses)  (Press W/S)',
+      '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL  (Press W/S)',
+      cpu: '⚔️ MODE: 1V1 VERSUS CPU  (Press W/S)',
+      '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER  (Press W/S)',
+      training: '🥋 MODE: TRAINING / PRACTICE  (Press W/S)'
     };
-    ctx.fillText(modeLabels[this.gameMode], W / 2, 54);
+    ctx.fillText(modeLabels[this.gameMode] || modeLabels.cpu, W / 2, 54);
 
     // Stage Selector
     ctx.fillStyle = '#ec4899';

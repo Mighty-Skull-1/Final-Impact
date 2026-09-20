@@ -88,6 +88,119 @@ export class AIController {
   makeDecision(cpu, player, dist) {
     this.neutralize();
 
+    // 0. Specialized Boss Tactical AI Decision Profiles
+    if (cpu.id === 'riot_cop') {
+      if (dist > 140) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 70) {
+        if (Math.random() < 0.6) this.currentState.lp = true;
+        else this.walkTowards(cpu, player);
+      } else {
+        if (Math.random() < 0.5) this.currentState.hp = true;
+        else this.currentState.lp = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'promoter') {
+      if (dist > 200) {
+        if (Math.random() < 0.4) {
+          this.currentState.up = true;
+          this.walkTowards(cpu, player);
+        } else {
+          this.walkTowards(cpu, player);
+        }
+      } else if (dist > 90) {
+        if (Math.random() < 0.5) this.currentState.lp = true;
+        else this.walkTowards(cpu, player);
+      } else {
+        this.currentState.lp = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'boris') {
+      if (dist > 120) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 65) {
+        if (Math.random() < 0.5) this.currentState.hp = true;
+        else this.walkTowards(cpu, player);
+      } else {
+        if (Math.random() < 0.6) this.currentState.sp1 = true;
+        else this.currentState.hp = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'viktor') {
+      if (dist > 180) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 90) {
+        if (Math.random() < 0.5) {
+          this.currentState.down = true;
+          this.currentState.hk = true;
+        } else {
+          this.currentState.hk = true;
+        }
+      } else {
+        if (Math.random() < 0.4) this.walkAway(cpu, player);
+        else this.currentState.hk = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'matriarch') {
+      if (dist > 160) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 80) {
+        if (Math.random() < 0.5) this.currentState.lp = true;
+        else this.currentState.hp = true;
+      } else {
+        if (Math.random() < 0.5) this.currentState.hp = true;
+        else this.walkAway(cpu, player);
+      }
+      return;
+    }
+
+    if (cpu.id === 'street_lord') {
+      if (dist > 120) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 70) {
+        if (Math.random() < 0.5) this.currentState.lp = true;
+        else this.currentState.hp = true;
+      } else {
+        this.currentState.hp = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'urban_legend') {
+      if (dist > 180) {
+        this.walkTowards(cpu, player);
+      } else if (dist > 90) {
+        if (Math.random() < 0.6) this.currentState.lp = true;
+        else this.walkTowards(cpu, player);
+      } else {
+        if (Math.random() < 0.5) this.currentState.lp = true;
+        else this.currentState.hp = true;
+      }
+      return;
+    }
+
+    if (cpu.id === 'champion') {
+      if (dist > 140) {
+        if (Math.random() < 0.45) this.currentState.sp1 = true;
+        else this.walkTowards(cpu, player);
+      } else if (dist > 70) {
+        if (Math.random() < 0.4) this.currentState.sp1 = true;
+        else this.currentState.lp = true;
+      } else {
+        if (Math.random() < 0.5) this.currentState.hp = true;
+        else this.currentState.lp = true;
+      }
+      return;
+    }
+
     // Long Range (> 240px)
     if (dist > 240) {
       const roll = Math.random();

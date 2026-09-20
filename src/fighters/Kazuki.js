@@ -21,10 +21,28 @@ export class Kazuki extends Fighter {
       return;
     }
 
-    this.isHoldingBack = !!inputState.back;
-    this.isCrouching = !!inputState.down;
+    if (this.state === FIGHTER_STATE.SUBMISSION_LOCK) {
+      if (inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust || inputState.dirtyJust) {
+        this.submissionStruggle = Math.min(100, (this.submissionStruggle || 0) + 14);
+        soundFX.playWhoosh('light');
+      }
+      return;
+    }
 
     const pNum = this.playerNum;
+
+    // Environmental Weapon Pickup Attack
+    if (this.heldPickup) {
+      const wantsAttack = inputState.lpJust || inputState.hpJust || inputState.lkJust || inputState.hkJust || (inputManager && (inputManager.peekAction(pNum) === 'LP' || inputManager.peekAction(pNum) === 'HP'));
+      if (wantsAttack && !this.isAttacking()) {
+        if (inputManager) inputManager.consumeAction(pNum);
+        this.executePickupAttack(this.heldPickup, opponent);
+        return;
+      }
+    }
+
+    this.isHoldingBack = !!inputState.back;
+    this.isCrouching = !!inputState.down;
 
     // 1. Naruto-Style Ultimate Jutsu Check (Spacebar, HP+HK, or buffered action)
     const canSuper = this.superMeter >= 100 || inputManager.easyInputs;
