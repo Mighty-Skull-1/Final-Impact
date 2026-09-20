@@ -35,15 +35,25 @@ export class StreetLord extends Fighter {
 
     // Stamina-Proof Armor Phase (HP <= 40%)
     if (this.isArmorPhase) {
-      if (attackData.height === ATTACK_HEIGHT.UNBLOCKABLE || attackData.hitType === HIT_TYPE.DIRTY_STUN) {
+      const isBreaker = attackData.height === ATTACK_HEIGHT.UNBLOCKABLE || attackData.hitType === HIT_TYPE.DIRTY_STUN || (attackData.damage && attackData.damage >= 180);
+      if (isBreaker) {
         this.triggerOverheatShutdown();
+        this.health = Math.max(0, this.health - attackData.damage);
+        this.armorFlash = 6;
+        if (this.health <= 0) {
+          this.die();
+          return 'ko';
+        }
         return 'overheat_break';
       }
       soundFX.playBlock();
-      // Absorbs damage with zero flinch/knockback
-      this.health = Math.max(1, this.health - Math.floor(attackData.damage * 0.7));
+      // Absorbs damage with zero flinch/knockback, but can still be reduced to 0 HP
+      this.health = Math.max(0, this.health - Math.floor(attackData.damage * 0.7));
       this.armorFlash = 6;
-      if (this.health <= 0) this.die();
+      if (this.health <= 0) {
+        this.die();
+        return 'ko';
+      }
       return 'armored';
     }
 
@@ -144,10 +154,7 @@ export class StreetLord extends Fighter {
         break;
 
       default:
-        if (this.animTimer >= this.animSpeed) {
-          this.animTimer = 0;
-          this.animFrame = (this.animFrame + 1) % frames.length;
-        }
+        super.updateState(opponent);
         break;
     }
   }

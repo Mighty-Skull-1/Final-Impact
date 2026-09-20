@@ -77,6 +77,7 @@ export class Game {
     this.isTraining = false;
     this.bossQueue = ['riot_cop', 'promoter', 'bouncer_twins', 'matriarch', 'street_lord', 'urban_legend', 'champion'];
     this.bossIndex = 0;
+    this.campaignStageWon = false;
 
     // Victory quotes for all fighters & bosses
     this.victoryQuotes = {
@@ -218,6 +219,11 @@ export class Game {
     this.projectiles = [];
     this.spawnDefaultPickups();
 
+    // Thematic stage backgrounds for each boss
+    const stageThemes = ['neo_tokyo', 'suzaku', 'thunder_dojo', 'suzaku', 'neo_tokyo', 'thunder_dojo', 'suzaku'];
+    const stageId = stageThemes[this.bossIndex] || 'suzaku';
+    this.stage = new Stage(stageId);
+
     // Scale AI difficulty progressively per stage (1 to 7)
     this.ai.setDifficulty('campaign', stageNum);
     this.ai3.setDifficulty('campaign', stageNum);
@@ -240,7 +246,6 @@ export class Game {
       this.f4 = this.createFighter('viktor', 780, false, 4, true);
       this.f3 = null;
       this.allFighters = [this.f1, this.f2, this.f4];
-      this.hud.setAnnouncement(`STAGE 3: THE BOUNCER TWINS (2v1)`, 120);
     } else {
       if (!this.f1) {
         this.f1 = this.createFighter(p1Id, 220, true, 1, false);
@@ -282,9 +287,28 @@ export class Game {
       this.f3 = null;
       this.f4 = null;
       this.allFighters = [this.f1, this.f2];
-      const bossName = this.f2.name;
-      this.hud.setAnnouncement(`STAGE ${stageNum}: ${bossName}`, 120);
     }
+
+    // Restore P1 physical limbs and state for the new stage
+    if (this.f1) {
+      this.f1.limbs = { leadArm: 100, rearArm: 100, leadLeg: 100, rearLeg: 100, torso: 100, head: 100 };
+      this.f1.statusEffects = [];
+      this.f1.heldPickup = null;
+      this.f1.submissionStruggle = 0;
+      this.f1.isRageMode = false;
+      this.f1.isInvincible = false;
+      this.f1.hitStun = 0;
+      this.f1.blockStun = 0;
+    }
+    this.cameraX = 0;
+
+    // Reset HUD timer to full 99 seconds for the stage and calibrate red health bars
+    this.hud.reset(1);
+    this.hud.p1RedHealth = this.f1 ? this.f1.health : 1000;
+    this.hud.p2RedHealth = this.f2 ? this.f2.health : 1000;
+
+    const bossName = currentBossId === 'bouncer_twins' ? 'THE BOUNCER TWINS (2v1)' : this.f2.name;
+    this.hud.setAnnouncement(`STAGE ${stageNum}: ${bossName}`, 120);
   }
 
   spawnDefaultPickups() {
@@ -782,25 +806,46 @@ export class Game {
       const isChampionStage = this.bossQueue[this.bossIndex] === 'champion';
 
       // Elden Ring Phase 1 transition guard: do not end if Rex Gannon is transitioning to Phase 2
-      if (isChampionStage && this.f2 && this.f2.phase === 1 && this.f2.hasTransitioned) {
+      if (isChampionStage && this.f2 && ((this.f2.phase === 1 && this.f2.hasTransitioned) || this.f2.transitionTimer > 0)) {
         return; // Fight continues in Phase 2!
       }
 
-      const enemiesDefeated = isBouncerStage
+      const bossDead = isBouncerStage
         ? (this.f2.isDead && (!this.f4 || this.f4.isDead))
         : (this.f2.isDead);
+      const playerDead = this.f1.isDead;
+      const isTimeOver = this.hud.timer <= 0;
 
-      const playerDefeated = this.f1.isDead;
+      let stageWon = false;
+      let stageLost = false;
 
-      if ((enemiesDefeated || playerDefeated) && this.screen === GAME_SCREENS.FIGHT) {
+      if (bossDead) {
+        stageWon = true;
+      } else if (playerDead) {
+        stageLost = true;
+      } else if (isTimeOver) {
+        // Time Over resolution based on remaining health
+        const bossHealth = isBouncerStage ? (this.f2.health + (this.f4 ? this.f4.health : 0)) : this.f2.health;
+        if (this.f1.health > bossHealth) {
+          stageWon = true;
+        } else {
+          stageLost = true;
+        }
+      }
+
+      if ((stageWon || stageLost) && this.screen === GAME_SCREENS.FIGHT) {
         this.screen = GAME_SCREENS.ROUND_OVER;
         this.slowMotion = true;
         this.roundOverTimer = 160;
+        this.campaignStageWon = stageWon;
 
-        if (enemiesDefeated && isChampionStage && this.f2.phase === 2) {
+        if (stageWon && isChampionStage && this.f2.phase === 2) {
           this.hud.setAnnouncement('LEGEND VANQUISHED', 150);
+        } else if (isTimeOver) {
+          this.hud.setAnnouncement(stageWon ? 'TIME OVER - STAGE CLEAR!' : 'TIME OVER - DEFEAT', 130);
+          soundFX.playAnnouncer('TIME_OVER');
         } else {
-          this.hud.setAnnouncement(enemiesDefeated ? 'STAGE CLEAR!' : 'DEFEAT', 120);
+          this.hud.setAnnouncement(stageWon ? 'STAGE CLEAR!' : 'DEFEAT', 120);
         }
         this.hud.triggerShake(14);
       }
@@ -808,7 +853,7 @@ export class Game {
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
         this.roundOverTimer--;
         if (this.roundOverTimer <= 0) {
-          if (enemiesDefeated) {
+          if (this.campaignStageWon) {
             this.bossIndex++;
             if (this.bossIndex < this.bossQueue.length) {
               // Advance to next boss! Heal player 50%

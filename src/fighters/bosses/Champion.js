@@ -329,10 +329,7 @@ export class Champion extends Fighter {
         break;
 
       default:
-        if (this.animTimer >= this.animSpeed) {
-          this.animTimer = 0;
-          this.animFrame = (this.animFrame + 1) % frames.length;
-        }
+        super.updateState(opponent);
         break;
     }
   }

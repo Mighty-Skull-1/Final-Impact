@@ -391,7 +391,7 @@ export class Fighter {
         this.vy = 0;
         this.vx = 0;
         this.isGrounded = true;
-        if (this.state !== FIGHTER_STATE.KNOCKDOWN) {
+        if (this.state !== FIGHTER_STATE.KNOCKDOWN && !this.isDead) {
           this.changeState(FIGHTER_STATE.IDLE);
         }
       }
@@ -431,6 +431,7 @@ export class Fighter {
 
     // Handle Knockdown
     if (this.state === FIGHTER_STATE.KNOCKDOWN) {
+      if (this.isDead) return; // Defeated fighters remain down
       this.knockdownTimer--;
       if (this.knockdownTimer <= 0) {
         this.isInvincible = false;
