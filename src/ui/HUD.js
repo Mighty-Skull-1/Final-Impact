@@ -20,6 +20,24 @@ export class HUD {
     window.addEventListener('ultimate-activated', (e) => {
       this.triggerUltimateCinematic(e.detail);
     });
+
+    // Dirty Tactic & Crowd Banners
+    this.dirtyBanner = null;
+    this.crowdBanner = null;
+  }
+
+  showDirtyBanner(fighterName) {
+    this.dirtyBanner = {
+      name: fighterName,
+      timer: 70
+    };
+  }
+
+  showCrowdBanner(text = 'CROWD SHOVE!') {
+    this.crowdBanner = {
+      text,
+      timer: 75
+    };
   }
 
   triggerUltimateCinematic(detail) {
@@ -37,6 +55,8 @@ export class HUD {
     this.hitSparks = [];
     this.screenShake = 0;
     this.ultimateCinematic = null;
+    this.dirtyBanner = null;
+    this.crowdBanner = null;
     this.setAnnouncement(roundNumber === 1 ? 'ROUND 1' : (roundNumber === 2 ? 'ROUND 2' : 'FINAL ROUND'), 90);
   }
 
@@ -145,6 +165,16 @@ export class HUD {
         this.ultimateCinematic = null;
       }
     }
+
+    // Dirty & Crowd Banner Timers
+    if (this.dirtyBanner) {
+      this.dirtyBanner.timer--;
+      if (this.dirtyBanner.timer <= 0) this.dirtyBanner = null;
+    }
+    if (this.crowdBanner) {
+      this.crowdBanner.timer--;
+      if (this.crowdBanner.timer <= 0) this.crowdBanner = null;
+    }
   }
 
   getShakeOffset() {
@@ -167,10 +197,13 @@ export class HUD {
 
     // P1 Health Bar (Left to center)
     const p1X = 30;
+    const p1Rage = f1.isRageMode;
+    const p1BorderColor = p1Rage ? (Math.floor(Date.now() / 80) % 2 === 0 ? '#ef4444' : '#f97316') : '#facc15';
+
     // Outer border
     ctx.fillStyle = '#000000';
     ctx.fillRect(p1X - 2, barY - 2, barW + 4, barH + 4);
-    ctx.fillStyle = '#facc15';
+    ctx.fillStyle = p1BorderColor;
     ctx.fillRect(p1X - 1, barY - 1, barW + 2, barH + 2);
     ctx.fillStyle = '#1e1b4b';
     ctx.fillRect(p1X, barY, barW, barH);
@@ -183,17 +216,26 @@ export class HUD {
     // P1 Green/Yellow Current Health
     const p1CurrW = (f1.health / f1.maxHealth) * barW;
     const p1Grad = ctx.createLinearGradient(0, barY, 0, barY + barH);
-    p1Grad.addColorStop(0, '#fef08a');
-    p1Grad.addColorStop(0.5, '#eab308');
-    p1Grad.addColorStop(1, '#ca8a04');
+    if (p1Rage) {
+      p1Grad.addColorStop(0, '#ffedd5');
+      p1Grad.addColorStop(0.5, '#f97316');
+      p1Grad.addColorStop(1, '#c2410c');
+    } else {
+      p1Grad.addColorStop(0, '#fef08a');
+      p1Grad.addColorStop(0.5, '#eab308');
+      p1Grad.addColorStop(1, '#ca8a04');
+    }
     ctx.fillStyle = p1Grad;
     ctx.fillRect(p1X + barW - p1CurrW, barY, p1CurrW, barH);
 
     // P2 Health Bar (Right to center)
     const p2X = W - barW - 30;
+    const p2Rage = f2.isRageMode;
+    const p2BorderColor = p2Rage ? (Math.floor(Date.now() / 80) % 2 === 0 ? '#ef4444' : '#f97316') : '#facc15';
+
     ctx.fillStyle = '#000000';
     ctx.fillRect(p2X - 2, barY - 2, barW + 4, barH + 4);
-    ctx.fillStyle = '#facc15';
+    ctx.fillStyle = p2BorderColor;
     ctx.fillRect(p2X - 1, barY - 1, barW + 2, barH + 2);
     ctx.fillStyle = '#1e1b4b';
     ctx.fillRect(p2X, barY, barW, barH);
@@ -203,16 +245,39 @@ export class HUD {
     ctx.fillStyle = '#dc2626';
     ctx.fillRect(p2X, barY, p2RedW, barH);
 
-    // P2 Yellow Current Health
+    // P2 Current Health
     const p2CurrW = (f2.health / f2.maxHealth) * barW;
-    ctx.fillStyle = p1Grad;
+    const p2Grad = ctx.createLinearGradient(0, barY, 0, barY + barH);
+    if (p2Rage) {
+      p2Grad.addColorStop(0, '#ffedd5');
+      p2Grad.addColorStop(0.5, '#f97316');
+      p2Grad.addColorStop(1, '#c2410c');
+    } else {
+      p2Grad.addColorStop(0, '#fef08a');
+      p2Grad.addColorStop(0.5, '#eab308');
+      p2Grad.addColorStop(1, '#ca8a04');
+    }
+    ctx.fillStyle = p2Grad;
     ctx.fillRect(p2X, barY, p2CurrW, barH);
 
-    // Fighter Names
+    // Fighter Names & Rage Badges
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px monospace';
     ctx.fillText(f1.name, p1X + 4, barY - 6);
+    if (p1Rage) {
+      ctx.fillStyle = p1BorderColor;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('[ RAGE MODE ]', p1X + 70, barY - 6);
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px monospace';
     ctx.fillText(f2.name, p2X + barW - ctx.measureText(f2.name).width - 4, barY - 6);
+    if (p2Rage) {
+      ctx.fillStyle = p2BorderColor;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('[ RAGE MODE ]', p2X + barW - 170, barY - 6);
+    }
 
     // Round Win Emblems (Golden "V" badges)
     for (let r = 0; r < f1.roundsWon; r++) {
@@ -394,6 +459,38 @@ export class HUD {
       ctx.font = 'bold 10px monospace';
       ctx.fillText(u.subtitle, 136, bannerY + 95);
 
+      ctx.restore();
+    }
+
+    // 8. Dirty Tactic Banner
+    if (this.dirtyBanner && this.dirtyBanner.timer > 0) {
+      ctx.save();
+      const bannerY = H - 56;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.fillRect(W / 2 - 140, bannerY, 280, 24);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W / 2 - 140, bannerY, 280, 24);
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`⚡ DIRTY TACTIC! [${this.dirtyBanner.name}] ⚡`, W / 2, bannerY + 16);
+      ctx.restore();
+    }
+
+    // 9. Crowd Shove Banner
+    if (this.crowdBanner && this.crowdBanner.timer > 0) {
+      ctx.save();
+      const bannerY = 88;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.fillRect(W / 2 - 110, bannerY, 220, 24);
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W / 2 - 110, bannerY, 220, 24);
+      ctx.fillStyle = '#4ade80';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('★ CROWD SHOVE! ★', W / 2, bannerY + 16);
       ctx.restore();
     }
 

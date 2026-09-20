@@ -40,6 +40,14 @@ export class Raven extends Fighter {
       }
     }
 
+    // Dirty Tactic: Concealed Taser Shock (KeyC, Numpad3, or buffered DIRTY)
+    const wantsDirty = inputState.dirtyJust || inputManager.peekAction(pNum) === 'DIRTY';
+    if (wantsDirty && this.isGrounded && (!this.isAttacking() || this.canCancelOnHit())) {
+      inputManager.consumeAction(pNum);
+      this.startTaserShock();
+      return;
+    }
+
     // 2. Airborne state checks
     if (!this.isGrounded) {
       if (this.state === FIGHTER_STATE.JUMP) {
@@ -203,6 +211,24 @@ export class Raven extends Fighter {
     this.changeState(FIGHTER_STATE.SPECIAL_3);
     soundFX.playWhoosh('heavy');
     this.vx = (this.facingRight ? 1 : -1) * 8.0;
+  }
+
+  // Dirty Tactic: Concealed Taser Shock
+  startTaserShock() {
+    this.changeState(FIGHTER_STATE.DIRTY_TACTIC);
+    soundFX.playTaserShock();
+    const originX = this.facingRight ? this.x + 52 : this.x + 8;
+    for (let i = 0; i < 18; i++) {
+      this.tacticalParticles.push({
+        x: originX + (Math.random() - 0.5) * 10,
+        y: this.y - 50 + (Math.random() - 0.5) * 16,
+        vx: (this.facingRight ? 1 : -1) * (3.0 + Math.random() * 4.0),
+        vy: (Math.random() - 0.5) * 3.0,
+        size: 2 + Math.random() * 3,
+        alpha: 1.0,
+        color: Math.random() < 0.7 ? '#38bdf8' : '#ffffff'
+      });
+    }
   }
 
   // Naruto-Style Ultimate Jutsu: TACTICAL OVERDRIVE (超戦術・雷光撃)
@@ -527,6 +553,34 @@ export class Raven extends Fighter {
         } else if (this.stateTimer <= 85) {
           this.animFrame = 3;
           this.isInvincible = false;
+        } else {
+          this.changeState(FIGHTER_STATE.IDLE);
+        }
+        break;
+
+      case FIGHTER_STATE.DIRTY_TACTIC:
+        // Startup (0 - 5): concealed draw
+        if (this.stateTimer <= 5) {
+          this.animFrame = 0;
+        }
+        // Active (6 - 15): electric taser shock thrust
+        else if (this.stateTimer <= 15) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(40, 22, 65, 35);
+          this.currentAttackData = {
+            damage: 55,
+            hitStun: 60,
+            blockStun: 18,
+            pushback: 4,
+            height: ATTACK_HEIGHT.UNBLOCKABLE,
+            hitType: HIT_TYPE.DIRTY_STUN,
+            stunFrames: 60
+          };
+        }
+        // Recovery (16 - 24)
+        else if (this.stateTimer <= 24) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
         } else {
           this.changeState(FIGHTER_STATE.IDLE);
         }

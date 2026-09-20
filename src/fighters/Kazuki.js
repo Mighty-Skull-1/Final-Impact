@@ -37,6 +37,14 @@ export class Kazuki extends Fighter {
       }
     }
 
+    // Dirty Tactic: Pocket Gravel / Sand Blind (KeyC, Numpad3, or buffered DIRTY)
+    const wantsDirty = inputState.dirtyJust || inputManager.peekAction(pNum) === 'DIRTY';
+    if (wantsDirty && this.isGrounded && (!this.isAttacking() || this.canCancelOnHit())) {
+      inputManager.consumeAction(pNum);
+      this.startPocketSand();
+      return;
+    }
+
     // 2. Airborne moves
     if (!this.isGrounded) {
       if (this.state === FIGHTER_STATE.JUMP) {
@@ -202,6 +210,24 @@ export class Kazuki extends Fighter {
     this.isGrounded = false;
     this.vy = -3;
     this.vx = (this.facingRight ? 1 : -1) * 5.2;
+  }
+
+  // Dirty Tactic: Pocket Gravel / Sand Toss
+  startPocketSand() {
+    this.changeState(FIGHTER_STATE.DIRTY_TACTIC);
+    soundFX.playPocketSand();
+    const originX = this.facingRight ? this.x + 50 : this.x + 10;
+    for (let i = 0; i < 22; i++) {
+      this.tacticalParticles.push({
+        x: originX,
+        y: this.y - 65 + (Math.random() - 0.5) * 18,
+        vx: (this.facingRight ? 1 : -1) * (4.5 + Math.random() * 5.5),
+        vy: (Math.random() - 0.5) * 3.5,
+        size: 2 + Math.random() * 3,
+        alpha: 1.0,
+        color: Math.random() < 0.6 ? '#d97706' : (Math.random() < 0.5 ? '#b45309' : '#fef3c7')
+      });
+    }
   }
 
   // Naruto-Style Ultimate Jutsu: DRAGON GOD ROAR (竜神轟天破)
@@ -534,6 +560,34 @@ export class Kazuki extends Fighter {
         else if (this.stateTimer <= 85) {
           this.animFrame = 3;
           this.isInvincible = false;
+        } else {
+          this.changeState(FIGHTER_STATE.IDLE);
+        }
+        break;
+
+      case FIGHTER_STATE.DIRTY_TACTIC:
+        // Startup (0 - 6): reaches low into sash
+        if (this.stateTimer <= 6) {
+          this.animFrame = 0;
+        } 
+        // Active (7 - 15): throws blinding pocket gravel forward
+        else if (this.stateTimer <= 15) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(38, 18, 72, 40);
+          this.currentAttackData = {
+            damage: 50,
+            hitStun: 70,
+            blockStun: 20,
+            pushback: 4,
+            height: ATTACK_HEIGHT.UNBLOCKABLE,
+            hitType: HIT_TYPE.DIRTY_STUN,
+            stunFrames: 70
+          };
+        } 
+        // Recovery (16 - 25)
+        else if (this.stateTimer <= 25) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
         } else {
           this.changeState(FIGHTER_STATE.IDLE);
         }

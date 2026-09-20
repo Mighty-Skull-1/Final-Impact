@@ -116,6 +116,7 @@ export class InputManager {
     const sp1 = this.isDown(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isDown(ctrl.QUICK_SP1)) || gp?.sp1;
     const sp2 = this.isDown(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isDown(ctrl.QUICK_SP2)) || gp?.sp2;
     const sp3 = (ctrl.SP3 && this.isDown(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isDown(ctrl.QUICK_SP3));
+    const dirty = (ctrl.DIRTY && this.isDown(ctrl.DIRTY)) || gp?.dirty;
     const start = this.isDown(ctrl.START) || gp?.start;
 
     // Leading-edge triggers (Just Pressed this frame!)
@@ -126,6 +127,7 @@ export class InputManager {
     const sp1Just = this.isJustPressed(ctrl.SP1) || (ctrl.QUICK_SP1 && this.isJustPressed(ctrl.QUICK_SP1));
     const sp2Just = this.isJustPressed(ctrl.SP2) || (ctrl.QUICK_SP2 && this.isJustPressed(ctrl.QUICK_SP2));
     const sp3Just = (ctrl.SP3 && this.isJustPressed(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isJustPressed(ctrl.QUICK_SP3));
+    const dirtyJust = (ctrl.DIRTY && this.isJustPressed(ctrl.DIRTY)) || this.checkDownDownPunch(playerNum);
 
     // Naruto Ultimate Activation: Spacebar (or U + I / HP + HK / Gamepad trigger)
     const ultimateJust = isP1 
@@ -166,6 +168,7 @@ export class InputManager {
       sp1,
       sp2,
       sp3,
+      dirty,
       lpJust,
       hpJust,
       lkJust,
@@ -173,6 +176,7 @@ export class InputManager {
       sp1Just,
       sp2Just,
       sp3Just,
+      dirtyJust,
       ultimateJust,
       dashFwd,
       dashBack,
@@ -229,6 +233,7 @@ export class InputManager {
 
     // 3. Action Queue (16-frame buffer for responsive combo execution)
     if (s1.ultimateJust) this.queueAction(1, 'ULTIMATE');
+    else if (s1.dirtyJust) this.queueAction(1, 'DIRTY');
     else if (s1.sp3Just) this.queueAction(1, 'SP3');
     else if (s1.sp2Just) this.queueAction(1, 'SP2');
     else if (s1.sp1Just) this.queueAction(1, 'SP1');
@@ -238,6 +243,7 @@ export class InputManager {
     else if (s1.lkJust) this.queueAction(1, 'LK');
 
     if (s2.ultimateJust) this.queueAction(2, 'ULTIMATE');
+    else if (s2.dirtyJust) this.queueAction(2, 'DIRTY');
     else if (s2.sp3Just) this.queueAction(2, 'SP3');
     else if (s2.sp2Just) this.queueAction(2, 'SP2');
     else if (s2.sp1Just) this.queueAction(2, 'SP1');
@@ -357,6 +363,32 @@ export class InputManager {
       } else if (foundBack && (d === 2 || d === 3 || d === 1)) {
         foundDown = true;
         return true;
+      }
+    }
+    return false;
+  }
+
+  checkDownDownPunch(playerNum = 1) {
+    const isP1 = playerNum === 1;
+    const ctrl = isP1 ? DEFAULT_CONTROLS.P1 : DEFAULT_CONTROLS.P2;
+    const punchJust = this.isJustPressed(ctrl.LP) || this.isJustPressed(ctrl.HP);
+    const rawDown = this.isDown(ctrl.DOWN);
+    if (!punchJust || !rawDown) return false;
+
+    const buf = isP1 ? this.p1Buffer : this.p2Buffer;
+    if (buf.length < 3) return false;
+
+    let step = 0; // 0 = looking for non-down frame, 1 = looking for prior down frame
+    for (let i = 0; i < Math.min(22, buf.length); i++) {
+      const b = buf[i];
+      if (step === 0) {
+        if (!b.down) {
+          step = 1;
+        }
+      } else if (step === 1) {
+        if (b.down) {
+          return true;
+        }
       }
     }
     return false;

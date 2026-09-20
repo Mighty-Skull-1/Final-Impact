@@ -43,6 +43,7 @@ export const FIGHTER_STATE = {
   SPECIAL_3: 'SPECIAL_3',
   SUPER: 'SUPER',
   ULTIMATE: 'ULTIMATE',
+  DIRTY_TACTIC: 'DIRTY_TACTIC',
   
   // Defense / Reaction
   BLOCK: 'BLOCK',
@@ -51,6 +52,8 @@ export const FIGHTER_STATE = {
   HIT_CROUCH: 'HIT_CROUCH',
   HIT_AIR: 'HIT_AIR',
   KNOCKDOWN: 'KNOCKDOWN',
+  BLIND_STUN: 'BLIND_STUN',
+  WALL_REBOUND: 'WALL_REBOUND',
   WAKEUP: 'WAKEUP',
   
   // Endings
@@ -61,14 +64,16 @@ export const FIGHTER_STATE = {
 export const ATTACK_HEIGHT = {
   HIGH: 'HIGH',       // Blocked standing or crouching
   MID: 'MID',         // Blocked standing only (overhead)
-  LOW: 'LOW'          // Blocked crouching only (sweeps)
+  LOW: 'LOW',         // Blocked crouching only (sweeps)
+  UNBLOCKABLE: 'UNBLOCKABLE' // Dirty Tactics bypass guard
 };
 
 export const HIT_TYPE = {
   LIGHT: 'LIGHT',
   HEAVY: 'HEAVY',
   KNOCKDOWN: 'KNOCKDOWN',
-  WALL_BOUNCE: 'WALL_BOUNCE'
+  WALL_BOUNCE: 'WALL_BOUNCE',
+  DIRTY_STUN: 'DIRTY_STUN'
 };
 
 // Default Player Controls
@@ -85,6 +90,7 @@ export const DEFAULT_CONTROLS = {
     SP1: 'KeyO',       // Special Move 1 (Fireball / Sonic / Warp)
     SP2: 'KeyL',       // Special Move 2 (Uppercut / Flash Kick / Spiral)
     SP3: 'Semicolon',  // Special Move 3 (Hurricane / Blitz / Kunai)
+    DIRTY: 'KeyC',     // Dirty Tactic Desperation Move
     // Quick Action Specials:
     QUICK_SP1: 'KeyQ',
     QUICK_SP2: 'KeyE',
@@ -103,6 +109,7 @@ export const DEFAULT_CONTROLS = {
     SP1: 'Numpad7',
     SP2: 'Numpad8',
     SP3: 'Numpad9',
+    DIRTY: 'Numpad3',  // Dirty Tactic Desperation Move
     START: 'NumpadEnter'
   }
 };

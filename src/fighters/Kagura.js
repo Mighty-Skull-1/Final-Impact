@@ -40,6 +40,14 @@ export class Kagura extends Fighter {
       }
     }
 
+    // Dirty Tactic: Caltrops & Smoke Powder (KeyC, Numpad3, or buffered DIRTY)
+    const wantsDirty = inputState.dirtyJust || inputManager.peekAction(pNum) === 'DIRTY';
+    if (wantsDirty && this.isGrounded && (!this.isAttacking() || this.canCancelOnHit())) {
+      inputManager.consumeAction(pNum);
+      this.startCaltrops();
+      return;
+    }
+
     // 2. Airborne moves
     if (!this.isGrounded) {
       if (this.state === FIGHTER_STATE.JUMP) {
@@ -210,6 +218,37 @@ export class Kagura extends Fighter {
   startKunai() {
     this.changeState(FIGHTER_STATE.SPECIAL_3);
     soundFX.playWhoosh('light');
+  }
+
+  // Dirty Tactic: Caltrops & Smoke Powder
+  startCaltrops() {
+    this.changeState(FIGHTER_STATE.DIRTY_TACTIC);
+    soundFX.playCaltrops();
+    const originX = this.facingRight ? this.x + 40 : this.x + 10;
+    // Metallic star caltrops
+    for (let i = 0; i < 12; i++) {
+      this.tacticalParticles.push({
+        x: originX + (this.facingRight ? i * 6 : -i * 6),
+        y: this.y - 10 + (Math.random() - 0.5) * 6,
+        vx: (this.facingRight ? 1 : -1) * (2.0 + Math.random() * 3.5),
+        vy: -Math.random() * 2.5,
+        size: 3,
+        alpha: 1.0,
+        color: '#94a3b8'
+      });
+    }
+    // Smoke powder puff
+    for (let i = 0; i < 16; i++) {
+      this.tacticalParticles.push({
+        x: originX + (Math.random() - 0.5) * 20,
+        y: this.y - 25 + (Math.random() - 0.5) * 15,
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: -(1.0 + Math.random() * 2.0),
+        size: 4 + Math.random() * 6,
+        alpha: 0.8,
+        color: Math.random() < 0.5 ? '#cbd5e1' : '#64748b'
+      });
+    }
   }
 
   // Naruto-Style Shadow Clone Ultimate Jutsu (影分身・千夜蓮華)
@@ -528,6 +567,33 @@ export class Kagura extends Fighter {
         } else if (this.stateTimer <= 85) {
           this.animFrame = 3;
           this.isInvincible = false;
+        } else {
+          this.changeState(FIGHTER_STATE.IDLE);
+        }
+        break;
+
+      case FIGHTER_STATE.DIRTY_TACTIC:
+        // Startup (0 - 5): drops low to scatter
+        if (this.stateTimer <= 5) {
+          this.animFrame = 0;
+        }
+        // Active (6 - 15): unblockable caltrops hazard trip
+        else if (this.stateTimer <= 15) {
+          this.animFrame = 1;
+          this.activeHitbox = new Box(32, 54, 88, 30);
+          this.currentAttackData = {
+            damage: 65,
+            hitStun: 45,
+            blockStun: 20,
+            pushback: 5,
+            height: ATTACK_HEIGHT.UNBLOCKABLE,
+            hitType: HIT_TYPE.KNOCKDOWN
+          };
+        }
+        // Recovery (16 - 25)
+        else if (this.stateTimer <= 25) {
+          this.animFrame = 2;
+          this.activeHitbox = null;
         } else {
           this.changeState(FIGHTER_STATE.IDLE);
         }

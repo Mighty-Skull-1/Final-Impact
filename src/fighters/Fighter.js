@@ -54,6 +54,15 @@ export class Fighter {
     // Motion Afterimages (for dash & ultimate)
     this.afterImages = [];
 
+    // Adrenaline & Tactical State
+    this.isRageMode = false;
+    this.armorDepleted = false;
+    this.armorFlash = 0;
+    this.blindTimer = 0;
+    this.rageParticles = [];
+    this.sweatParticles = [];
+    this.tacticalParticles = [];
+
     // Hitbox / Hurtbox
     this.activeHitbox = null;
     this.currentAttackData = null;
@@ -78,7 +87,8 @@ export class Fighter {
       this.state.startsWith('JUMP_PUNCH') ||
       this.state.startsWith('JUMP_KICK') ||
       this.state.startsWith('SPECIAL_') ||
-      this.state === FIGHTER_STATE.ULTIMATE
+      this.state === FIGHTER_STATE.ULTIMATE ||
+      this.state === FIGHTER_STATE.DIRTY_TACTIC
     );
   }
 
@@ -175,17 +185,101 @@ export class Fighter {
     }
 
     this.stateTimer++;
+    if (this.armorFlash > 0) this.armorFlash--;
 
-    // 2. Face opponent when neutral
+    // 2. Adrenaline & Rage Threshold Check (HP <= 30%)
+    if (!this.isRageMode && this.health <= this.maxHealth * 0.30 && !this.isDead) {
+      this.isRageMode = true;
+      soundFX.playRageIgnite();
+      window.dispatchEvent(new CustomEvent('rage-ignited', { detail: { fighter: this } }));
+    }
+
+    // Replenish 1-hit super armor when back in neutral state
+    if (this.canTurnAround()) {
+      this.armorDepleted = false;
+    }
+
+    // 3. Face opponent when neutral
     if (this.canTurnAround() && opponent) {
       this.facingRight = this.x < opponent.x;
     }
 
-    // 3. Dash Handling
+    // 4. Particle Generation & Updates
+    if (this.isRageMode && !this.isDead) {
+      for (let i = 0; i < 2; i++) {
+        this.rageParticles.push({
+          x: this.x + 18 + Math.random() * 44,
+          y: this.y - 12 - Math.random() * 68,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -(1.8 + Math.random() * 2.2),
+          size: 3 + Math.random() * 4,
+          alpha: 1.0,
+          color: Math.random() < 0.6 ? '#ff3d00' : (Math.random() < 0.5 ? '#ff9100' : '#ffea00')
+        });
+      }
+    }
+
+    // Low HP exhaustion sweat drops in IDLE
+    if (this.health <= this.maxHealth * 0.35 && this.state === FIGHTER_STATE.IDLE && !this.isDead && Math.random() < 0.12) {
+      this.sweatParticles.push({
+        x: this.x + (this.facingRight ? 54 : 26) + (Math.random() - 0.5) * 6,
+        y: this.y - 75,
+        vy: 1.5 + Math.random() * 1.5,
+        alpha: 1.0
+      });
+    }
+
+    // Update Particles
+    for (let i = this.rageParticles.length - 1; i >= 0; i--) {
+      const p = this.rageParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.alpha -= 0.05;
+      if (p.alpha <= 0) this.rageParticles.splice(i, 1);
+    }
+    for (let i = this.sweatParticles.length - 1; i >= 0; i--) {
+      const s = this.sweatParticles[i];
+      s.y += s.vy;
+      s.alpha -= 0.04;
+      if (s.alpha <= 0) this.sweatParticles.splice(i, 1);
+    }
+    for (let i = this.tacticalParticles.length - 1; i >= 0; i--) {
+      const tp = this.tacticalParticles[i];
+      tp.x += tp.vx;
+      tp.y += tp.vy;
+      tp.alpha -= 0.045;
+      if (tp.alpha <= 0) this.tacticalParticles.splice(i, 1);
+    }
+
+    // 5. Handle Blind / Electric Stun State
+    if (this.state === FIGHTER_STATE.BLIND_STUN) {
+      this.blindTimer--;
+      this.vx *= 0.85;
+      if (this.blindTimer <= 0) {
+        this.changeState(FIGHTER_STATE.IDLE);
+      }
+      return;
+    }
+
+    // 6. Handle Wall Rebound (Crowd Shove Bounce)
+    if (this.state === FIGHTER_STATE.WALL_REBOUND) {
+      this.vy += this.gravity * 0.75;
+      this.y += this.vy;
+      this.x += this.vx;
+      if (this.y >= GROUND_Y) {
+        this.y = GROUND_Y;
+        this.vy = 0;
+        this.vx = 0;
+        this.isGrounded = true;
+        this.changeState(FIGHTER_STATE.IDLE);
+      }
+      return;
+    }
+
+    // 7. Dash Handling
     if (this.state === FIGHTER_STATE.DASH_FWD || this.state === FIGHTER_STATE.DASH_BACK) {
       this.x += this.vx;
       this.vx *= 0.92;
-      // Spawn afterimages
       if (this.stateTimer % 2 === 0) {
         this.addAfterImage();
       }
@@ -285,8 +379,27 @@ export class Fighter {
     const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
     this.hitStop = isHeavy ? 4 : 2;
 
-    // Defender can block if grounded, not currently attacking, and actively guarding
-    const canBlock = this.isGrounded && !this.isAttacking() && (
+    const isUnblockable = attackData.height === ATTACK_HEIGHT.UNBLOCKABLE;
+
+    // Super Armor: In Rage Mode, absorb 1 hit during heavy attack startup
+    const isHeavyStartup = (
+      this.state === FIGHTER_STATE.ATTACK_HEAVY_PUNCH ||
+      this.state === FIGHTER_STATE.ATTACK_HEAVY_KICK ||
+      this.state === FIGHTER_STATE.CROUCH_HEAVY_PUNCH ||
+      this.state === FIGHTER_STATE.CROUCH_HEAVY_KICK
+    ) && this.animFrame <= 1;
+
+    if (this.isRageMode && !this.armorDepleted && isHeavyStartup && !isUnblockable) {
+      this.armorDepleted = true;
+      soundFX.playBlock();
+      this.health = Math.max(1, this.health - Math.floor(attackData.damage * 0.5));
+      this.addSuper(attackData.damage * 0.12);
+      this.armorFlash = 8;
+      return 'armored';
+    }
+
+    // Defender can block if grounded, not currently attacking, and actively guarding (unless unblockable!)
+    const canBlock = this.isGrounded && !this.isAttacking() && !isUnblockable && (
       this.isHoldingBack || 
       this.state === FIGHTER_STATE.BLOCK || 
       this.state === FIGHTER_STATE.CROUCH_BLOCK ||
@@ -330,6 +443,14 @@ export class Fighter {
       return 'ko';
     }
 
+    // Dirty Tactic Stun handling (Kazuki Sand Blind / Raven Taser)
+    if (attackData.hitType === HIT_TYPE.DIRTY_STUN) {
+      this.blindTimer = attackData.stunFrames || 65;
+      this.vx = (this.facingRight ? -1 : 1) * 2.5;
+      this.changeState(FIGHTER_STATE.BLIND_STUN);
+      return 'stun';
+    }
+
     if (attackData.hitType === HIT_TYPE.KNOCKDOWN || !this.isGrounded) {
       soundFX.playKnockdown();
       this.isInvincible = true;
@@ -349,7 +470,8 @@ export class Fighter {
   }
 
   addSuper(amount) {
-    this.superMeter = Math.min(this.maxSuperMeter, this.superMeter + amount);
+    const mult = this.isRageMode ? 1.5 : 1.0;
+    this.superMeter = Math.min(this.maxSuperMeter, this.superMeter + amount * mult);
     if (this.superMeter >= this.maxSuperMeter) {
       soundFX.playSuperReady();
     }
@@ -363,6 +485,68 @@ export class Fighter {
     this.isGrounded = false;
     this.isInvincible = true;
     this.changeState(FIGHTER_STATE.KNOCKDOWN);
+  }
+
+  renderBattleDamage(ctx) {
+    if (this.isDead) return;
+
+    // Level 1 Visual Damage (HP <= 65%)
+    if (this.health <= this.maxHealth * 0.65) {
+      ctx.save();
+      // Cheek scrape & purple bruise
+      ctx.fillStyle = 'rgba(180, 40, 60, 0.75)';
+      ctx.fillRect(44, 23, 6, 2);
+      ctx.fillStyle = 'rgba(100, 30, 90, 0.6)';
+      ctx.fillRect(42, 19, 5, 3);
+
+      // Torn fabric / scrapes on torso
+      ctx.strokeStyle = 'rgba(220, 50, 50, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(32, 46);
+      ctx.lineTo(44, 52);
+      ctx.stroke();
+
+      // Dirt & knee scrapes
+      ctx.fillStyle = 'rgba(120, 50, 40, 0.7)';
+      ctx.fillRect(36, 72, 7, 3);
+      ctx.restore();
+    }
+
+    // Level 2 Visual Damage (HP <= 35%)
+    if (this.health <= this.maxHealth * 0.35) {
+      ctx.save();
+      // Swollen black eye
+      ctx.fillStyle = 'rgba(50, 15, 70, 0.85)';
+      ctx.fillRect(46, 17, 7, 5);
+
+      // Blood drip from lip/chin
+      ctx.fillStyle = '#b71c1c';
+      ctx.fillRect(44, 26, 2, 5);
+      ctx.fillStyle = '#e53935';
+      ctx.fillRect(45, 29, 2, 3);
+
+      // Deep chest slashing cuts
+      ctx.strokeStyle = '#c62828';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(28, 38);
+      ctx.lineTo(52, 48);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(34, 34);
+      ctx.lineTo(46, 54);
+      ctx.stroke();
+
+      // Thigh slash & blood trail
+      ctx.strokeStyle = '#b71c1c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(34, 65);
+      ctx.lineTo(48, 69);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   render(ctx) {
@@ -380,22 +564,95 @@ export class Fighter {
       ctx.restore();
     });
 
-    // 2. Render Main Sprite
+    // 2. Render World-Space Particles
+    // Rage Aura
+    if (this.rageParticles.length > 0) {
+      ctx.save();
+      for (const p of this.rageParticles) {
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+      }
+      ctx.restore();
+    }
+
+    // Sweat Drops
+    if (this.sweatParticles.length > 0) {
+      ctx.save();
+      for (const s of this.sweatParticles) {
+        ctx.globalAlpha = Math.max(0, s.alpha);
+        ctx.fillStyle = '#67e8f9';
+        ctx.fillRect(s.x, s.y, 2, 4);
+      }
+      ctx.restore();
+    }
+
+    // Tactical Move Particles
+    if (this.tacticalParticles.length > 0) {
+      ctx.save();
+      for (const tp of this.tacticalParticles) {
+        ctx.globalAlpha = Math.max(0, tp.alpha);
+        ctx.fillStyle = tp.color;
+        ctx.fillRect(tp.x, tp.y, tp.size, tp.size);
+      }
+      ctx.restore();
+    }
+
+    // 3. Render Main Sprite with Heavy Panting Heave & Visual Damage
     const frames = this.sprites[this.state] || 
                    (this.state === FIGHTER_STATE.CROUCH_HEAVY_PUNCH ? this.sprites.CROUCH_LP : null) || 
+                   (this.state === FIGHTER_STATE.DIRTY_TACTIC ? (this.sprites.ATTACK_HP || this.sprites.IDLE) : null) ||
+                   (this.state === FIGHTER_STATE.BLIND_STUN ? (this.sprites.HIT || this.sprites.IDLE) : null) ||
+                   (this.state === FIGHTER_STATE.WALL_REBOUND ? (this.sprites.JUMP || this.sprites.IDLE) : null) ||
                    this.sprites.IDLE;
     const currentImg = frames[Math.min(this.animFrame, frames.length - 1)];
 
     if (!currentImg) return;
 
     ctx.save();
-    if (!this.facingRight) {
-      ctx.translate(this.x + 80, this.y - 90);
-      ctx.scale(-1, 1);
-      ctx.drawImage(currentImg, 0, 0);
-    } else {
-      ctx.drawImage(currentImg, this.x, this.y - 90);
+    let drawY = this.y - 90;
+    // Low HP heavy breathing / panting chest heave in IDLE
+    if (this.health <= this.maxHealth * 0.35 && this.state === FIGHTER_STATE.IDLE && !this.isDead) {
+      drawY += Math.sin(Date.now() / 140) * 2;
     }
+
+    if (!this.facingRight) {
+      ctx.translate(this.x + 80, drawY);
+      ctx.scale(-1, 1);
+    } else {
+      ctx.translate(this.x, drawY);
+    }
+
+    if (this.armorFlash > 0) {
+      ctx.filter = 'brightness(2.5)';
+    }
+
+    ctx.drawImage(currentImg, 0, 0);
+
+    ctx.filter = 'none';
+
+    // Draw Battle Damage Overlay
+    this.renderBattleDamage(ctx);
+
     ctx.restore();
+
+    // 4. Dizzy Circling Stars (BLIND_STUN state)
+    if (this.state === FIGHTER_STATE.BLIND_STUN) {
+      const starTime = Date.now() / 180;
+      const headX = this.x + 40;
+      const headY = this.y - 96;
+      ctx.save();
+      for (let i = 0; i < 3; i++) {
+        const a = starTime + (i * (Math.PI * 2 / 3));
+        const sx = headX + Math.cos(a) * 20;
+        const sy = headY + Math.sin(a) * 6;
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(sx - 3, sy - 1, 6, 2);
+        ctx.fillRect(sx - 1, sy - 3, 2, 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx - 1, sy - 1, 2, 2);
+      }
+      ctx.restore();
+    }
   }
 }

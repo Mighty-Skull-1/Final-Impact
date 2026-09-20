@@ -1,5 +1,5 @@
 // Final Impact - Central Match Engine & State Machine
-import { GAME_WIDTH, GAME_HEIGHT, STAGE_WIDTH, FIGHTER_STATE } from './Constants.js';
+import { GAME_WIDTH, GAME_HEIGHT, STAGE_WIDTH, FIGHTER_STATE, HIT_TYPE } from './Constants.js';
 import { input } from './Input.js';
 import { soundFX } from '../audio/SoundFX.js';
 import { Stage } from '../graphics/Stage.js';
@@ -216,6 +216,10 @@ export class Game {
     this.f1.update(this.f2, STAGE_WIDTH);
     this.f2.update(this.f1, STAGE_WIDTH);
 
+    // Arena Corner Crowd Rebound
+    this.checkCornerCrowdRebound(this.f1);
+    this.checkCornerCrowdRebound(this.f2);
+
     // 5. Separate Pushboxes
     HitboxSystem.resolvePushboxes(this.f1, this.f2, 40, STAGE_WIDTH);
 
@@ -238,6 +242,30 @@ export class Game {
     this.checkMatchEnd();
   }
 
+  checkCornerCrowdRebound(fighter) {
+    if (fighter.isDead) return;
+    const isLeftWall = fighter.x <= 55;
+    const isRightWall = fighter.x >= 885;
+    const inHitState = fighter.state === FIGHTER_STATE.KNOCKDOWN ||
+                       fighter.state === FIGHTER_STATE.HIT ||
+                       fighter.state === FIGHTER_STATE.HIT_AIR ||
+                       fighter.state === FIGHTER_STATE.HIT_CROUCH;
+
+    if ((isLeftWall || isRightWall) && inHitState && fighter.state !== FIGHTER_STATE.WALL_REBOUND) {
+      if ((isLeftWall && fighter.vx < -1.0) || (isRightWall && fighter.vx > 1.0)) {
+        fighter.changeState(FIGHTER_STATE.WALL_REBOUND);
+        fighter.isInvincible = false;
+        fighter.isGrounded = false;
+        fighter.vx = isLeftWall ? 6.5 : -6.5;
+        fighter.vy = -5.0; // Wall-bounce pop up for juggle combos!
+        this.hud.triggerShake(8);
+        this.hud.addHitSpark(fighter.x + 40, fighter.y - 45, 'hit');
+        this.hud.showCrowdBanner('CROWD SHOVE!');
+        soundFX.playCrowdCheer();
+      }
+    }
+  }
+
   throttleNav(callback) {
     if (!this.lastNav || Date.now() - this.lastNav > 220) {
       this.lastNav = Date.now();
@@ -251,18 +279,27 @@ export class Game {
       const hitResult = HitboxSystem.checkAttackHit(this.f1, this.f2);
       if (hitResult) {
         this.f1.hasHitThisAttack = true;
-        this.f1.addSuper(hitResult.attack.damage * 0.08);
-        const hitType = this.f2.takeHit(hitResult.attack, this.f1.facingRight ? 1 : -1);
+        // Adrenaline & Rage damage boost (+25%)
+        const attackData = this.f1.isRageMode
+          ? { ...hitResult.attack, damage: Math.round(hitResult.attack.damage * 1.25) }
+          : hitResult.attack;
+
+        this.f1.addSuper(attackData.damage * 0.08);
+        const hitType = this.f2.takeHit(attackData, this.f1.facingRight ? 1 : -1);
+
+        if (this.f1.state === FIGHTER_STATE.DIRTY_TACTIC || attackData.hitType === HIT_TYPE.DIRTY_STUN) {
+          this.hud.showDirtyBanner(this.f1.name);
+        }
 
         // Attacker also gets impact hitstop for crunchy tactile arcade feedback
-        const isHeavy = hitResult.attack.hitType === HIT_TYPE.HEAVY || hitResult.attack.hitType === HIT_TYPE.KNOCKDOWN;
+        const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
         this.f1.hitStop = isHeavy ? 4 : 2;
 
         this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
         if (hitType !== 'blocked') {
           this.hud.recordHit(1);
           const shakeMult = this.settingsManager.settings.screenShake === 'off' ? 0 : (this.settingsManager.settings.screenShake === 'low' ? 0.4 : 1.0);
-          this.hud.triggerShake((hitResult.attack.damage > 80 ? 7 : 3) * shakeMult);
+          this.hud.triggerShake((attackData.damage > 80 ? 7 : 3) * shakeMult);
         }
       }
     }
@@ -272,18 +309,27 @@ export class Game {
       const hitResult = HitboxSystem.checkAttackHit(this.f2, this.f1);
       if (hitResult) {
         this.f2.hasHitThisAttack = true;
-        this.f2.addSuper(hitResult.attack.damage * 0.08);
-        const hitType = this.f1.takeHit(hitResult.attack, this.f2.facingRight ? 1 : -1);
+        // Adrenaline & Rage damage boost (+25%)
+        const attackData = this.f2.isRageMode
+          ? { ...hitResult.attack, damage: Math.round(hitResult.attack.damage * 1.25) }
+          : hitResult.attack;
+
+        this.f2.addSuper(attackData.damage * 0.08);
+        const hitType = this.f1.takeHit(attackData, this.f2.facingRight ? 1 : -1);
+
+        if (this.f2.state === FIGHTER_STATE.DIRTY_TACTIC || attackData.hitType === HIT_TYPE.DIRTY_STUN) {
+          this.hud.showDirtyBanner(this.f2.name);
+        }
 
         // Attacker also gets impact hitstop for crunchy tactile arcade feedback
-        const isHeavy = hitResult.attack.hitType === HIT_TYPE.HEAVY || hitResult.attack.hitType === HIT_TYPE.KNOCKDOWN;
+        const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
         this.f2.hitStop = isHeavy ? 4 : 2;
 
         this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
         if (hitType !== 'blocked') {
           this.hud.recordHit(2);
           const shakeMult = this.settingsManager.settings.screenShake === 'off' ? 0 : (this.settingsManager.settings.screenShake === 'low' ? 0.4 : 1.0);
-          this.hud.triggerShake((hitResult.attack.damage > 80 ? 7 : 3) * shakeMult);
+          this.hud.triggerShake((attackData.damage > 80 ? 7 : 3) * shakeMult);
         }
       }
     }

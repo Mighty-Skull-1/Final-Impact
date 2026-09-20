@@ -99,6 +99,8 @@ export class Stage {
     } else {
       this.renderThunderDojo(ctx, cameraX, canvasWidth, canvasHeight);
     }
+    // Arena Edge Crowd Spectators
+    this.renderCrowd(ctx, cameraX, canvasWidth, canvasHeight);
   }
 
   // ==========================================
@@ -381,6 +383,90 @@ export class Stage {
       // Tatami green weave
       ctx.fillStyle = '#57534e';
       ctx.fillRect(tx + 10, floorY + 8, 110, H - floorY - 8);
+    }
+  }
+
+  // ==========================================
+  // ARENA EDGE CROWD SPECTATORS
+  // ==========================================
+  renderCrowd(ctx, cameraX, W, H) {
+    const leftX = 15 - cameraX;
+    const rightX = 890 - cameraX;
+
+    // 1. Left Corner Crowd
+    if (leftX > -90 && leftX < 240) {
+      ctx.save();
+      // Metal guard rail
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(leftX - 10, 248, 70, 5);
+      ctx.fillRect(leftX, 253, 4, 47);
+      ctx.fillRect(leftX + 45, 253, 4, 47);
+
+      // Punk with Mohawk
+      const b1 = Math.sin(this.time * 0.16) * 3.5;
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(leftX + 6, 204 + b1, 14, 14); // face
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(leftX + 10, 194 + b1, 6, 11); // red mohawk
+      ctx.fillStyle = '#450a0a';
+      ctx.fillRect(leftX + 14, 212 + b1, 4, 3); // mouth
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(leftX + 4, 218 + b1, 18, 30); // vest
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(leftX + 18, 198 + b1, 6, 14); // arm up
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(leftX + 17, 194 + b1, 8, 5); // fist wrap
+
+      // Hype fan with cap
+      const b2 = Math.cos(this.time * 0.22) * 3;
+      ctx.fillStyle = '#ea580c';
+      ctx.fillRect(leftX + 28, 208 + b2, 18, 6); // orange cap brim
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(leftX + 30, 214 + b2, 14, 12); // face
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(leftX + 26, 226 + b2, 22, 22); // green shirt
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(leftX + 24, 205 + b2 * 1.3, 6, 8); // left waving arm
+      ctx.fillRect(leftX + 44, 207 + b2 * 1.3, 6, 8); // right waving arm
+      ctx.restore();
+    }
+
+    // 2. Right Corner Crowd
+    if (rightX > 400 && rightX < W + 90) {
+      ctx.save();
+      // Metal guard rail
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(rightX - 5, 248, 70, 5);
+      ctx.fillRect(rightX + 5, 253, 4, 47);
+      ctx.fillRect(rightX + 50, 253, 4, 47);
+
+      // Martial Arts Fan with White Headband
+      const b3 = Math.sin(this.time * 0.18 + 1.2) * 3;
+      ctx.fillStyle = '#18181b';
+      ctx.fillRect(rightX + 10, 202 + b3, 16, 7); // dark hair
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(rightX + 9, 208 + b3, 18, 4); // white headband
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(rightX + 11, 212 + b3, 14, 12); // face
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(rightX + 8, 224 + b3, 20, 24); // red tank top
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(rightX + 4, 198 + b3 * 1.2, 6, 12); // raised arm
+      ctx.fillRect(rightX + 24, 198 + b3 * 1.2, 6, 12); // raised arm
+
+      // Street Brawler in Sunglasses
+      const b4 = Math.cos(this.time * 0.14) * 2.5;
+      ctx.fillStyle = '#d97706';
+      ctx.fillRect(rightX + 32, 204 + b4, 16, 7); // blonde hair
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(rightX + 34, 211 + b4, 14, 4); // cool sunglasses
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(rightX + 34, 215 + b4, 13, 10); // face
+      ctx.fillStyle = '#7c3aed';
+      ctx.fillRect(rightX + 28, 225 + b4, 24, 23); // purple jacket
+      ctx.fillStyle = '#fed7aa';
+      ctx.fillRect(rightX + 20, 228 + b4, 10, 6); // pointing finger
+      ctx.restore();
     }
   }
 }
