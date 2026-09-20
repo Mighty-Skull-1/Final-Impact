@@ -85,6 +85,35 @@ class SoundFX {
     }
   }
 
+  // Retro Arcade Menu Confirm / Select Chime
+  playMenuSelect() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'square';
+    osc1.frequency.setValueAtTime(523.25, now); // C5
+    osc1.frequency.setValueAtTime(659.25, now + 0.06); // E5
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(1046.5, now); // C6
+    osc2.frequency.setValueAtTime(1318.5, now + 0.06); // E6
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.sfxGain);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.18);
+    osc2.stop(now + 0.18);
+  }
+
   // Quick Snappy Dash Whoosh
   playDash() {
     if (!this.ctx) return;

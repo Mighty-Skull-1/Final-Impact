@@ -109,6 +109,57 @@ export class CharacterSelect {
     }
   }
 
+  handleClick(x, y, onBack, onConfirm, W = 640, H = 360) {
+    // Check Top-Left Back button
+    if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
+      soundFX.playWhoosh('light');
+      if (onBack) onBack();
+      return true;
+    }
+
+    // Check Stage selector bar
+    if (y >= 54 && y <= 76 && x >= 150 && x <= 490) {
+      this.stageIndex = (this.stageIndex + 1) % this.stages.length;
+      soundFX.playWhoosh('light');
+      return true;
+    }
+
+    // Check Character Cards
+    const cardW = 180;
+    const cardH = 220;
+    const startX = (W - (cardW * 3 + 40)) / 2;
+    const cardY = 86;
+
+    if (y >= cardY && y <= cardY + cardH) {
+      for (let idx = 0; idx < this.characters.length; idx++) {
+        const cx = startX + idx * (cardW + 20);
+        if (x >= cx && x <= cx + cardW) {
+          if (this.gameMode === 'online' && this.localPlayerNum === 2) {
+            this.p2Index = idx;
+          } else {
+            this.p1Index = idx;
+          }
+          soundFX.playWhoosh('light');
+          return true;
+        }
+      }
+    }
+
+    // Check Bottom Start Battle Button
+    const btnW = 340;
+    const btnH = 28;
+    const btnX = (W - btnW) / 2;
+    const btnY = H - 34;
+    if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
+      if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
+        if (onConfirm) onConfirm();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   render(ctx, W, H) {
     this.animTimer++;
     if (this.animTimer % 8 === 0) {
@@ -134,6 +185,18 @@ export class CharacterSelect {
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+
+    // Top-Left Back Button: [ ⬅️ BACK (B) ]
+    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
+    ctx.fillRect(12, 10, 95, 22);
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 10, 95, 22);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⬅️ BACK [B]', 60, 24);
 
     // Header Title
     ctx.textAlign = 'center';
@@ -248,16 +311,34 @@ export class CharacterSelect {
       ctx.fillText(`★ ${char.specials[1].name}: ${char.specials[1].cmd}`, cx + 8, cardY + 208);
     });
 
-    // Instructions Footer
+    // Interactive Start Button / Instructions Footer
     ctx.textAlign = 'center';
-    ctx.font = 'bold 13px monospace';
+    const btnW = 360;
+    const btnH = 26;
+    const btnX = (W - btnW) / 2;
+    const btnY = H - 33;
+
     if (this.gameMode === 'online' && this.localPlayerNum === 2) {
       const pulse = Math.floor(Date.now() / 350) % 2 === 0;
-      ctx.fillStyle = pulse ? '#38bdf8' : '#0284c7';
-      ctx.fillText('WAITING FOR HOST TO START THE BATTLE...', W / 2, H - 20);
+      ctx.fillStyle = pulse ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.9)';
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('⏳ WAITING FOR HOST TO START THE BATTLE...', W / 2, btnY + 17);
     } else {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText('PRESS [ENTER] OR [SPACE] TO START THE BATTLE', W / 2, H - 20);
+      ctx.fillStyle = 'rgba(22, 101, 52, 0.85)';
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('⚔️ START BATTLE [ENTER / CLICK]  |  [B / ESC] BACK', W / 2, btnY + 17);
     }
 
     ctx.textAlign = 'left';

@@ -89,6 +89,38 @@ export class ModeSelect {
     }
   }
 
+  handleClick(x, y, onBack, onConfirm, W = 640) {
+    // Check Top-Left Back button
+    if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
+      soundFX.playWhoosh('light');
+      if (onBack) onBack();
+      return true;
+    }
+
+    // Check Mode Cards
+    const startY = 48;
+    const cardH = 35;
+    const cardGap = 5;
+    const cardW = 540;
+    const cardX = (W - cardW) / 2;
+
+    if (x >= cardX && x <= cardX + cardW) {
+      for (let idx = 0; idx < this.modes.length; idx++) {
+        const cy = startY + idx * (cardH + cardGap);
+        if (y >= cy && y <= cy + cardH) {
+          if (this.selectedIndex === idx) {
+            if (onConfirm) onConfirm();
+          } else {
+            this.selectedIndex = idx;
+            soundFX.playWhoosh('light');
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   render(ctx, W, H) {
     this.animTimer++;
 
@@ -110,6 +142,18 @@ export class ModeSelect {
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+
+    // Top-Left Back Button: [ ⬅️ TITLE (B) ]
+    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
+    ctx.fillRect(12, 10, 95, 22);
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 10, 95, 22);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⬅️ TITLE [B]', 60, 24);
 
     // Header Title
     ctx.textAlign = 'center';
@@ -203,6 +247,6 @@ export class ModeSelect {
     // 4. Controls Footer
     ctx.fillStyle = '#94a3b8';
     ctx.font = 'bold 10px monospace';
-    ctx.fillText('▲/▼ [W/S] NAVIGATE    ◄/► [A/D] CPU DIFFICULTY    [ENTER/SPACE] CONFIRM    [ESC] BACK', W / 2, H - 10);
+    ctx.fillText('▲/▼ [W/S] NAVIGATE    ◄/► [A/D] DIFFICULTY    [ENTER/SPACE] CONFIRM    [B / ESC] BACK', W / 2, H - 10);
   }
 }

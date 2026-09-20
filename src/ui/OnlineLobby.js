@@ -136,7 +136,21 @@ export class OnlineLobby {
   }
 
   handleClick(x, y) {
-    const W = (this.game && this.game.canvas) ? this.game.canvas.width : 960;
+    const W = (this.game && this.game.canvas) ? this.game.canvas.width : 640;
+
+    // Top-Left Back Button Check
+    if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
+      if (this.subState === 'MENU') {
+        if (this.game) this.game.screen = 'MODE_SELECT';
+        soundFX.playWhoosh('light');
+      } else {
+        this.netplay.disconnect();
+        this.subState = 'MENU';
+        soundFX.playWhoosh('light');
+      }
+      return true;
+    }
+
     if (this.subState === 'MENU') {
       const boxW = 420;
       const boxH = 64;
@@ -145,15 +159,25 @@ export class OnlineLobby {
       if (x >= W / 2 - boxW / 2 && x <= W / 2 + boxW / 2 && y >= startY && y <= startY + boxH) {
         this.menuIndex = 0;
         this.handleInput({ confirm: true });
+        return true;
       } else if (x >= W / 2 - boxW / 2 && x <= W / 2 + boxW / 2 && y >= startY + gapY && y <= startY + gapY + boxH) {
         this.menuIndex = 1;
         this.handleInput({ confirm: true });
+        return true;
       }
     } else if (this.subState === 'HOSTING') {
-      if (y >= 120 && y <= 260) {
+      if (y >= 120 && y <= 200) {
         this.copyInviteLink();
+        return true;
+      }
+    } else if (this.subState === 'JOINING') {
+      if (y >= 130 && y <= 185 && this.joinInputCode.length >= 4) {
+        this.netplay.joinMatch(this.joinInputCode);
+        soundFX.playMenuSelect();
+        return true;
       }
     }
+    return false;
   }
 
   render(ctx, W, H) {
@@ -178,6 +202,19 @@ export class OnlineLobby {
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+
+    // Top-Left Back Button: [ ⬅️ MODES (B) ] or [ ⬅️ CANCEL (B) ]
+    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
+    ctx.fillRect(12, 10, 95, 22);
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 10, 95, 22);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    const backLabel = this.subState === 'MENU' ? '⬅️ MODES [B]' : '⬅️ CANCEL [B]';
+    ctx.fillText(backLabel, 60, 24);
 
     // Title Header
     ctx.textAlign = 'center';
@@ -231,7 +268,7 @@ export class OnlineLobby {
 
       ctx.fillStyle = '#facc15';
       ctx.font = '12px monospace';
-      ctx.fillText('[W / S] or [↑ / ↓] TO SELECT  |  [ENTER / SPACE] CONFIRM  |  [ESC] BACK', W / 2, H - 28);
+      ctx.fillText('[W / S] TO SELECT  |  [ENTER / SPACE] CONFIRM  |  [B / ESC] BACK', W / 2, H - 28);
     }
 
     // ==========================================
@@ -269,7 +306,7 @@ export class OnlineLobby {
 
       ctx.fillStyle = '#94a3b8';
       ctx.font = '11px monospace';
-      ctx.fillText('PRESS [C] TO COPY INVITE LINK  |  [ESC] CANCEL & RETURN', W / 2, 248);
+      ctx.fillText('CLICK CODE OR PRESS [C] TO COPY LINK  |  [B / ESC] CANCEL', W / 2, 248);
 
       if (this.copiedToastTimer > 0) {
         ctx.fillStyle = '#22c55e';
@@ -319,7 +356,7 @@ export class OnlineLobby {
 
       ctx.fillStyle = '#94a3b8';
       ctx.font = '11px monospace';
-      ctx.fillText('[ENTER] CONNECT  |  [BACKSPACE] DELETE  |  [ESC] CANCEL', W / 2, 248);
+      ctx.fillText('[ENTER] CONNECT  |  [BACKSPACE] DELETE  |  [B / ESC] CANCEL', W / 2, 248);
     }
 
     ctx.textAlign = 'left';

@@ -54,6 +54,14 @@ export class Game {
     this.isOnline = false;
     this.onlineSyncTick = 0;
 
+    // Victory Screen & Rematch State
+    this.victoryMenuIndex = 0; // 0: Rematch, 1: Character Select, 2: Main Menu
+    this.onlineRematchOption = 0; // 0: YES, 1: NO
+    this.myRematchVote = null; // null | 'yes' | 'no'
+    this.oppRematchVote = null; // null | 'yes' | 'no'
+    this.rematchStatusMessage = '';
+    this.rematchTimer = 0;
+
     // Listen for Netplay peer connection
     this.netplay.onConnect((isHost) => {
       this.isOnline = true;
@@ -67,11 +75,14 @@ export class Game {
       if (this.isOnline) {
         this.isOnline = false;
         soundFX.playBlock();
-        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER || this.screen === GAME_SCREENS.VICTORY) {
+        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER) {
           this.onlineLobby.reset();
           this.onlineLobby.subState = 'MENU';
           this.onlineLobby.netplay.statusMessage = 'CHALLENGER DISCONNECTED';
           this.screen = GAME_SCREENS.ONLINE_LOBBY;
+        } else if (this.screen === GAME_SCREENS.VICTORY) {
+          this.rematchStatusMessage = 'OPPONENT DISCONNECTED. RETURNING TO LOBBY...';
+          if (!this.rematchTimer) this.rematchTimer = 60;
         }
       }
     });
@@ -90,6 +101,8 @@ export class Game {
           soundFX.startMusic('fight');
           this.startMatch();
         }
+      } else if (msg.type === 'REMATCH_VOTE') {
+        this.handleOpponentRematchVote(msg.vote);
       } else if (msg.type === 'REMATCH') {
         soundFX.playAnnouncer('ROUND1');
         soundFX.startMusic('fight');
@@ -97,15 +110,36 @@ export class Game {
       }
     });
 
-    // Canvas click delegation for Online Lobby buttons
+    // Universal canvas click delegation across screens
     this.canvas.addEventListener('click', (e) => {
-      if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
-        const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / (rect.width || 1);
-        const scaleY = this.canvas.height / (rect.height || 1);
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / (rect.width || 1);
+      const scaleY = this.canvas.height / (rect.height || 1);
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      if (this.screen === GAME_SCREENS.MODE_SELECT) {
+        this.modeSelect.handleClick(x, y, () => {
+          this.screen = GAME_SCREENS.TITLE;
+        }, () => {
+          this.handleConfirmPress();
+        }, this.canvas.width);
+      } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+        this.charSelect.handleClick(x, y, () => {
+          if (this.isOnline) {
+            this.netplay.disconnect();
+            this.isOnline = false;
+            this.screen = GAME_SCREENS.ONLINE_LOBBY;
+          } else {
+            this.screen = GAME_SCREENS.MODE_SELECT;
+          }
+        }, () => {
+          this.handleConfirmPress();
+        }, this.canvas.width, this.canvas.height);
+      } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
         this.onlineLobby.handleClick(x, y);
+      } else if (this.screen === GAME_SCREENS.VICTORY) {
+        this.handleVictoryClick(x, y);
       }
     });
 
@@ -190,7 +224,8 @@ export class Game {
         if (soundFX.musicPlaying) soundFX.stopMusic();
         else soundFX.startMusic('fight');
       }
-      if (e.code === 'Escape' || e.code === 'Tab' || e.code === 'Backquote') {
+      const isBackKey = e.code === 'Escape' || e.code === 'Tab' || e.code === 'Backquote' || (e.code === 'KeyB' && this.screen !== GAME_SCREENS.FIGHT && (this.screen !== GAME_SCREENS.ONLINE_LOBBY || this.onlineLobby.subState !== 'JOINING'));
+      if (isBackKey) {
         e.preventDefault();
         e.stopPropagation();
         if (this.settingsManager.isOpen) {
@@ -213,10 +248,12 @@ export class Game {
           }
         } else if (this.screen === GAME_SCREENS.FIGHT) {
           this.settingsManager.toggle();
-        } else if (this.screen === GAME_SCREENS.VICTORY && this.isOnline) {
-          this.netplay.disconnect();
-          this.isOnline = false;
-          this.screen = GAME_SCREENS.ONLINE_LOBBY;
+        } else if (this.screen === GAME_SCREENS.VICTORY) {
+          if (this.isOnline) {
+            this.voteRematch('no');
+          } else {
+            this.screen = GAME_SCREENS.MODE_SELECT;
+          }
         }
       }
       if (e.code === 'KeyP') {
@@ -296,12 +333,122 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.VICTORY) {
       if (this.isOnline) {
-        this.netplay.send({ type: 'REMATCH' });
-        this.startMatch();
+        if (this.myRematchVote === null) {
+          this.voteRematch(this.onlineRematchOption === 0 ? 'yes' : 'no');
+        }
         return;
       }
-      this.screen = GAME_SCREENS.MODE_SELECT;
+      if (this.victoryMenuIndex === 0) {
+        // Rematch
+        soundFX.playAnnouncer('ROUND1');
+        soundFX.startMusic('fight');
+        this.startMatch();
+      } else if (this.victoryMenuIndex === 1) {
+        // Character Select
+        soundFX.playMenuSelect();
+        this.screen = GAME_SCREENS.CHAR_SELECT;
+      } else {
+        // Mode Select / Main Menu
+        soundFX.playMenuSelect();
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      }
     }
+  }
+
+  initVictoryScreen() {
+    this.screen = GAME_SCREENS.VICTORY;
+    this.victoryMenuIndex = 0;
+    this.onlineRematchOption = 0;
+    this.myRematchVote = null;
+    this.oppRematchVote = null;
+    this.rematchStatusMessage = '';
+    this.rematchTimer = 0;
+  }
+
+  voteRematch(vote) {
+    if (this.myRematchVote !== null) return;
+    this.myRematchVote = vote;
+    if (this.netplay && this.netplay.isConnected) {
+      this.netplay.sendRematchVote(vote);
+    }
+    if (vote === 'yes') {
+      soundFX.playMenuSelect();
+      if (this.oppRematchVote === 'yes') {
+        this.rematchStatusMessage = '⚔️ BOTH PLAYERS ACCEPTED! REMATCH STARTING... ⚔️';
+        this.rematchTimer = 60;
+      } else {
+        this.rematchStatusMessage = 'YOU VOTED YES. WAITING FOR OPPONENT...';
+      }
+    } else {
+      soundFX.playWhoosh('light');
+      this.rematchStatusMessage = 'YOU DECLINED REMATCH. RETURNING TO LOBBY...';
+      this.rematchTimer = 75;
+    }
+  }
+
+  handleOpponentRematchVote(vote) {
+    this.oppRematchVote = vote;
+    if (vote === 'yes') {
+      if (this.myRematchVote === 'yes') {
+        this.rematchStatusMessage = '⚔️ BOTH PLAYERS ACCEPTED! REMATCH STARTING... ⚔️';
+        this.rematchTimer = 60;
+      } else {
+        this.rematchStatusMessage = 'OPPONENT WANTS A REMATCH! (VOTE YES OR NO)';
+      }
+    } else if (vote === 'no') {
+      this.rematchStatusMessage = 'OPPONENT DECLINED REMATCH. RETURNING TO LOBBY...';
+      this.rematchTimer = 75;
+    }
+  }
+
+  handleVictoryClick(x, y) {
+    const W = this.canvas.width;
+
+    // Top-Left Back Button Check
+    if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
+      if (this.isOnline) {
+        this.voteRematch('no');
+      } else {
+        soundFX.playWhoosh('light');
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      }
+      return true;
+    }
+
+    if (this.isOnline) {
+      if (this.myRematchVote === null) {
+        // YES Button
+        if (x >= W / 2 - 195 && x <= W / 2 - 10 && y >= 262 && y <= 296) {
+          this.onlineRematchOption = 0;
+          this.voteRematch('yes');
+          return true;
+        }
+        // NO Button
+        if (x >= W / 2 + 10 && x <= W / 2 + 195 && y >= 262 && y <= 296) {
+          this.onlineRematchOption = 1;
+          this.voteRematch('no');
+          return true;
+        }
+      }
+    } else {
+      // Offline 3 Options
+      if (x >= W / 2 - 130 && x <= W / 2 + 130) {
+        if (y >= 224 && y <= 248) {
+          this.victoryMenuIndex = 0;
+          this.handleConfirmPress();
+          return true;
+        } else if (y >= 254 && y <= 278) {
+          this.victoryMenuIndex = 1;
+          this.handleConfirmPress();
+          return true;
+        } else if (y >= 284 && y <= 308) {
+          this.victoryMenuIndex = 2;
+          this.handleConfirmPress();
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   startMatch() {
@@ -640,6 +787,7 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.VICTORY) {
+      this.updateVictoryScreen();
       return;
     }
 
@@ -1185,13 +1333,13 @@ export class Game {
               soundFX.playAnnouncer('ROUND1');
             } else {
               // All 7 bosses defeated! Campaign Champion!
-              this.screen = GAME_SCREENS.VICTORY;
+              this.initVictoryScreen();
               this.winner = this.f1;
               soundFX.playAnnouncer('YOU_WIN');
             }
           } else {
             // Player lost campaign
-            this.screen = GAME_SCREENS.VICTORY;
+            this.initVictoryScreen();
             this.winner = this.f2;
           }
         }
@@ -1216,7 +1364,7 @@ export class Game {
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
         this.roundOverTimer--;
         if (this.roundOverTimer <= 0) {
-          this.screen = GAME_SCREENS.VICTORY;
+          this.initVictoryScreen();
           soundFX.playAnnouncer('YOU_WIN');
         }
       }
@@ -1246,13 +1394,89 @@ export class Game {
       this.roundOverTimer--;
       if (this.roundOverTimer <= 0) {
         if (this.f1.roundsWon >= 2 || this.f2.roundsWon >= 2) {
-          this.screen = GAME_SCREENS.VICTORY;
+          this.initVictoryScreen();
           this.winner = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
           soundFX.playAnnouncer('YOU_WIN');
         } else {
           this.resetRound();
         }
       }
+    }
+  }
+
+  updateVictoryScreen() {
+    if (this.isOnline) {
+      // Netplay disconnect check
+      if (!this.netplay || !this.netplay.isConnected) {
+        if (!this.rematchStatusMessage.includes('DISCONNECTED')) {
+          this.rematchStatusMessage = 'OPPONENT DISCONNECTED. RETURNING TO LOBBY...';
+          if (!this.rematchTimer) this.rematchTimer = 60;
+        }
+      }
+
+      // Rematch countdown timer
+      if (this.rematchTimer > 0) {
+        this.rematchTimer--;
+        if (this.rematchTimer === 0) {
+          if (this.myRematchVote === 'yes' && this.oppRematchVote === 'yes') {
+            soundFX.playAnnouncer('ROUND1');
+            soundFX.startMusic('fight');
+            this.startMatch();
+          } else {
+            this.screen = GAME_SCREENS.ONLINE_LOBBY;
+            this.onlineLobby.subState = 'MENU';
+            this.myRematchVote = null;
+            this.oppRematchVote = null;
+          }
+        }
+        return;
+      }
+
+      // Navigation if player hasn't voted yet
+      if (this.myRematchVote === null) {
+        if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+          input.consumeKey('KeyA');
+          input.consumeKey('ArrowLeft');
+          input.consumeKey('KeyW');
+          input.consumeKey('ArrowUp');
+          if (this.onlineRematchOption !== 0) {
+            this.onlineRematchOption = 0;
+            soundFX.playWhoosh('light');
+          }
+        } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+          input.consumeKey('KeyD');
+          input.consumeKey('ArrowRight');
+          input.consumeKey('KeyS');
+          input.consumeKey('ArrowDown');
+          if (this.onlineRematchOption !== 1) {
+            this.onlineRematchOption = 1;
+            soundFX.playWhoosh('light');
+          }
+        }
+
+        // Direct quick hotkeys
+        if (input.isJustPressed('KeyY')) {
+          input.consumeKey('KeyY');
+          this.voteRematch('yes');
+        } else if (input.isJustPressed('KeyN')) {
+          input.consumeKey('KeyN');
+          this.voteRematch('no');
+        }
+      }
+      return;
+    }
+
+    // Offline Victory Menu Navigation
+    if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+      input.consumeKey('KeyW');
+      input.consumeKey('ArrowUp');
+      this.victoryMenuIndex = (this.victoryMenuIndex - 1 + 3) % 3;
+      soundFX.playWhoosh('light');
+    } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+      input.consumeKey('KeyS');
+      input.consumeKey('ArrowDown');
+      this.victoryMenuIndex = (this.victoryMenuIndex + 1) % 3;
+      soundFX.playWhoosh('light');
     }
   }
 
@@ -1388,50 +1612,196 @@ export class Game {
     const W = GAME_WIDTH;
     const H = GAME_HEIGHT;
 
-    ctx.fillStyle = '#0a0a14';
+    ctx.fillStyle = '#08051a';
     ctx.fillRect(0, 0, W, H);
 
+    // Retro Grid
+    ctx.strokeStyle = '#181232';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 32) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+
+    // Top-Left Back Button: [ ⬅️ LOBBY (B) ] or [ ⬅️ MODES (B) ]
+    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
+    ctx.fillRect(12, 10, 95, 22);
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 10, 95, 22);
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(this.isOnline ? '⬅️ LOBBY [B]' : '⬅️ MODES [B]', 60, 24);
+
     // Victory Banner
-    ctx.fillStyle = '#1e1b4b';
-    ctx.fillRect(0, 40, W, 80);
+    ctx.fillStyle = '#17113b';
+    ctx.fillRect(0, 16, W, 46);
     ctx.fillStyle = '#facc15';
-    ctx.fillRect(0, 38, W, 2);
-    ctx.fillRect(0, 120, W, 2);
+    ctx.fillRect(0, 15, W, 2);
+    ctx.fillRect(0, 62, W, 2);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 28px monospace';
+    ctx.font = 'bold 18px monospace';
 
     if (this.isCampaign && this.winner === this.f1) {
-      ctx.fillText('CAMPAIGN CONQUEROR!', W / 2, 85);
+      ctx.fillText('🏆 CAMPAIGN CONQUEROR! 🏆', W / 2, 38);
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '12px monospace';
-      ctx.fillText('ALL 7 BOSSES & THE PRIMEVAL APEX FELLED', W / 2, 106);
+      ctx.font = '9px monospace';
+      ctx.fillText('ALL 7 BOSSES & THE PRIMEVAL APEX FELLED', W / 2, 52);
     } else {
-      ctx.fillText(`${this.winner ? this.winner.name : 'PLAYER'} WINS!`, W / 2, 85);
+      ctx.fillText(`${this.winner ? this.winner.name : 'PLAYER'} WINS!`, W / 2, 38);
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '12px monospace';
-      ctx.fillText('FINAL IMPACT CHAMPION', W / 2, 106);
+      ctx.font = '9px monospace';
+      ctx.fillText('FINAL IMPACT CHAMPION', W / 2, 52);
     }
 
-    // Winner Sprite Large Display
+    // Winner Sprite Display
     if (this.winner) {
       const sprites = this.winner.sprites?.VICTORY || this.winner.sprites?.IDLE || [];
       const winImg = sprites[0];
       if (winImg) {
-        ctx.drawImage(winImg, W / 2 - 80, 140, 160, 180);
+        ctx.drawImage(winImg, W / 2 - 45, 68, 90, 105);
       }
 
-      // Classic Street Fighter Victory Quote
+      // Victory Quote
       const quote = this.victoryQuotes[this.winner.id] || '"Victory belongs to the swift and disciplined!"';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'italic 13px monospace';
-      ctx.fillText(quote, W / 2, H - 35);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'italic 10px monospace';
+      ctx.fillText(quote, W / 2, 184);
     }
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '11px monospace';
-    ctx.fillText('PRESS [ENTER] OR [SPACE] TO RETURN TO MODE SELECT', W / 2, H - 15);
+    // Interactive Menu Area
+    if (this.isOnline) {
+      // Online Rematch Voting UI Card
+      const cardW = 440;
+      const cardH = 150;
+      const cardX = (W - cardW) / 2;
+      const cardY = 196;
+
+      ctx.fillStyle = 'rgba(15, 12, 32, 0.95)';
+      ctx.fillRect(cardX, cardY, cardW, cardH);
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cardX, cardY, cardW, cardH);
+
+      // Card Header
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('⚔️ ONLINE REMATCH VOTE ⚔️', W / 2, cardY + 18);
+
+      // Status Notification Banner
+      if (this.rematchStatusMessage) {
+        let statusColor = '#38bdf8';
+        if (this.rematchStatusMessage.includes('ACCEPTED')) statusColor = '#22c55e';
+        else if (this.rematchStatusMessage.includes('DECLINED') || this.rematchStatusMessage.includes('DISCONNECTED')) statusColor = '#ef4444';
+        else if (this.rematchStatusMessage.includes('WANTS A REMATCH')) statusColor = '#facc15';
+
+        ctx.fillStyle = statusColor;
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(this.rematchStatusMessage, W / 2, cardY + 36);
+      } else {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px monospace';
+        ctx.fillText('WOULD YOU LIKE TO REMATCH YOUR OPPONENT?', W / 2, cardY + 36);
+      }
+
+      // YES / NO Buttons
+      const btnW = 195;
+      const btnH = 34;
+      const btnY = cardY + 46;
+      const yesX = W / 2 - btnW - 8;
+      const noX = W / 2 + 8;
+
+      // Option 0: YES
+      const isYesHighlighted = this.onlineRematchOption === 0;
+      const hasVotedYes = this.myRematchVote === 'yes';
+      ctx.fillStyle = hasVotedYes ? 'rgba(22, 101, 52, 0.9)' : (isYesHighlighted ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.8)');
+      ctx.fillRect(yesX, btnY, btnW, btnH);
+      ctx.strokeStyle = isYesHighlighted ? '#fde047' : (hasVotedYes ? '#22c55e' : '#15803d');
+      ctx.lineWidth = isYesHighlighted ? 2 : 1;
+      ctx.strokeRect(yesX, btnY, btnW, btnH);
+
+      ctx.fillStyle = hasVotedYes ? '#4ade80' : (isYesHighlighted ? '#ffffff' : '#cbd5e1');
+      ctx.font = 'bold 11px monospace';
+      const yesPrefix = isYesHighlighted ? '► ' : '';
+      const yesSuffix = hasVotedYes ? ' [✓ VOTED]' : '';
+      ctx.fillText(`${yesPrefix}YES - REMATCH${yesSuffix}`, yesX + btnW / 2, btnY + 21);
+
+      // Option 1: NO
+      const isNoHighlighted = this.onlineRematchOption === 1;
+      const hasVotedNo = this.myRematchVote === 'no';
+      ctx.fillStyle = hasVotedNo ? 'rgba(153, 27, 27, 0.9)' : (isNoHighlighted ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.8)');
+      ctx.fillRect(noX, btnY, btnW, btnH);
+      ctx.strokeStyle = isNoHighlighted ? '#fde047' : (hasVotedNo ? '#ef4444' : '#991b1b');
+      ctx.lineWidth = isNoHighlighted ? 2 : 1;
+      ctx.strokeRect(noX, btnY, btnW, btnH);
+
+      ctx.fillStyle = hasVotedNo ? '#f87171' : (isNoHighlighted ? '#ffffff' : '#cbd5e1');
+      ctx.font = 'bold 11px monospace';
+      const noPrefix = isNoHighlighted ? '► ' : '';
+      const noSuffix = hasVotedNo ? ' [✗ VOTED]' : '';
+      ctx.fillText(`${noPrefix}NO - RETURN TO LOBBY${noSuffix}`, noX + btnW / 2, btnY + 21);
+
+      // Live Player Vote Status Indicators
+      const p1VoteText = this.myRematchVote ? (this.myRematchVote === 'yes' ? 'READY (YES)' : 'DECLINED (NO)') : 'DECIDING...';
+      const p2VoteText = this.oppRematchVote ? (this.oppRematchVote === 'yes' ? 'READY (YES)' : 'DECLINED (NO)') : 'DECIDING...';
+      const p1Color = this.myRematchVote === 'yes' ? '#22c55e' : (this.myRematchVote === 'no' ? '#ef4444' : '#94a3b8');
+      const p2Color = this.oppRematchVote === 'yes' ? '#22c55e' : (this.oppRematchVote === 'no' ? '#ef4444' : '#94a3b8');
+
+      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = p1Color;
+      ctx.fillText(`YOU: [ ${p1VoteText} ]`, W / 2 - 105, cardY + 104);
+
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('|', W / 2, cardY + 104);
+
+      ctx.fillStyle = p2Color;
+      ctx.fillText(`OPPONENT: [ ${p2VoteText} ]`, W / 2 + 105, cardY + 104);
+
+      // Controls Footer inside card
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px monospace';
+      ctx.fillText('◄/► [A/D] SELECT  |  [ENTER] VOTE  |  [Y] YES  |  [N / B / ESC] NO', W / 2, cardY + 130);
+
+    } else {
+      // Offline 3-Option Interactive Menu
+      const menuOptions = [
+        { label: '⚔️ REMATCH', desc: 'Restart match immediately' },
+        { label: '🥋 CHARACTER SELECT', desc: 'Return to character select' },
+        { label: '🏆 MAIN MENU', desc: 'Return to Mode Select' }
+      ];
+
+      const btnW = 280;
+      const btnH = 26;
+      const startY = 208;
+      const gapY = 32;
+
+      menuOptions.forEach((opt, idx) => {
+        const isSelected = this.victoryMenuIndex === idx;
+        const y = startY + idx * gapY;
+        const x = (W - btnW) / 2;
+
+        ctx.fillStyle = isSelected ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(x, y, btnW, btnH);
+        ctx.strokeStyle = isSelected ? '#fde047' : '#334155';
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.strokeRect(x, y, btnW, btnH);
+
+        ctx.fillStyle = isSelected ? '#ffffff' : '#94a3b8';
+        ctx.font = isSelected ? 'bold 12px monospace' : '11px monospace';
+        const cursor = isSelected ? '► ' : '';
+        ctx.fillText(`${cursor}${opt.label}`, W / 2, y + 17);
+      });
+
+      // Controls Footer
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px monospace';
+      ctx.fillText('▲/▼ [W/S] SELECT  |  [ENTER / SPACE] CONFIRM  |  [B / ESC] BACK', W / 2, H - 12);
+    }
 
     ctx.textAlign = 'left';
   }

@@ -213,6 +213,13 @@ export class Netplay {
     });
   }
 
+  sendRematchVote(vote) {
+    this.send({
+      type: 'REMATCH_VOTE',
+      vote
+    });
+  }
+
   startPingTracker() {
     this.stopPingTracker();
     this.pingInterval = setInterval(() => {
