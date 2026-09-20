@@ -49,13 +49,59 @@ export class CharacterSelect {
           { name: 'Crescent Gale', cmd: '↓ ↘ → + K (or SP2)', desc: 'Triple rising wind kick' },
           { name: 'Ki Kunai', cmd: '↓ ↘ → + P', desc: 'Rapid glowing energy kunai' }
         ]
+      },
+      {
+        id: 'fang',
+        name: 'FANG',
+        title: 'THE LETHAL STRIKER',
+        style: 'Muay Thai / Lethwei',
+        origin: 'Thailand',
+        power: 4,
+        speed: 4,
+        defense: 4,
+        specials: [
+          { name: 'Tiger Knee', cmd: '↓ ↘ → + K (or SP1)', desc: 'Forward leaping knee strike' },
+          { name: 'Cyclone Elbow', cmd: '→ ↓ ↘ + P (or SP2)', desc: 'Double spinning slicing elbow' },
+          { name: 'Iron Teep', cmd: '↓ ↙ ← + K (or SP3)', desc: 'High pushback front kick' }
+        ]
+      },
+      {
+        id: 'zephyr',
+        name: 'ZEPHYR',
+        title: 'THE WIND DANCER',
+        style: 'Capoeira Acrobat',
+        origin: 'Brazil',
+        power: 3,
+        speed: 5,
+        defense: 3,
+        specials: [
+          { name: 'Windmill Kick', cmd: '↓ ↘ → + K (or SP1)', desc: 'Spinning ground sweep kick' },
+          { name: 'Handstand Axe', cmd: '→ ↓ ↘ + P (or SP2)', desc: 'Overhead handstand heel drop' },
+          { name: 'Flare Slide', cmd: '↓ ↙ ← + K (or SP3)', desc: 'Low evasive sliding sweep' }
+        ]
+      },
+      {
+        id: 'colossus',
+        name: 'COLOSSUS',
+        title: 'THE IRON WALL',
+        style: 'Heavyweight Boxing',
+        origin: 'USA',
+        power: 5,
+        speed: 2,
+        defense: 5,
+        specials: [
+          { name: 'Dempsey Blow', cmd: '↓ ↘ → + P (or SP1)', desc: 'Armored heavy body blow' },
+          { name: 'Corkscrew', cmd: '→ ↓ ↘ + P (or SP2)', desc: 'Rising spiral uppercut' },
+          { name: 'Gazelle Punch', cmd: '↓ ↙ ← + P (or SP3)', desc: 'Leaping heavy hook' }
+        ]
       }
     ];
 
     this.stages = [
       { id: 'suzaku', name: 'SUZAKU ROOFTOP', location: 'Tokyo Sunset' },
       { id: 'neo_tokyo', name: 'NEO UNDERPASS', location: 'Cyberpunk District' },
-      { id: 'thunder_dojo', name: 'THUNDER DOJO', location: 'Ancient Storm Hall' }
+      { id: 'thunder_dojo', name: 'THUNDER DOJO', location: 'Ancient Storm Hall' },
+      { id: 'dragon_shrine', name: 'DRAGON SHRINE', location: 'Crimson Twilight' }
     ];
 
     this.p1Index = 0;
@@ -125,14 +171,16 @@ export class CharacterSelect {
     }
 
     // Check Character Cards
-    const cardW = 180;
-    const cardH = 220;
-    const startX = (W - (cardW * 3 + 40)) / 2;
-    const cardY = 86;
+    const cardW = 96;
+    const cardH = 224;
+    const gap = 8;
+    const totalCardsW = this.characters.length * cardW + (this.characters.length - 1) * gap;
+    const startX = (W - totalCardsW) / 2;
+    const cardY = 80;
 
     if (y >= cardY && y <= cardY + cardH) {
       for (let idx = 0; idx < this.characters.length; idx++) {
-        const cx = startX + idx * (cardW + 20);
+        const cx = startX + idx * (cardW + gap);
         if (x >= cx && x <= cx + cardW) {
           if (this.gameMode === 'online' && this.localPlayerNum === 2) {
             this.p2Index = idx;
@@ -208,7 +256,7 @@ export class CharacterSelect {
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 12px monospace';
     const modeLabels = {
-      campaign: '🏆 MODE: CAMPAIGN (7 Scaling Bosses & 2-Phase Apex)',
+      campaign: '🏆 MODE: CAMPAIGN (8 Scaling Bosses & The Endless Dragon)',
       cpu: `⚔️ MODE: 1V1 VS CPU (AI Difficulty: ${(this.cpuDifficulty || 'normal').toUpperCase()})`,
       '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER VERSUS',
       '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL',
@@ -222,14 +270,16 @@ export class CharacterSelect {
     ctx.font = '11px monospace';
     ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ CHANGE STAGE]  [A/D CHOOSE]  [ENTER START]`, W / 2, 68);
 
-    // 2. The 3 Character Cards
-    const cardW = 180;
-    const cardH = 220;
-    const startX = (W - (cardW * 3 + 40)) / 2;
-    const cardY = 86;
+    // 2. Character Cards (6 Fighters Roster)
+    const cardW = 96;
+    const cardH = 224;
+    const gap = 8;
+    const totalCardsW = this.characters.length * cardW + (this.characters.length - 1) * gap;
+    const startX = (W - totalCardsW) / 2;
+    const cardY = 80;
 
     this.characters.forEach((char, idx) => {
-      const cx = startX + idx * (cardW + 20);
+      const cx = startX + idx * (cardW + gap);
       const isP1Hover = this.p1Index === idx;
       const isP2Hover = this.p2Index === idx;
 
@@ -243,26 +293,26 @@ export class CharacterSelect {
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         ctx.fillStyle = '#a855f7';
-        ctx.font = 'bold 13px monospace';
-        ctx.fillText('P1 & P2', cx + cardW / 2, cardY - 8);
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText('P1 & P2', cx + cardW / 2, cardY - 6);
       } else if (isP1Hover) {
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         // P1 Marker
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 14px monospace';
-        const p1Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'HOST (P1)' : 'YOU (P1)') : 'PLAYER 1';
-        ctx.fillText(p1Tag, cx + cardW / 2, cardY - 8);
+        ctx.font = 'bold 11px monospace';
+        const p1Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'HOST' : 'YOU') : 'P1';
+        ctx.fillText(p1Tag, cx + cardW / 2, cardY - 6);
       } else if (isP2Hover && (this.gameMode === '2p' || this.gameMode === 'online')) {
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 3;
         ctx.strokeRect(cx - 2, cardY - 2, cardW + 4, cardH + 4);
         // P2 Marker
         ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 14px monospace';
-        const p2Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'YOU (P2)' : 'RIVAL (P2)') : 'PLAYER 2';
-        ctx.fillText(p2Tag, cx + cardW / 2, cardY - 8);
+        ctx.font = 'bold 11px monospace';
+        const p2Tag = this.gameMode === 'online' ? (this.localPlayerNum === 2 ? 'YOU' : 'RIVAL') : 'P2';
+        ctx.fillText(p2Tag, cx + cardW / 2, cardY - 6);
       } else {
         ctx.strokeStyle = '#334155';
         ctx.lineWidth = 1;
@@ -271,44 +321,51 @@ export class CharacterSelect {
 
       // Fighter Animated Sprite Preview
       const sprites = this.previewSprites[char.id];
-      const idleFrames = sprites?.IDLE || [];
-      const frameImg = idleFrames[this.animFrame % idleFrames.length];
+      const idleFrames = sprites?.idle || sprites?.IDLE || [];
+      const frameImg = idleFrames[this.animFrame % (idleFrames.length || 1)];
       if (frameImg) {
-        ctx.drawImage(frameImg, cx + (cardW - 80) / 2, cardY + 12);
+        ctx.drawImage(frameImg, cx + (cardW - 80) / 2, cardY + 8);
       }
 
       // Fighter Name & Bio
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 15px monospace';
-      ctx.fillText(char.name, cx + cardW / 2, cardY + 115);
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(char.name, cx + cardW / 2, cardY + 106);
 
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px monospace';
-      ctx.fillText(char.title, cx + cardW / 2, cardY + 128);
+      ctx.font = '7.5px monospace';
+      ctx.fillText(char.title, cx + cardW / 2, cardY + 118);
 
       // Stat Bars
       const drawStat = (label, val, y) => {
         ctx.textAlign = 'left';
         ctx.fillStyle = '#64748b';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText(label, cx + 12, y);
+        ctx.font = 'bold 7.5px monospace';
+        ctx.fillText(label, cx + 6, y);
 
         for (let i = 0; i < 5; i++) {
           ctx.fillStyle = i < val ? '#facc15' : '#334155';
-          ctx.fillRect(cx + 64 + i * 20, y - 7, 16, 6);
+          ctx.fillRect(cx + 34 + i * 11, y - 5, 8, 4);
         }
       };
 
-      drawStat('PWR', char.power, cardY + 146);
-      drawStat('SPD', char.speed, cardY + 160);
-      drawStat('DEF', char.defense, cardY + 174);
+      drawStat('PWR', char.power, cardY + 134);
+      drawStat('SPD', char.speed, cardY + 146);
+      drawStat('DEF', char.defense, cardY + 158);
 
       // Move list summary
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '8px monospace';
-      ctx.fillText(`★ ${char.specials[0].name}: ${char.specials[0].cmd}`, cx + 8, cardY + 194);
-      ctx.fillText(`★ ${char.specials[1].name}: ${char.specials[1].cmd}`, cx + 8, cardY + 208);
+      ctx.font = '7px monospace';
+      ctx.fillText(`★ ${char.specials[0].name}`, cx + 5, cardY + 176);
+      ctx.fillStyle = '#64748b';
+      ctx.fillText(`  ${char.specials[0].cmd.split(' (')[0]}`, cx + 5, cardY + 186);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`★ ${char.specials[1].name}`, cx + 5, cardY + 200);
+      ctx.fillStyle = '#64748b';
+      ctx.fillText(`  ${char.specials[1].cmd.split(' (')[0]}`, cx + 5, cardY + 210);
     });
 
     // Interactive Start Button / Instructions Footer

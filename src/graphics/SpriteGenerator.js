@@ -84,6 +84,68 @@ export class SpriteGenerator {
         neonGlow: '#06b6d4',
         bladeMetal: '#e2e8f0',
         bladeShadow: '#64748b'
+      },
+      fang: {
+        skinHighlight: '#e8c4a0',
+        skinMid: '#c99b6d',
+        skinShadow: '#8b6239',
+        skinDeep: '#5a3a1e',
+        hair: '#1a1a1a',
+        hairShadow: '#0a0a0a',
+        wrapsWhite: '#f5f0e8',
+        wrapsShadow: '#c4b8a8',
+        shortsRed: '#dc2626',
+        shortsShadow: '#991b1b',
+        mongkolGold: '#fbbf24',
+        mongkolShadow: '#b45309',
+        glow: '#ef4444'
+      },
+      zephyr: {
+        skinHighlight: '#8b6c4a',
+        skinMid: '#6b4c30',
+        skinShadow: '#4a3420',
+        skinDeep: '#2d1f12',
+        hair: '#f5f5f5',
+        hairShadow: '#a3a3a3',
+        tankGreen: '#22c55e',
+        tankShadow: '#15803d',
+        pantsWhite: '#fafafa',
+        pantsShadow: '#d4d4d4',
+        shoesYellow: '#facc15',
+        shoesShadow: '#a16207',
+        glow: '#4ade80'
+      },
+      colossus: {
+        skinHighlight: '#fde8d0',
+        skinMid: '#e8b88a',
+        skinShadow: '#b8845a',
+        skinDeep: '#7a5230',
+        hair: '#78350f',
+        hairShadow: '#451a03',
+        glovesRed: '#b91c1c',
+        glovesShadow: '#7f1d1d',
+        shortsBlack: '#1c1917',
+        shortsShadow: '#0c0a09',
+        bootsBlack: '#18181b',
+        bootsShadow: '#09090b',
+        beltGold: '#d97706',
+        glow: '#fbbf24'
+      },
+      endless_dragon: {
+        skinHighlight: '#6b21a8',
+        skinMid: '#581c87',
+        skinShadow: '#3b0764',
+        skinDeep: '#1e0538',
+        scalesLight: '#7c3aed',
+        scalesMid: '#6d28d9',
+        scalesDark: '#4c1d95',
+        eyeGlow: '#fbbf24',
+        hornBone: '#f5f0e8',
+        hornShadow: '#a3a3a3',
+        flameCore: '#ef4444',
+        flameMid: '#f97316',
+        flameOuter: '#fbbf24',
+        glow: '#a855f7'
       }
     };
 
@@ -93,7 +155,11 @@ export class SpriteGenerator {
     const frameBuilders = {
       kazuki: this.buildKazukiFrames.bind(this),
       raven: this.buildRavenFrames.bind(this),
-      kagura: this.buildKaguraFrames.bind(this)
+      kagura: this.buildKaguraFrames.bind(this),
+      fang: this.buildGenericFrames.bind(this),
+      zephyr: this.buildGenericFrames.bind(this),
+      colossus: this.buildGenericFrames.bind(this),
+      endless_dragon: this.buildGenericFrames.bind(this)
     };
 
     const builder = frameBuilders[fighterId] || frameBuilders.kazuki;
@@ -1716,6 +1782,195 @@ export class SpriteGenerator {
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // Generic frame builder for new characters (Fang, Zephyr, Colossus, Endless Dragon)
+  buildGenericFrames(p, width, height) {
+    const frames = {};
+    const stateConfigs = {
+      idle: 4, walk: 6, jump: 3, crouch: 2, hit: 2, knockdown: 3, block: 2,
+      light_punch: 3, heavy_punch: 4, light_kick: 3, heavy_kick: 4,
+      crouch_lp: 3, crouch_hp: 4, crouch_lk: 3, crouch_hk: 4,
+      jump_punch: 2, jump_kick: 2,
+      special_1: 5, special_2: 5, special_3: 4,
+      ultimate: 8, dirty: 3, dash: 3
+    };
+
+    // Determine body proportions based on palette
+    const isColossus = !!p.glovesRed;
+    const isDragon = !!p.scalesLight;
+    const bodyW = isColossus ? 36 : (isDragon ? 34 : 28);
+    const bodyH = isColossus ? 28 : 26;
+
+    // Pick main colors from whatever palette keys exist
+    const skinH = p.skinHighlight || p.scalesLight || '#ccc';
+    const skinM = p.skinMid || p.scalesMid || '#aaa';
+    const skinS = p.skinShadow || p.scalesDark || '#777';
+    const hairC = p.hair || p.hornBone || '#333';
+    const glowC = p.glow || '#fff';
+
+    // Torso color
+    const torsoC = p.wrapsWhite || p.tankGreen || p.glovesRed || p.scalesLight || skinH;
+    const torsoS = p.wrapsShadow || p.tankShadow || p.glovesShadow || p.scalesDark || skinS;
+    // Legs color
+    const legsC = p.shortsRed || p.pantsWhite || p.shortsBlack || p.scalesMid || '#555';
+    const legsS = p.shortsShadow || p.pantsShadow || p.shortsShadow || p.scalesDark || '#333';
+    // Feet color
+    const feetC = p.skinShadow || p.shoesYellow || p.bootsBlack || p.scalesDark || '#444';
+
+    for (const [state, count] of Object.entries(stateConfigs)) {
+      frames[state] = [];
+      for (let i = 0; i < count; i++) {
+        const { canvas, ctx } = this.createCanvas(width, height);
+
+        // Animation offsets
+        const bob = state === 'idle' ? Math.sin(i * 1.57) * 2 : 0;
+        const walkShift = state === 'walk' ? Math.sin(i * 1.05) * 3 : 0;
+        const hitShift = state === 'hit' ? 4 : 0;
+        const crouchY = (state === 'crouch' || state.startsWith('crouch_')) ? 8 : 0;
+        const jumpY = state === 'jump' ? -10 : 0;
+
+        const bx = 26 - (isColossus ? 4 : 0); // body x offset
+        const by = 24 + bob + crouchY + jumpY;
+
+        // Shadow
+        this.drawShadow(ctx, 40, 88, isColossus ? 22 : 18, 4);
+
+        // Hair / Horns
+        if (isDragon) {
+          this.drawPixel(ctx, bx + 2, by - 16, 8, 10, p.hornBone);
+          this.drawPixel(ctx, bx + bodyW - 10, by - 16, 8, 10, p.hornBone);
+          this.drawPixel(ctx, bx + 4, by - 8, bodyW - 8, 10, hairC);
+        } else {
+          this.drawPixel(ctx, bx + 4, by - 10, bodyW - 8, 12, hairC);
+          this.drawPixel(ctx, bx + 6, by - 8, bodyW - 12, 8, p.hairShadow || '#111');
+        }
+
+        // Head
+        this.drawPixel(ctx, bx + 2, by, bodyW - 4, 12, skinH);
+        this.drawPixel(ctx, bx + 4, by + 2, bodyW - 8, 8, skinM);
+
+        // Eyes
+        if (isDragon) {
+          this.drawPixel(ctx, bx + 8, by + 4, 4, 3, p.eyeGlow);
+          this.drawPixel(ctx, bx + bodyW - 12, by + 4, 4, 3, p.eyeGlow);
+        } else {
+          this.drawPixel(ctx, bx + 8, by + 4, 3, 2, '#111');
+          this.drawPixel(ctx, bx + bodyW - 11, by + 4, 3, 2, '#111');
+        }
+
+        // Torso
+        this.drawPixel(ctx, bx, by + 12, bodyW, bodyH, torsoC);
+        this.drawPixel(ctx, bx + 2, by + 14, bodyW - 4, bodyH - 4, torsoS);
+
+        // Arms
+        const armExtend = (state.includes('punch') || state.includes('special')) ? 14 + i * 4 : 0;
+        const kickExtend = state.includes('kick') ? 8 : 0;
+        // Left arm
+        this.drawPixel(ctx, bx - 6 - hitShift, by + 14, 8, 18 + (state.includes('punch') && i > 0 ? 6 : 0), skinM);
+        // Right arm (extends on attacks)
+        this.drawPixel(ctx, bx + bodyW - 2, by + 14, 8 + armExtend, 8, skinM);
+
+        // Gloves for Colossus
+        if (isColossus) {
+          this.drawPixel(ctx, bx - 8, by + 28, 10, 8, p.glovesRed);
+          this.drawPixel(ctx, bx + bodyW + armExtend - 2, by + 14, 10, 10, p.glovesRed);
+        }
+        // Hand wraps for Fang
+        if (p.wrapsWhite && !isColossus) {
+          this.drawPixel(ctx, bx - 6, by + 28, 8, 6, p.wrapsWhite);
+          this.drawPixel(ctx, bx + bodyW + armExtend, by + 16, 8, 6, p.wrapsWhite);
+        }
+
+        // Belt / Mongkol
+        if (p.mongkolGold) {
+          this.drawPixel(ctx, bx, by + 12 + bodyH, bodyW, 4, p.mongkolGold);
+        } else if (p.beltGold) {
+          this.drawPixel(ctx, bx + 2, by + 12 + bodyH, bodyW - 4, 4, p.beltGold);
+        }
+
+        // Legs
+        const legY = by + 14 + bodyH;
+        this.drawPixel(ctx, bx + 2 + walkShift, legY, 10, 16 + kickExtend, legsC);
+        this.drawPixel(ctx, bx + bodyW - 12 - walkShift, legY, 10, 16 + kickExtend, legsC);
+        this.drawPixel(ctx, bx + 4 + walkShift, legY + 2, 6, 12, legsS);
+        this.drawPixel(ctx, bx + bodyW - 10 - walkShift, legY + 2, 6, 12, legsS);
+
+        // Feet
+        this.drawPixel(ctx, bx + walkShift, legY + 16 + kickExtend, 12, 5, feetC);
+        this.drawPixel(ctx, bx + bodyW - 14 - walkShift, legY + 16 + kickExtend, 12, 5, feetC);
+
+        // Attack effects
+        if (state.includes('special') || state === 'ultimate') {
+          ctx.globalAlpha = 0.5 + Math.sin(i * 1.2) * 0.3;
+          ctx.fillStyle = glowC;
+          ctx.beginPath();
+          ctx.arc(40 + armExtend, by + 20, 8 + i * 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+
+        // Dragon flame aura
+        if (isDragon && (state === 'idle' || state.includes('special') || state === 'ultimate')) {
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = p.flameCore;
+          ctx.beginPath();
+          ctx.arc(40, by + 20, 22 + Math.sin(i * 1.5) * 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = p.flameOuter;
+          ctx.beginPath();
+          ctx.arc(40, by + 16, 28 + Math.sin(i * 1.2) * 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
+
+        // Hit flash
+        if (state === 'hit' || state === 'knockdown') {
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(bx, by, bodyW, bodyH + 20);
+          ctx.globalAlpha = 1.0;
+        }
+
+        frames[state].push(canvas);
+      }
+    }
+
+    // Map to uppercase FIGHTER_STATE keys for engine rendering
+    const upperMap = {
+      idle: ['IDLE'],
+      walk: ['WALK_FWD', 'WALK_BACK'],
+      jump: ['JUMP', 'FALL', 'LAND'],
+      crouch: ['CROUCH'],
+      hit: ['HIT'],
+      knockdown: ['KNOCKDOWN'],
+      block: ['BLOCK'],
+      light_punch: ['ATTACK_LP'],
+      heavy_punch: ['ATTACK_HP'],
+      light_kick: ['ATTACK_LK'],
+      heavy_kick: ['ATTACK_HK'],
+      crouch_lp: ['CROUCH_LP'],
+      crouch_hp: ['CROUCH_HP'],
+      crouch_lk: ['CROUCH_LK'],
+      crouch_hk: ['CROUCH_HK'],
+      jump_punch: ['JUMP_PUNCH'],
+      jump_kick: ['JUMP_KICK'],
+      special_1: ['SPECIAL_1'],
+      special_2: ['SPECIAL_2'],
+      special_3: ['SPECIAL_3'],
+      ultimate: ['ULTIMATE'],
+      dirty: ['DIRTY_TACTIC'],
+      dash: ['DASH']
+    };
+    for (const [s, keys] of Object.entries(upperMap)) {
+      if (frames[s]) {
+        for (const k of keys) {
+          frames[k] = frames[s];
+        }
+      }
+    }
+
+    return frames;
   }
 }
 

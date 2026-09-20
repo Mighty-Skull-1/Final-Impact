@@ -107,9 +107,11 @@ export class Kagura extends Fighter {
     // Ki Kunai
     const isKunai = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
     if (isKunai) {
-      inputManager.consumeBuffer(pNum);
-      this.startKunai();
-      return;
+      if (this.canFireProjectile(25)) {
+        inputManager.consumeBuffer(pNum);
+        this.startKunai();
+        return;
+      }
     }
 
     // 5. Dash Execution (Ninja Flash Step)
@@ -234,6 +236,8 @@ export class Kagura extends Fighter {
   }
 
   startKunai() {
+    if (!this.canFireProjectile(25)) return;
+    this.onFireProjectile(25, 45);
     this.changeState(FIGHTER_STATE.SPECIAL_3);
     soundFX.playWhoosh('light');
   }
@@ -539,8 +543,8 @@ export class Kagura extends Fighter {
               type: 'ki_kunai',
               x: pX,
               y: this.y - 56,
-              vx: (this.facingRight ? 1 : -1) * 9.8,
-              damage: 70
+              vx: (this.facingRight ? 1 : -1) * 10.8,
+              damage: 82
             }));
           }
         } else if (this.stateTimer <= 21) {

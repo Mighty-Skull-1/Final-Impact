@@ -30,6 +30,15 @@ export class Projectile {
     this.attackHeight = ATTACK_HEIGHT.HIGH;
   }
 
+  destroy() {
+    if (this.active) {
+      this.active = false;
+      if (this.owner && typeof this.owner.onProjectileDestroyed === 'function') {
+        this.owner.onProjectileDestroyed();
+      }
+    }
+  }
+
   update() {
     this.x += this.vx;
     this.y += this.vy;
@@ -37,7 +46,7 @@ export class Projectile {
 
     // Despawn if out of stage bounds
     if (this.x < -100 || this.x > 1100 || this.y > 400) {
-      this.active = false;
+      this.destroy();
     }
   }
 

@@ -13,6 +13,9 @@ import { SettingsManager } from '../ui/SettingsModal.js';
 import { Kazuki } from '../fighters/Kazuki.js';
 import { Raven } from '../fighters/Raven.js';
 import { Kagura } from '../fighters/Kagura.js';
+import { Fang } from '../fighters/Fang.js';
+import { Zephyr } from '../fighters/Zephyr.js';
+import { Colossus } from '../fighters/Colossus.js';
 import { AlleyPickup } from './Projectiles.js';
 
 // Boss Imports
@@ -23,6 +26,7 @@ import { Matriarch } from '../fighters/bosses/Matriarch.js';
 import { StreetLord } from '../fighters/bosses/StreetLord.js';
 import { UrbanLegend } from '../fighters/bosses/UrbanLegend.js';
 import { Champion } from '../fighters/bosses/Champion.js';
+import { EndlessDragon } from '../fighters/bosses/EndlessDragon.js';
 import { Netplay } from '../network/Netplay.js';
 import { OnlineLobby } from '../ui/OnlineLobby.js';
 
@@ -194,7 +198,7 @@ export class Game {
     this.isCampaign = false;
     this.is2v2 = false;
     this.isTraining = false;
-    this.bossQueue = ['riot_cop', 'promoter', 'bouncer_twins', 'matriarch', 'street_lord', 'urban_legend', 'champion'];
+    this.bossQueue = ['riot_cop', 'promoter', 'bouncer_twins', 'matriarch', 'street_lord', 'urban_legend', 'champion', 'endless_dragon'];
     this.bossIndex = 0;
     this.campaignStageWon = false;
 
@@ -210,7 +214,11 @@ export class Game {
       matriarch: '"A predictable blade cuts only the fool who swings it."',
       street_lord: '"Flesh and bone are obsolete. Cybernetics are forever."',
       urban_legend: '"I am the reflection you cannot defeat."',
-      champion: '"Tape your hands and step aside. You never stood a chance."'
+      champion: '"Tape your hands and step aside. You never stood a chance."',
+      fang: '"Eight limbs of devastation. That is the art of Muay Thai."',
+      zephyr: '"Can\'t hit what flows like the wind, my friend."',
+      colossus: '"Iron fists. Iron will. You never had a chance."',
+      endless_dragon: '"Mortals cannot extinguish an eternal flame."'
     };
 
     // Global Key Listener for Debug & Shortcuts
@@ -588,11 +596,11 @@ export class Game {
     this.spawnDefaultPickups();
 
     // Thematic stage backgrounds for each boss
-    const stageThemes = ['neo_tokyo', 'suzaku', 'thunder_dojo', 'suzaku', 'neo_tokyo', 'thunder_dojo', 'suzaku'];
+    const stageThemes = ['neo_tokyo', 'suzaku', 'thunder_dojo', 'suzaku', 'neo_tokyo', 'thunder_dojo', 'suzaku', 'dragon_shrine'];
     const stageId = stageThemes[this.bossIndex] || 'suzaku';
     this.stage = new Stage(stageId);
 
-    // Scale AI difficulty progressively per stage (1 to 7)
+    // Scale AI difficulty progressively per stage (1 to 8)
     this.ai.setDifficulty('campaign', stageNum);
     this.ai3.setDifficulty('campaign', stageNum);
 
@@ -650,6 +658,9 @@ export class Game {
       } else if (currentBossId === 'champion') {
         this.f2.maxHealth = 1000;
         this.f2.health = 1000;
+      } else if (currentBossId === 'endless_dragon') {
+        this.f2.maxHealth = 2500;
+        this.f2.health = 2500;
       }
 
       this.f3 = null;
@@ -694,6 +705,9 @@ export class Game {
     if (id === 'kazuki') fighter = new Kazuki(opts);
     else if (id === 'raven') fighter = new Raven(opts);
     else if (id === 'kagura') fighter = new Kagura(opts);
+    else if (id === 'fang') fighter = new Fang(opts);
+    else if (id === 'zephyr') fighter = new Zephyr(opts);
+    else if (id === 'colossus') fighter = new Colossus(opts);
     else if (id === 'riot_cop') fighter = new RiotCop(opts);
     else if (id === 'promoter') fighter = new Promoter(opts);
     else if (id === 'boris') fighter = new BorisBouncer(opts);
@@ -702,6 +716,7 @@ export class Game {
     else if (id === 'street_lord') fighter = new StreetLord(opts);
     else if (id === 'urban_legend') fighter = new UrbanLegend(opts);
     else if (id === 'champion') fighter = new Champion(opts);
+    else if (id === 'endless_dragon') fighter = new EndlessDragon(opts);
     else fighter = new Kazuki(opts);
 
     // Team 1: playerNum 1 & 3. Team 2: playerNum 2 & 4
@@ -1347,7 +1362,7 @@ export class Game {
           for (const hurt of targetHurtboxes) {
             if (HitboxSystem.testOverlap(pHit, hurt)) {
               hitTarget = true;
-              p.active = false;
+              p.destroy();
 
               const hitType = target.takeHit({
                 damage: p.damage,
@@ -1374,8 +1389,8 @@ export class Game {
         const other = this.projectiles[j];
         if (p !== other && p.owner?.team !== other.owner?.team && p.active && other.active) {
           if (HitboxSystem.testOverlap(pHit, other.getHitbox())) {
-            p.active = false;
-            other.active = false;
+            p.destroy();
+            other.destroy();
             this.hud.addHitSpark((p.x + other.x) / 2, (p.y + other.y) / 2, 'hit');
             soundFX.playNoiseCrack(0.2, 800, 0.4);
             break;
@@ -1400,9 +1415,10 @@ export class Game {
     if (this.isCampaign) {
       const isBouncerStage = this.bossQueue[this.bossIndex] === 'bouncer_twins';
       const isChampionStage = this.bossQueue[this.bossIndex] === 'champion';
+      const isDragonStage = this.bossQueue[this.bossIndex] === 'endless_dragon';
 
-      // Elden Ring Phase 1 transition guard: do not end if Rex Gannon is transitioning to Phase 2
-      if (isChampionStage && this.f2 && ((this.f2.phase === 1 && this.f2.hasTransitioned) || this.f2.transitionTimer > 0)) {
+      // Elden Ring Phase 1 transition guard: do not end if Rex Gannon or Endless Dragon is transitioning to Phase 2
+      if ((isChampionStage || isDragonStage) && this.f2 && ((this.f2.phase === 1 && this.f2.hasTransitioned) || this.f2.transitionTimer > 0)) {
         return; // Fight continues in Phase 2!
       }
 
@@ -1435,8 +1451,8 @@ export class Game {
         this.roundOverTimer = 160;
         this.campaignStageWon = stageWon;
 
-        if (stageWon && isChampionStage && this.f2.phase === 2) {
-          this.hud.setAnnouncement('LEGEND VANQUISHED', 150);
+        if (stageWon && (isChampionStage || isDragonStage) && this.f2.phase === 2) {
+          this.hud.setAnnouncement(isDragonStage ? 'ANCIENT DRAGON VANQUISHED' : 'LEGEND VANQUISHED', 150);
         } else if (isTimeOver) {
           this.hud.setAnnouncement(stageWon ? 'TIME OVER - STAGE CLEAR!' : 'TIME OVER - DEFEAT', 130);
           soundFX.playAnnouncer('TIME_OVER');
@@ -1460,7 +1476,7 @@ export class Game {
               this.slowMotion = false;
               soundFX.playAnnouncer('ROUND1');
             } else {
-              // All 7 bosses defeated! Campaign Champion!
+              // All 8 bosses defeated! Campaign Champion!
               this.initVictoryScreen();
               this.winner = this.f1;
               soundFX.playAnnouncer('YOU_WIN');

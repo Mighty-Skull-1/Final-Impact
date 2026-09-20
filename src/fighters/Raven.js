@@ -99,9 +99,11 @@ export class Raven extends Fighter {
     // Sonic Blade (Golden razor projectile)
     const isSonicBlade = ((inputManager.checkChargeBackFwd(pNum) || inputManager.checkQCF(pNum)) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isSonicBlade) {
-      inputManager.consumeBuffer(pNum);
-      this.startSonicBlade();
-      return;
+      if (this.canFireProjectile(25)) {
+        inputManager.consumeBuffer(pNum);
+        this.startSonicBlade();
+        return;
+      }
     }
 
     // Blitz Knuckle
@@ -212,6 +214,8 @@ export class Raven extends Fighter {
   }
 
   startSonicBlade() {
+    if (!this.canFireProjectile(25)) return;
+    this.onFireProjectile(25, 48);
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playSonicBlade();
   }
@@ -479,8 +483,8 @@ export class Raven extends Fighter {
               type: 'sonic_blade',
               x: pX,
               y: this.y - 58,
-              vx: (this.facingRight ? 1 : -1) * 8.8,
-              damage: 80
+              vx: (this.facingRight ? 1 : -1) * 10.2,
+              damage: 92
             }));
           }
         } else if (this.stateTimer <= 25) {

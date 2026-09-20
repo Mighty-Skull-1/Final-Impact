@@ -28,21 +28,21 @@ window.addEventListener('DOMContentLoaded', () => {
       let delta = currentTime - lastTime;
       lastTime = currentTime;
 
-      // Clamp delta to prevent spiral of death when tab is unfocused (100ms max)
-      if (delta > 100) delta = 100;
+      // Clamp delta to prevent spiral of death when tab is unfocused or hitching
+      if (delta > 66.6) delta = 66.6;
       if (delta < 0) delta = 0;
 
       accumulator += delta;
 
-      // Allow 1.8ms slack to match display VSync (prevents 59.9Hz / 60Hz stutter & judder)
       let steps = 0;
-      while (accumulator >= tickInterval - 1.8 && steps < 3) {
+      while (accumulator >= tickInterval && steps < 4) {
         game.update();
-        accumulator = Math.max(0, accumulator - tickInterval);
+        accumulator -= tickInterval;
         steps++;
       }
-      if (steps >= 3) {
-        accumulator = 0; // Discard excess lag debt
+
+      if (steps >= 4) {
+        accumulator = 0; // Prevent runaway lag debt
       }
 
       game.render();

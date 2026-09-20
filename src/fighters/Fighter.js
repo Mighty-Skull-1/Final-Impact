@@ -89,6 +89,10 @@ export class Fighter {
     this.jumpForce = -13.5;
     this.gravity = 0.65;
 
+    // Projectile Cooldown & Active Tracking (Anti-Corner Spamming)
+    this.projectileCooldown = 0;
+    this.activeProjectileCount = 0;
+
     // Sprites
     this.sprites = spriteGenerator.generateFighterSprites(this.id);
   }
@@ -98,6 +102,25 @@ export class Fighter {
     if (this.stamina <= 0 && this.state !== FIGHTER_STATE.WINDED && this.isGrounded && !this.isDead) {
       this.changeState(FIGHTER_STATE.WINDED);
       this.windedTimer = 65;
+    }
+  }
+
+  canFireProjectile(staminaCost = 25) {
+    if (this.stamina < staminaCost) return false;
+    if (this.projectileCooldown > 0) return false;
+    if (this.activeProjectileCount >= 1) return false;
+    return true;
+  }
+
+  onFireProjectile(staminaCost = 25, cooldown = 50) {
+    this.consumeStamina(staminaCost);
+    this.projectileCooldown = cooldown;
+    this.activeProjectileCount++;
+  }
+
+  onProjectileDestroyed() {
+    if (this.activeProjectileCount > 0) {
+      this.activeProjectileCount--;
     }
   }
 
@@ -232,6 +255,7 @@ export class Fighter {
 
     this.stateTimer++;
     if (this.armorFlash > 0) this.armorFlash--;
+    if (this.projectileCooldown > 0) this.projectileCooldown--;
 
     // Handle Winded state (0 Stamina exhaustion)
     if (this.state === FIGHTER_STATE.WINDED) {

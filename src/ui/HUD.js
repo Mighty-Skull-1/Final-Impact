@@ -94,6 +94,9 @@ export class HUD {
   }
 
   addHitSpark(x, y, type = 'hit') {
+    if (this.hitSparks.length >= 8) {
+      this.hitSparks.shift(); // Evict oldest spark to maintain 60 FPS under heavy multi-hit combos
+    }
     this.hitSparks.push({
       x,
       y,

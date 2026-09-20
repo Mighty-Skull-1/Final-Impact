@@ -96,9 +96,11 @@ export class Kazuki extends Fighter {
     // Hadouken (Ki Fireball)
     const isQCF = (inputManager.checkQCF(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
     if (isQCF) {
-      inputManager.consumeBuffer(pNum);
-      this.startHadouken();
-      return;
+      if (this.canFireProjectile(25)) {
+        inputManager.consumeBuffer(pNum);
+        this.startHadouken();
+        return;
+      }
     }
 
     // Tatsumaki Senpuukyaku (Hurricane Kick)
@@ -209,6 +211,8 @@ export class Kazuki extends Fighter {
   }
 
   startHadouken() {
+    if (!this.canFireProjectile(25)) return;
+    this.onFireProjectile(25, 50);
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playHadouken();
   }
@@ -479,8 +483,8 @@ export class Kazuki extends Fighter {
               type: 'hadouken',
               x: pX,
               y: this.y - 60,
-              vx: (this.facingRight ? 1 : -1) * 8.0,
-              damage: 75
+              vx: (this.facingRight ? 1 : -1) * 9.5,
+              damage: 88
             }));
           }
         } else if (this.stateTimer <= 25) {

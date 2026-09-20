@@ -96,6 +96,8 @@ export class Stage {
       this.renderSuzaku(ctx, cameraX, canvasWidth, canvasHeight);
     } else if (this.stageId === 'neo_tokyo') {
       this.renderNeoTokyo(ctx, cameraX, canvasWidth, canvasHeight);
+    } else if (this.stageId === 'dragon_shrine') {
+      this.renderDragonShrine(ctx, cameraX, canvasWidth, canvasHeight);
     } else {
       this.renderThunderDojo(ctx, cameraX, canvasWidth, canvasHeight);
     }
@@ -468,5 +470,136 @@ export class Stage {
       ctx.fillRect(rightX + 20, 228 + b4, 10, 6); // pointing finger
       ctx.restore();
     }
+  }
+
+  // ==========================================
+  // STAGE 8: DRAGON SHRINE (Crimson Twilight)
+  // ==========================================
+  renderDragonShrine(ctx, cameraX, W, H) {
+    // 1. Crimson Dark Sky Gradient
+    const sky = ctx.createLinearGradient(0, 0, 0, 240);
+    sky.addColorStop(0, '#0c0015');
+    sky.addColorStop(0.25, '#1a0a2e');
+    sky.addColorStop(0.5, '#3b0764');
+    sky.addColorStop(0.75, '#7f1d1d');
+    sky.addColorStop(1, '#450a0a');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Ominous Blood Moon
+    const moonX = W * 0.75 - cameraX * 0.05;
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.3)';
+    ctx.beginPath();
+    ctx.arc(moonX, 55, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(moonX, 55, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#991b1b';
+    ctx.beginPath();
+    ctx.arc(moonX + 6, 52, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Dark Storm Clouds
+    for (let i = 0; i < 8; i++) {
+      const cx = (i * 140 + this.time * 0.15) % (W + 200) - 100;
+      ctx.fillStyle = `rgba(30, 5, 56, ${0.5 + Math.sin(i) * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(cx, 30 + i * 8, 55 + i * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Draconic Lightning (occasional)
+    if (this.isLightning) {
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const lx = 200 + Math.random() * (W - 400);
+      ctx.moveTo(lx, 0);
+      for (let y = 0; y < 200; y += 15) {
+        ctx.lineTo(lx + (Math.random() - 0.5) * 40, y);
+      }
+      ctx.stroke();
+      // Flash
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 5. Distant Mountain Silhouettes
+    ctx.fillStyle = '#1e0538';
+    ctx.beginPath();
+    ctx.moveTo(0, 180);
+    for (let x = 0; x <= W; x += 40) {
+      ctx.lineTo(x - cameraX * 0.08, 140 + Math.sin(x * 0.015) * 35);
+    }
+    ctx.lineTo(W, 300);
+    ctx.lineTo(0, 300);
+    ctx.fill();
+
+    // 6. Ancient Stone Shrine Pillars
+    const pillarColor = '#292524';
+    const pillarHighlight = '#44403c';
+    // Left pillar
+    const lp = 60 - cameraX * 0.3;
+    ctx.fillStyle = pillarColor;
+    ctx.fillRect(lp, 120, 30, 180);
+    ctx.fillStyle = pillarHighlight;
+    ctx.fillRect(lp + 4, 120, 6, 180);
+    // Pillar top
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(lp - 8, 112, 46, 12);
+    // Rune glow on pillar
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.4 + Math.sin(this.time * 0.04) * 0.3})`;
+    ctx.fillRect(lp + 10, 160, 10, 3);
+    ctx.fillRect(lp + 8, 200, 14, 3);
+    ctx.fillRect(lp + 12, 240, 8, 3);
+
+    // Right pillar
+    const rp = W - 90 - cameraX * 0.3;
+    ctx.fillStyle = pillarColor;
+    ctx.fillRect(rp, 120, 30, 180);
+    ctx.fillStyle = pillarHighlight;
+    ctx.fillRect(rp + 20, 120, 6, 180);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(rp - 8, 112, 46, 12);
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.4 + Math.sin(this.time * 0.05 + 1) * 0.3})`;
+    ctx.fillRect(rp + 10, 170, 10, 3);
+    ctx.fillRect(rp + 6, 210, 14, 3);
+    ctx.fillRect(rp + 12, 250, 8, 3);
+
+    // 7. Ground Platform (dark stone with glowing rune cracks)
+    const groundGrad = ctx.createLinearGradient(0, 290, 0, H);
+    groundGrad.addColorStop(0, '#1c1917');
+    groundGrad.addColorStop(0.3, '#292524');
+    groundGrad.addColorStop(1, '#0c0a09');
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, 290, W, H - 290);
+
+    // Glowing rune cracks in the ground
+    ctx.strokeStyle = `rgba(239, 68, 68, ${0.4 + Math.sin(this.time * 0.03) * 0.25})`;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 6; i++) {
+      const rx = 80 + i * 150 - cameraX * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(rx, 295);
+      ctx.lineTo(rx + 15, 305);
+      ctx.lineTo(rx + 5, 315);
+      ctx.lineTo(rx + 20, 325);
+      ctx.stroke();
+    }
+
+    // 8. Floating Ember/Ash Particles
+    ctx.globalAlpha = 0.6;
+    for (const p of this.petals) {
+      const ex = p.x - cameraX * 0.1;
+      ctx.fillStyle = Math.random() < 0.5 ? '#ef4444' : '#f97316';
+      ctx.fillRect(ex, p.y, p.size * 0.7, p.size * 0.7);
+    }
+    ctx.globalAlpha = 1.0;
+
+    // 9. Dark fog at bottom
+    ctx.fillStyle = 'rgba(12, 0, 21, 0.4)';
+    ctx.fillRect(0, 270, W, 25);
   }
 }
