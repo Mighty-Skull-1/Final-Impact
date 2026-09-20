@@ -298,6 +298,11 @@ class SoundFX {
     this.playNoiseCrack(0.12, 800, 0.45);
   }
 
+  playHitConfirm(type = 'light') {
+    if (type === 'heavy') this.playHitHeavy();
+    else this.playHitLight();
+  }
+
   // Block Guard (Metallic Clink)
   playBlock() {
     if (!this.ctx) return;

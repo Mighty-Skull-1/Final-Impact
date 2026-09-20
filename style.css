@@ -421,12 +421,20 @@ body {
   background: #141624;
   border: 1px solid #1e293b;
   border-radius: 4px;
-  padding: 6px 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .keybind-row:hover {
-  border-color: #334155;
-  background: #181c2e;
+  border-color: #38bdf8;
+  background: #182038;
+}
+
+.keybind-row.rebinding-active {
+  border-color: #facc15;
+  background: #2b1d06;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
 }
 
 .keybind-action-name {

@@ -80,9 +80,9 @@ export class InputManager {
     const pKey = playerNum === 1 ? 'P1' : 'P2';
     if (this.controls[pKey]) {
       this.controls[pKey][action] = keyCode;
-      if (action === 'QUICK_SP1') this.controls[pKey].SP1 = keyCode;
-      if (action === 'QUICK_SP2') this.controls[pKey].SP2 = keyCode;
-      if (action === 'QUICK_SP3') this.controls[pKey].SP3 = keyCode;
+      if (action === 'SP1') this.controls[pKey].QUICK_SP1 = keyCode;
+      if (action === 'SP2') this.controls[pKey].QUICK_SP2 = keyCode;
+      if (action === 'SP3') this.controls[pKey].QUICK_SP3 = keyCode;
       this.saveCustomControls();
     }
   }

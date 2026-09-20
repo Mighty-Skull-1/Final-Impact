@@ -78,6 +78,7 @@ export class SettingsManager {
     this.selectedPlayer = 1;      // 1 (P1) | 2 (P2)
     this.isRebinding = false;
     this.rebindingAction = null;
+    this.listenersInitialized = false;
 
     this.settings = {
       masterVolume: 80,
@@ -122,9 +123,11 @@ export class SettingsManager {
   }
 
   applySettings() {
-    soundFX.setMasterVolume(this.settings.masterVolume / 100);
-    soundFX.setMusicVolume(this.settings.musicVolume / 100);
-    soundFX.setSFXVolume(this.settings.sfxVolume / 100);
+    try {
+      soundFX.setMasterVolume(this.settings.masterVolume / 100);
+      soundFX.setMusicVolume(this.settings.musicVolume / 100);
+      soundFX.setSFXVolume(this.settings.sfxVolume / 100);
+    } catch (e) {}
 
     input.easyInputs = this.settings.easyInputs;
     if (this.game && this.game.ai) {
@@ -138,21 +141,20 @@ export class SettingsManager {
   }
 
   initDomListeners() {
+    if (this.listenersInitialized) return;
+    this.listenersInitialized = true;
+
     // Tab switching
     const tabGenBtn = document.getElementById('tabGeneralBtn');
     const tabCtrlBtn = document.getElementById('tabControlsBtn');
-    if (tabGenBtn && tabCtrlBtn) {
-      tabGenBtn.addEventListener('click', () => this.switchTab('general'));
-      tabCtrlBtn.addEventListener('click', () => this.switchTab('controls'));
-    }
+    if (tabGenBtn) tabGenBtn.addEventListener('click', () => this.switchTab('general'));
+    if (tabCtrlBtn) tabCtrlBtn.addEventListener('click', () => this.switchTab('controls'));
 
     // Player subtabs
     const p1Btn = document.getElementById('p1ControlsBtn');
     const p2Btn = document.getElementById('p2ControlsBtn');
-    if (p1Btn && p2Btn) {
-      p1Btn.addEventListener('click', () => this.switchPlayer(1));
-      p2Btn.addEventListener('click', () => this.switchPlayer(2));
-    }
+    if (p1Btn) p1Btn.addEventListener('click', () => this.switchPlayer(1));
+    if (p2Btn) p2Btn.addEventListener('click', () => this.switchPlayer(2));
 
     // Reset controls button
     const resetBtn = document.getElementById('resetKeybindsBtn');
@@ -160,29 +162,44 @@ export class SettingsManager {
       resetBtn.addEventListener('click', () => this.resetKeybinds());
     }
 
-    // Global keydown listener for rebind capture
+    // Global keydown listener for rebind capture (runs in capture phase)
     window.addEventListener('keydown', (e) => {
-      if (!this.isOpen || !this.isRebinding || !this.rebindingAction) return;
+      if (!this.isRebinding || !this.rebindingAction) return;
 
       e.preventDefault();
       e.stopPropagation();
 
       if (e.code === 'Escape') {
-        // Cancel rebinding
-        this.isRebinding = false;
-        this.rebindingAction = null;
+        this.cancelRebinding();
+        try { soundFX.playBlock(); } catch (err) {}
         this.renderKeybinds();
-        soundFX.playBlock();
         return;
       }
 
       // Rebind to captured code
-      input.setKeybind(this.selectedPlayer, this.rebindingAction, e.code);
-      soundFX.playHitConfirm('light');
-      this.isRebinding = false;
-      this.rebindingAction = null;
-      this.renderKeybinds();
+      this.finishRebinding(e.code);
     }, true);
+  }
+
+  startRebinding(actionKey) {
+    this.isRebinding = true;
+    this.rebindingAction = actionKey;
+    try { soundFX.playHitLight(); } catch (e) {}
+    this.renderKeybinds();
+  }
+
+  finishRebinding(keyCode) {
+    if (!this.rebindingAction) return;
+    input.setKeybind(this.selectedPlayer, this.rebindingAction, keyCode);
+    try { soundFX.playHitLight(); } catch (e) {}
+    this.isRebinding = false;
+    this.rebindingAction = null;
+    this.renderKeybinds();
+
+    // Blur active element to prevent Space / Enter from triggering synthetic click events
+    if (typeof document !== 'undefined' && document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
   }
 
   switchTab(tab) {
@@ -243,7 +260,7 @@ export class SettingsManager {
 
   resetKeybinds() {
     input.resetDefaultControls();
-    soundFX.playHitConfirm('heavy');
+    try { soundFX.playHitHeavy(); } catch (e) {}
     this.cancelRebinding();
     this.renderKeybinds();
   }
@@ -251,6 +268,21 @@ export class SettingsManager {
   renderKeybinds() {
     const container = document.getElementById('keybindsContainer');
     if (!container) return;
+
+    // Update dynamic hint banner
+    const hintEl = document.querySelector('.controls-hint');
+    if (hintEl) {
+      if (this.isRebinding && this.rebindingAction) {
+        let actionName = this.rebindingAction;
+        for (const g of ACTION_GROUPS) {
+          const found = g.actions.find(a => a.key === this.rebindingAction);
+          if (found) { actionName = found.label; break; }
+        }
+        hintEl.innerHTML = `<span style="color: #facc15; animation: pulse-rebinding 0.8s infinite alternate;">🎯 REBINDING: [ ${actionName.toUpperCase()} ]<br>PRESS ANY KEY ON YOUR KEYBOARD (ESC TO CANCEL)</span>`;
+      } else {
+        hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A KEY TO REBIND. ESCAPE TO CANCEL.`;
+      }
+    }
 
     container.innerHTML = '';
     const pKey = this.selectedPlayer === 1 ? 'P1' : 'P2';
@@ -265,14 +297,18 @@ export class SettingsManager {
       group.actions.forEach(action => {
         const row = document.createElement('div');
         row.className = 'keybind-row';
+        const isThisRebinding = this.isRebinding && this.rebindingAction === action.key;
+        if (isThisRebinding) {
+          row.classList.add('rebinding-active');
+        }
 
         const nameLabel = document.createElement('span');
         nameLabel.className = 'keybind-action-name';
         nameLabel.textContent = action.label;
 
         const keyBtn = document.createElement('button');
+        keyBtn.type = 'button';
         keyBtn.className = 'keybind-key-btn';
-        const isThisRebinding = this.isRebinding && this.rebindingAction === action.key;
 
         if (isThisRebinding) {
           keyBtn.classList.add('rebinding');
@@ -282,13 +318,15 @@ export class SettingsManager {
           keyBtn.textContent = formatKey(currentCode);
         }
 
-        keyBtn.addEventListener('click', (e) => {
+        // Clicking either the button OR the entire row activates rebinding!
+        const triggerRebind = (e) => {
+          e.preventDefault();
           e.stopPropagation();
-          soundFX.playHitConfirm('light');
-          this.isRebinding = true;
-          this.rebindingAction = action.key;
-          this.renderKeybinds();
-        });
+          this.startRebinding(action.key);
+        };
+
+        row.addEventListener('click', triggerRebind);
+        keyBtn.addEventListener('click', triggerRebind);
 
         row.appendChild(nameLabel);
         row.appendChild(keyBtn);
