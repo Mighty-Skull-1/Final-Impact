@@ -372,22 +372,28 @@ export class Game {
       }
       if (this.victoryMenuIndex === 0) {
         // Rematch
+        soundFX.stopMusic();
         soundFX.playAnnouncer('ROUND1');
         soundFX.startMusic('fight');
-        this.startMatch();
+        this.startMatch(true);
       } else if (this.victoryMenuIndex === 1) {
         // Character Select
+        soundFX.stopMusic();
         soundFX.playMenuSelect();
+        this.bossIndex = 0;
         this.screen = GAME_SCREENS.CHAR_SELECT;
       } else {
         // Mode Select / Main Menu
+        soundFX.stopMusic();
         soundFX.playMenuSelect();
+        this.bossIndex = 0;
         this.screen = GAME_SCREENS.MODE_SELECT;
       }
     }
   }
 
   initVictoryScreen() {
+    soundFX.stopMusic();
     this.screen = GAME_SCREENS.VICTORY;
     this.victoryMenuIndex = 0;
     this.onlineRematchOption = 0;
@@ -441,7 +447,9 @@ export class Game {
       if (this.isOnline) {
         this.voteRematch('no');
       } else {
+        soundFX.stopMusic();
         soundFX.playWhoosh('light');
+        this.bossIndex = 0;
         this.screen = GAME_SCREENS.MODE_SELECT;
       }
       return true;
@@ -533,13 +541,15 @@ export class Game {
     }
   }
 
-  startMatch() {
+  startMatch(isRematch = false) {
+    soundFX.stopMusic();
     const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
     const stageId = this.charSelect.stages[this.charSelect.stageIndex].id;
     const mode = this.charSelect.gameMode;
 
     this.stage = new Stage(stageId);
     this.round = 1;
+    this.projectiles.forEach(p => { if (p && p.destroy) p.destroy(); });
     this.projectiles = [];
     this.spawnDefaultPickups();
 
@@ -549,8 +559,11 @@ export class Game {
     this.isOnline = (mode === 'online') || (this.netplay && this.netplay.isConnected);
 
     if (this.isCampaign) {
-      this.bossIndex = 0;
-      this.setupCampaignStage(p1Id);
+      // If rematching after defeat, keep current boss stage; otherwise reset to Stage 1
+      if (!isRematch || this.campaignStageWon) {
+        this.bossIndex = 0;
+      }
+      this.setupCampaignStage(p1Id, true);
     } else if (this.is2v2) {
       // 2V2 Team Brawl: Team 1 (P1 + CPU Ally) vs Team 2 (CPU Enemy 1 + CPU Enemy 2)
       const p1AllyId = p1Id === 'kazuki' ? 'raven' : (p1Id === 'raven' ? 'kagura' : 'kazuki');
@@ -586,12 +599,16 @@ export class Game {
     }
 
     this.hud.reset(this.round);
+    this.hud.p1RedHealth = this.f1 ? this.f1.health : 1000;
+    this.hud.p2RedHealth = this.f2 ? this.f2.health : 1000;
     this.screen = GAME_SCREENS.FIGHT;
+    soundFX.startMusic('fight');
   }
 
-  setupCampaignStage(p1Id) {
+  setupCampaignStage(p1Id, isFreshStart = false) {
     const currentBossId = this.bossQueue[this.bossIndex];
     const stageNum = this.bossIndex + 1;
+    this.projectiles.forEach(p => { if (p && p.destroy) p.destroy(); });
     this.projectiles = [];
     this.spawnDefaultPickups();
 
@@ -604,37 +621,28 @@ export class Game {
     this.ai.setDifficulty('campaign', stageNum);
     this.ai3.setDifficulty('campaign', stageNum);
 
+    const p1StartX = currentBossId === 'bouncer_twins' ? 200 : 220;
+
+    // Always create a fresh P1 instance if starting anew, on stage 1, or after defeat
+    if (!this.f1 || isFreshStart || this.bossIndex === 0 || !this.campaignStageWon || this.f1.health <= 0) {
+      this.f1 = this.createFighter(p1Id, p1StartX, true, 1, false);
+    } else {
+      this.f1.x = p1StartX;
+      this.f1.y = 300;
+      this.f1.vx = 0;
+      this.f1.vy = 0;
+      this.f1.isGrounded = true;
+      this.f1.isDead = false;
+      this.f1.changeState(FIGHTER_STATE.IDLE);
+    }
+
     if (currentBossId === 'bouncer_twins') {
       // Stage 3: 2v1 Bouncer Twins Encounter! Boris & Viktor
-      if (!this.f1) {
-        this.f1 = this.createFighter(p1Id, 200, true, 1, false);
-      } else {
-        this.f1.x = 200;
-        this.f1.y = 300;
-        this.f1.vx = 0;
-        this.f1.vy = 0;
-        this.f1.isGrounded = true;
-        this.f1.isDead = false;
-        this.f1.changeState(FIGHTER_STATE.IDLE);
-      }
-
       this.f2 = this.createFighter('boris', 680, false, 2, true);
       this.f4 = this.createFighter('viktor', 780, false, 4, true);
       this.f3 = null;
       this.allFighters = [this.f1, this.f2, this.f4];
     } else {
-      if (!this.f1) {
-        this.f1 = this.createFighter(p1Id, 220, true, 1, false);
-      } else {
-        this.f1.x = 220;
-        this.f1.y = 300;
-        this.f1.vx = 0;
-        this.f1.vy = 0;
-        this.f1.isGrounded = true;
-        this.f1.isDead = false;
-        this.f1.changeState(FIGHTER_STATE.IDLE);
-      }
-
       this.f2 = this.createFighter(currentBossId, 700, false, 2, true);
 
       // Progressive Boss Stat Scaling for each level
@@ -668,8 +676,16 @@ export class Game {
       this.allFighters = [this.f1, this.f2];
     }
 
-    // Restore P1 physical limbs and state for the new stage
+    // Restore P1 physical limbs, health, and state for the stage
     if (this.f1) {
+      if (isFreshStart || this.bossIndex === 0 || !this.campaignStageWon || this.f1.health <= 0) {
+        this.f1.health = this.f1.maxHealth;
+      } else {
+        // Guarantee at least 500 HP when advancing in campaign
+        this.f1.health = Math.max(500, Math.min(this.f1.maxHealth, this.f1.health));
+      }
+      this.f1.stamina = this.f1.maxStamina;
+      this.f1.isDead = false;
       this.f1.limbs = { leadArm: 100, rearArm: 100, leadLeg: 100, rearLeg: 100, torso: 100, head: 100 };
       this.f1.statusEffects = [];
       this.f1.heldPickup = null;
@@ -1450,6 +1466,7 @@ export class Game {
         this.slowMotion = true;
         this.roundOverTimer = 160;
         this.campaignStageWon = stageWon;
+        soundFX.stopMusic();
 
         if (stageWon && (isChampionStage || isDragonStage) && this.f2.phase === 2) {
           this.hud.setAnnouncement(isDragonStage ? 'ANCIENT DRAGON VANQUISHED' : 'LEGEND VANQUISHED', 150);
@@ -1471,9 +1488,10 @@ export class Game {
               // Advance to next boss! Heal player 50%
               this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
               this.f1.stamina = this.f1.maxStamina;
-              this.setupCampaignStage(this.f1.id);
+              this.setupCampaignStage(this.f1.id, false);
               this.screen = GAME_SCREENS.FIGHT;
               this.slowMotion = false;
+              soundFX.startMusic('fight');
               soundFX.playAnnouncer('ROUND1');
             } else {
               // All 8 bosses defeated! Campaign Champion!
@@ -1503,6 +1521,7 @@ export class Game {
         this.hud.setAnnouncement('TEAM K.O.', 120);
         this.hud.triggerShake(14);
         this.winner = team2Dead ? this.f1 : this.f2;
+        soundFX.stopMusic();
       }
 
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
@@ -1531,6 +1550,10 @@ export class Game {
       } else if (this.f2.health > this.f1.health) {
         this.f2.roundsWon++;
         this.f2.changeState(FIGHTER_STATE.VICTORY);
+      }
+
+      if (this.f1.roundsWon >= 2 || this.f2.roundsWon >= 2) {
+        soundFX.stopMusic();
       }
     }
 

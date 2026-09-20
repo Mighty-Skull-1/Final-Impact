@@ -741,6 +741,13 @@ class SoundFX {
   startMusic(track = 'fight') {
     this.ensureContext();
     if (this.musicPlaying) this.stopMusic();
+    if (this.ctx && this.musicGain) {
+      try {
+        const now = this.ctx.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.setValueAtTime(0.35, now);
+      } catch (e) {}
+    }
     this.musicPlaying = true;
     this.currentTrack = track;
     this.step = 0;
@@ -770,6 +777,14 @@ class SoundFX {
     if (this.musicTimer) {
       clearTimeout(this.musicTimer);
       this.musicTimer = null;
+    }
+    if (this.ctx && this.musicGain) {
+      try {
+        const now = this.ctx.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+        this.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.02);
+      } catch (e) {}
     }
   }
 
