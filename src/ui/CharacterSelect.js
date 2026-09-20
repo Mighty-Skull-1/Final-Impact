@@ -61,7 +61,8 @@ export class CharacterSelect {
     this.p1Index = 0;
     this.p2Index = 1;
     this.stageIndex = 0;
-    this.gameMode = 'cpu'; // 'cpu', '2p', 'training'
+    this.gameMode = 'campaign'; // 'campaign', 'cpu', '2p', '2v2', 'training'
+    this.cpuDifficulty = 'normal';
     this.p1Locked = false;
     this.p2Locked = false;
     this.animTimer = 0;
@@ -74,34 +75,34 @@ export class CharacterSelect {
     });
   }
 
+  setMode(mode, difficulty = 'normal') {
+    this.gameMode = mode;
+    this.cpuDifficulty = difficulty;
+  }
+
   handleInput(inputState, isP1 = true) {
     if (isP1) {
-      if (!this.p1Locked) {
-        if (inputState.left) {
-          this.p1Index = (this.p1Index - 1 + this.characters.length) % this.characters.length;
-          soundFX.playWhoosh('light');
-        } else if (inputState.right) {
-          this.p1Index = (this.p1Index + 1) % this.characters.length;
-          soundFX.playWhoosh('light');
-        }
+      if (inputState.left) {
+        this.p1Index = (this.p1Index - 1 + this.characters.length) % this.characters.length;
+        soundFX.playWhoosh('light');
+      } else if (inputState.right) {
+        this.p1Index = (this.p1Index + 1) % this.characters.length;
+        soundFX.playWhoosh('light');
+      }
 
-        // Change mode with Up/Down
-        const modes = ['boss_gauntlet', '2v2', 'cpu', '2p', 'training'];
-        if (inputState.up) {
-          const idx = (modes.indexOf(this.gameMode) - 1 + modes.length) % modes.length;
-          this.gameMode = modes[idx];
-          soundFX.playWhoosh('light');
-        } else if (inputState.down) {
-          const idx = (modes.indexOf(this.gameMode) + 1) % modes.length;
-          this.gameMode = modes[idx];
-          soundFX.playWhoosh('light');
-        }
-
-        // Stage change with LK/HK
-        if (inputState.lk) {
-          this.stageIndex = (this.stageIndex + 1) % this.stages.length;
-          soundFX.playWhoosh('light');
-        }
+      // Stage change with Up / Down
+      if (inputState.up || inputState.down || inputState.lk) {
+        this.stageIndex = (this.stageIndex + 1) % this.stages.length;
+        soundFX.playWhoosh('light');
+      }
+    } else {
+      // Player 2 selection in 2P mode
+      if (inputState.left) {
+        this.p2Index = (this.p2Index - 1 + this.characters.length) % this.characters.length;
+        soundFX.playWhoosh('light');
+      } else if (inputState.right) {
+        this.p2Index = (this.p2Index + 1) % this.characters.length;
+        soundFX.playWhoosh('light');
       }
     }
   }
@@ -136,23 +137,24 @@ export class CharacterSelect {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fde047';
     ctx.font = 'bold 22px monospace';
-    ctx.fillText('SELECT YOUR FIGHTER', W / 2, 34);
+    ctx.fillText('SELECT YOUR FIGHTER', W / 2, 32);
 
-    // Game Mode Selector
+    // Active Game Mode Display
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 12px monospace';
     const modeLabels = {
-      boss_gauntlet: '👑 MODE: ARCADE BOSS GAUNTLET (7 Bosses)  (Press W/S)',
-      '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL  (Press W/S)',
-      cpu: '⚔️ MODE: 1V1 VERSUS CPU  (Press W/S)',
-      '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER  (Press W/S)',
-      training: '🥋 MODE: TRAINING / PRACTICE  (Press W/S)'
+      campaign: '🏆 MODE: CAMPAIGN (7 Scaling Bosses & 2-Phase Apex)',
+      cpu: `⚔️ MODE: 1V1 VS CPU (AI Difficulty: ${(this.cpuDifficulty || 'normal').toUpperCase()})`,
+      '2p': '🥊 MODE: 1V1 LOCAL 2-PLAYER VERSUS',
+      '2v2': '🔥 MODE: 2V2 SIMULTANEOUS TEAM BRAWL',
+      training: '🥋 MODE: PRACTICE / TRAINING DOJO'
     };
-    ctx.fillText(modeLabels[this.gameMode] || modeLabels.cpu, W / 2, 54);
+    ctx.fillText(modeLabels[this.gameMode] || modeLabels.campaign, W / 2, 50);
 
-    // Stage Selector
+    // Stage Selector & Navigation instructions
     ctx.fillStyle = '#ec4899';
-    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name} - ${this.stages[this.stageIndex].location} (Press J to change)`, W / 2, 72);
+    ctx.font = '11px monospace';
+    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ CHANGE STAGE]  [A/D CHOOSE]  [ENTER START]`, W / 2, 68);
 
     // 2. The 3 Character Cards
     const cardW = 180;

@@ -89,7 +89,7 @@ export class Raven extends Fighter {
 
     // 4. Special Moves
     // Flash Somersault (Anti-air kick)
-    const isSomersault = (inputManager.checkChargeDownUp(pNum) || inputManager.checkDP(pNum)) && (inputState.lkJust || inputState.hkJust) || inputState.sp2Just || inputManager.peekAction(pNum) === 'SP2';
+    const isSomersault = ((inputManager.checkChargeDownUp(pNum) || inputManager.checkDP(pNum)) && (inputState.lkJust || inputState.hkJust || inputState.lk || inputState.hk)) || inputState.sp2Just || inputState.sp2 || inputManager.peekAction(pNum) === 'SP2';
     if (isSomersault) {
       inputManager.consumeBuffer(pNum);
       this.startFlashKick();
@@ -97,7 +97,7 @@ export class Raven extends Fighter {
     }
 
     // Sonic Blade (Golden razor projectile)
-    const isSonicBlade = (inputManager.checkChargeBackFwd(pNum) || inputManager.checkQCF(pNum)) && (inputState.lpJust || inputState.hpJust) || inputState.sp1Just || inputManager.peekAction(pNum) === 'SP1';
+    const isSonicBlade = ((inputManager.checkChargeBackFwd(pNum) || inputManager.checkQCF(pNum)) && (inputState.lpJust || inputState.hpJust || inputState.lp || inputState.hp)) || inputState.sp1Just || inputState.sp1 || inputManager.peekAction(pNum) === 'SP1';
     if (isSonicBlade) {
       inputManager.consumeBuffer(pNum);
       this.startSonicBlade();
@@ -105,7 +105,7 @@ export class Raven extends Fighter {
     }
 
     // Blitz Knuckle
-    const isBlitz = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust)) || inputState.sp3Just || inputManager.peekAction(pNum) === 'SP3';
+    const isBlitz = (inputManager.checkQCB(pNum) && (inputState.lpJust || inputState.hpJust || inputState.lp || inputState.hp)) || inputState.sp3Just || inputState.sp3 || inputManager.peekAction(pNum) === 'SP3';
     if (isBlitz) {
       inputManager.consumeBuffer(pNum);
       this.startBlitzKnuckle();
@@ -125,10 +125,10 @@ export class Raven extends Fighter {
     }
 
     // 6. Normal Ground Attacks
-    const lpTrigger = inputState.lpJust || inputManager.peekAction(pNum) === 'LP';
-    const hpTrigger = inputState.hpJust || inputManager.peekAction(pNum) === 'HP';
-    const lkTrigger = inputState.lkJust || inputManager.peekAction(pNum) === 'LK';
-    const hkTrigger = inputState.hkJust || inputManager.peekAction(pNum) === 'HK';
+    const lpTrigger = inputState.lpJust || inputState.lp || inputManager.peekAction(pNum) === 'LP';
+    const hpTrigger = inputState.hpJust || inputState.hp || inputManager.peekAction(pNum) === 'HP';
+    const lkTrigger = inputState.lkJust || inputState.lk || inputManager.peekAction(pNum) === 'LK';
+    const hkTrigger = inputState.hkJust || inputState.hk || inputManager.peekAction(pNum) === 'HK';
 
     if (inputState.down) {
       if (lpTrigger) {

@@ -21,9 +21,37 @@ export class HUD {
       this.triggerUltimateCinematic(e.detail);
     });
 
+    // Elden Ring 2-Phase Boss & Legend Vanquished Banners
+    this.eldenRingBanner = null;
+    this.legendVanquishedBanner = null;
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('elden-ring-phase2', (e) => {
+        this.triggerEldenRingPhase2(e.detail.boss);
+      });
+      window.addEventListener('legend-vanquished', () => {
+        this.triggerLegendVanquished();
+      });
+    }
+
     // Dirty Tactic & Crowd Banners
     this.dirtyBanner = null;
     this.crowdBanner = null;
+  }
+
+  triggerEldenRingPhase2(boss) {
+    this.eldenRingBanner = {
+      timer: 160,
+      boss
+    };
+    this.triggerShake(16);
+  }
+
+  triggerLegendVanquished() {
+    this.legendVanquishedBanner = {
+      timer: 220
+    };
+    this.triggerShake(14);
   }
 
   showDirtyBanner(fighterName) {
@@ -231,7 +259,10 @@ export class HUD {
     // P2 Health Bar (Right to center)
     const p2X = W - barW - 30;
     const p2Rage = f2.isRageMode;
-    const p2BorderColor = p2Rage ? (Math.floor(Date.now() / 80) % 2 === 0 ? '#ef4444' : '#f97316') : '#facc15';
+    const isBossPhase2 = f2.phase === 2;
+    const p2BorderColor = isBossPhase2
+      ? (Math.floor(Date.now() / 60) % 2 === 0 ? '#dc2626' : '#7c3aed')
+      : (p2Rage ? (Math.floor(Date.now() / 80) % 2 === 0 ? '#ef4444' : '#f97316') : '#facc15');
 
     ctx.fillStyle = '#000000';
     ctx.fillRect(p2X - 2, barY - 2, barW + 4, barH + 4);
@@ -248,7 +279,11 @@ export class HUD {
     // P2 Current Health
     const p2CurrW = (f2.health / f2.maxHealth) * barW;
     const p2Grad = ctx.createLinearGradient(0, barY, 0, barY + barH);
-    if (p2Rage) {
+    if (isBossPhase2) {
+      p2Grad.addColorStop(0, '#fca5a5');
+      p2Grad.addColorStop(0.5, '#dc2626');
+      p2Grad.addColorStop(1, '#581c87');
+    } else if (p2Rage) {
       p2Grad.addColorStop(0, '#ffedd5');
       p2Grad.addColorStop(0.5, '#f97316');
       p2Grad.addColorStop(1, '#c2410c');
@@ -273,7 +308,11 @@ export class HUD {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px monospace';
     ctx.fillText(f2.name, p2X + barW - ctx.measureText(f2.name).width - 4, barY - 6);
-    if (p2Rage) {
+    if (isBossPhase2) {
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('[ PHASE II : PRIMEVAL APEX ]', p2X + 6, barY - 6);
+    } else if (p2Rage) {
       ctx.fillStyle = p2BorderColor;
       ctx.font = 'bold 11px monospace';
       ctx.fillText('[ RAGE MODE ]', p2X + barW - 170, barY - 6);
@@ -557,6 +596,65 @@ export class HUD {
       ctx.fillRect(W / 2 - 100, sY + 4, 200, 10);
       ctx.fillStyle = '#38bdf8';
       ctx.fillRect(W / 2 - 100, sY + 4, Math.min(200, ((victim.submissionStruggle || 0) / 100) * 200), 10);
+      ctx.restore();
+    }
+
+    // 11. Elden Ring Phase 2 Cinematic Transition Title Card
+    if (this.eldenRingBanner && this.eldenRingBanner.timer > 0) {
+      this.eldenRingBanner.timer--;
+      const b = this.eldenRingBanner;
+      ctx.save();
+
+      // Cinematic Letterbox
+      const barH = 100;
+      const barY = H / 2 - barH / 2;
+      ctx.fillStyle = 'rgba(10, 2, 8, 0.94)';
+      ctx.fillRect(0, barY, W, barH);
+
+      // Blood and Gold Edge Borders
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(0, barY, W, 3);
+      ctx.fillRect(0, barY + barH - 3, W, 3);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(0, barY + 3, W, 1);
+      ctx.fillRect(0, barY + barH - 4, W, 1);
+
+      ctx.textAlign = 'center';
+
+      // Red Ominous Emblem
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 12px serif';
+      ctx.fillText('❖  LORD OF BLOOD & CINDERS  ❖', W / 2, barY + 28);
+
+      // Boss Name
+      ctx.fillStyle = '#fef08a';
+      ctx.font = '900 24px serif';
+      ctx.fillText('REX GANNON, PRIMEVAL APEX', W / 2, barY + 58);
+
+      // Phase 2 Subtitle
+      ctx.fillStyle = '#f87171';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('— PHASE II : THE UNBROKEN WILL —', W / 2, barY + 82);
+
+      ctx.restore();
+    }
+
+    // 12. Elden Ring Victory: "LEGEND VANQUISHED"
+    if (this.legendVanquishedBanner && this.legendVanquishedBanner.timer > 0) {
+      this.legendVanquishedBanner.timer--;
+      ctx.save();
+      const alpha = Math.min(1.0, this.legendVanquishedBanner.timer / 40);
+      ctx.globalAlpha = alpha;
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fde047';
+      ctx.font = '900 38px serif';
+      ctx.fillText('LEGEND VANQUISHED', W / 2, H / 2 - 10);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('CAMPAIGN CHAMPION OF FINAL IMPACT', W / 2, H / 2 + 18);
+
       ctx.restore();
     }
 

@@ -5,6 +5,7 @@ import { soundFX } from '../audio/SoundFX.js';
 import { Stage } from '../graphics/Stage.js';
 import { HUD } from '../ui/HUD.js';
 import { TitleScreen } from '../ui/TitleScreen.js';
+import { ModeSelect } from '../ui/ModeSelect.js';
 import { CharacterSelect } from '../ui/CharacterSelect.js';
 import { HitboxSystem } from './Hitbox.js';
 import { AIController } from './AI.js';
@@ -25,6 +26,7 @@ import { Champion } from '../fighters/bosses/Champion.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
+  MODE_SELECT: 'MODE_SELECT',
   CHAR_SELECT: 'CHAR_SELECT',
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
@@ -39,10 +41,11 @@ export class Game {
 
     this.screen = GAME_SCREENS.TITLE;
     this.titleScreen = new TitleScreen();
+    this.modeSelect = new ModeSelect();
     this.charSelect = new CharacterSelect();
     this.hud = new HUD();
 
-    // AI Controllers for multi-fighter brawl and gauntlet
+    // AI Controllers for multi-fighter brawl and campaign
     this.ai = new AIController('normal');
     this.ai2 = new AIController('normal');
     this.ai3 = new AIController('normal');
@@ -68,9 +71,10 @@ export class Game {
     this.winner = null;
     this.showHitboxes = false;
 
-    // Mode Flags & Gauntlet Queue
+    // Mode Flags & Campaign Queue
+    this.isCampaign = false;
     this.is2v2 = false;
-    this.isGauntlet = false;
+    this.isTraining = false;
     this.bossQueue = ['riot_cop', 'promoter', 'bouncer_twins', 'matriarch', 'street_lord', 'urban_legend', 'champion'];
     this.bossIndex = 0;
 
@@ -103,7 +107,18 @@ export class Game {
         if (soundFX.musicPlaying) soundFX.stopMusic();
         else soundFX.startMusic('fight');
       }
-      if (e.code === 'Escape' || e.code === 'KeyP') {
+      if (e.code === 'Escape') {
+        if (this.settingsManager.isOpen) {
+          this.settingsManager.toggle();
+        } else if (this.screen === GAME_SCREENS.MODE_SELECT) {
+          this.screen = GAME_SCREENS.TITLE;
+        } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+          this.screen = GAME_SCREENS.MODE_SELECT;
+        } else if (this.screen === GAME_SCREENS.FIGHT) {
+          this.settingsManager.toggle();
+        }
+      }
+      if (e.code === 'KeyP') {
         this.settingsManager.toggle();
       }
 
@@ -119,6 +134,13 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.TITLE) {
       soundFX.playGong();
+      this.screen = GAME_SCREENS.MODE_SELECT;
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.MODE_SELECT) {
+      soundFX.playGong();
+      this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
       this.screen = GAME_SCREENS.CHAR_SELECT;
       return;
     }
@@ -131,7 +153,7 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.VICTORY) {
-      this.screen = GAME_SCREENS.CHAR_SELECT;
+      this.screen = GAME_SCREENS.MODE_SELECT;
     }
   }
 
@@ -145,12 +167,13 @@ export class Game {
     this.projectiles = [];
     this.spawnDefaultPickups();
 
-    this.isGauntlet = (mode === 'boss_gauntlet');
+    this.isCampaign = (mode === 'campaign');
     this.is2v2 = (mode === '2v2');
+    this.isTraining = (mode === 'training');
 
-    if (this.isGauntlet) {
+    if (this.isCampaign) {
       this.bossIndex = 0;
-      this.setupGauntletStage(p1Id);
+      this.setupCampaignStage(p1Id);
     } else if (this.is2v2) {
       // 2V2 Team Brawl: Team 1 (P1 + CPU Ally) vs Team 2 (CPU Enemy 1 + CPU Enemy 2)
       const p1AllyId = p1Id === 'kazuki' ? 'raven' : (p1Id === 'raven' ? 'kagura' : 'kazuki');
@@ -161,6 +184,10 @@ export class Game {
       this.f3 = this.createFighter(p1AllyId, 100, true, 3, true); // Team 1 Ally
       this.f2 = this.createFighter(enemy1Id, 720, false, 2, true);
       this.f4 = this.createFighter(enemy2Id, 810, false, 4, true);
+
+      this.ai.setDifficulty('normal');
+      this.ai2.setDifficulty('normal');
+      this.ai3.setDifficulty('normal');
 
       this.allFighters = [this.f1, this.f2, this.f3, this.f4];
     } else {
@@ -173,19 +200,30 @@ export class Game {
       this.f3 = null;
       this.f4 = null;
       this.allFighters = [this.f1, this.f2];
+
+      if (this.isTraining) {
+        this.ai.setDifficulty('easy');
+      } else {
+        this.ai.setDifficulty(this.charSelect.cpuDifficulty || 'normal');
+      }
     }
 
     this.hud.reset(this.round);
     this.screen = GAME_SCREENS.FIGHT;
   }
 
-  setupGauntletStage(p1Id) {
+  setupCampaignStage(p1Id) {
     const currentBossId = this.bossQueue[this.bossIndex];
+    const stageNum = this.bossIndex + 1;
     this.projectiles = [];
     this.spawnDefaultPickups();
 
+    // Scale AI difficulty progressively per stage (1 to 7)
+    this.ai.setDifficulty('campaign', stageNum);
+    this.ai3.setDifficulty('campaign', stageNum);
+
     if (currentBossId === 'bouncer_twins') {
-      // 2v1 Bouncer Twins Encounter! Boris & Viktor
+      // Stage 3: 2v1 Bouncer Twins Encounter! Boris & Viktor
       if (!this.f1) {
         this.f1 = this.createFighter(p1Id, 200, true, 1, false);
       } else {
@@ -217,11 +255,35 @@ export class Game {
       }
 
       this.f2 = this.createFighter(currentBossId, 700, false, 2, true);
+
+      // Progressive Boss Stat Scaling for each level
+      if (currentBossId === 'riot_cop') {
+        this.f2.maxHealth = 850;
+        this.f2.health = 850;
+      } else if (currentBossId === 'promoter') {
+        this.f2.maxHealth = 950;
+        this.f2.health = 950;
+        this.f2.walkSpeed = 4.4;
+      } else if (currentBossId === 'matriarch') {
+        this.f2.maxHealth = 1050;
+        this.f2.health = 1050;
+      } else if (currentBossId === 'street_lord') {
+        this.f2.maxHealth = 1250;
+        this.f2.health = 1250;
+      } else if (currentBossId === 'urban_legend') {
+        this.f2.maxHealth = 1100;
+        this.f2.health = 1100;
+        this.f2.walkSpeed = 4.4;
+      } else if (currentBossId === 'champion') {
+        this.f2.maxHealth = 1000;
+        this.f2.health = 1000;
+      }
+
       this.f3 = null;
       this.f4 = null;
       this.allFighters = [this.f1, this.f2];
       const bossName = this.f2.name;
-      this.hud.setAnnouncement(`STAGE ${this.bossIndex + 1}: ${bossName}`, 120);
+      this.hud.setAnnouncement(`STAGE ${stageNum}: ${bossName}`, 120);
     }
   }
 
@@ -282,7 +344,7 @@ export class Game {
       this.f3.x = 100;
       this.f2.x = 720;
       this.f4.x = 810;
-    } else if (this.isGauntlet && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
+    } else if (this.isCampaign && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
       this.f1.x = 200;
       this.f2.x = 680;
       if (this.f4) this.f4.x = 780;
@@ -323,14 +385,62 @@ export class Game {
       return;
     }
 
-    if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-      const s1 = input.getState(1);
-      if (input.isDown('KeyA')) this.charSelect.handleInput({ left: true }, true);
-      else if (input.isDown('KeyD')) this.charSelect.handleInput({ right: true }, true);
+    // 1. Mode Select Navigation (Discrete single-tap checks)
+    if (this.screen === GAME_SCREENS.MODE_SELECT) {
+      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+        input.consumeKey('KeyW');
+        input.consumeKey('ArrowUp');
+        this.modeSelect.handleInput({ up: true });
+      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+        input.consumeKey('KeyS');
+        input.consumeKey('ArrowDown');
+        this.modeSelect.handleInput({ down: true });
+      }
 
-      if (input.isDown('KeyW')) this.throttleNav(() => this.charSelect.handleInput({ up: true }, true));
-      if (input.isDown('KeyS')) this.throttleNav(() => this.charSelect.handleInput({ down: true }, true));
-      if (input.isDown('KeyJ')) this.throttleNav(() => this.charSelect.handleInput({ lk: true }, true));
+      if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft')) {
+        input.consumeKey('KeyA');
+        input.consumeKey('ArrowLeft');
+        this.modeSelect.handleInput({ left: true });
+      } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight')) {
+        input.consumeKey('KeyD');
+        input.consumeKey('ArrowRight');
+        this.modeSelect.handleInput({ right: true });
+      }
+      return;
+    }
+
+    // 2. Character Select Navigation (Discrete single-tap checks)
+    if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+      if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft')) {
+        input.consumeKey('KeyA');
+        input.consumeKey('ArrowLeft');
+        this.charSelect.handleInput({ left: true }, true);
+      } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight')) {
+        input.consumeKey('KeyD');
+        input.consumeKey('ArrowRight');
+        this.charSelect.handleInput({ right: true }, true);
+      }
+
+      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+        input.consumeKey('KeyW');
+        input.consumeKey('ArrowUp');
+        this.charSelect.handleInput({ up: true }, true);
+      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+        input.consumeKey('KeyS');
+        input.consumeKey('ArrowDown');
+        this.charSelect.handleInput({ down: true }, true);
+      }
+
+      // Player 2 selection in 2P mode
+      if (this.charSelect.gameMode === '2p') {
+        if (input.isJustPressed('Numpad4')) {
+          input.consumeKey('Numpad4');
+          this.charSelect.handleInput({ left: true }, false);
+        } else if (input.isJustPressed('Numpad6')) {
+          input.consumeKey('Numpad6');
+          this.charSelect.handleInput({ right: true }, false);
+        }
+      }
       return;
     }
 
@@ -343,6 +453,19 @@ export class Game {
     const speed = this.settingsManager.settings.gameSpeed;
     if (speed === 50 && this.gameSpeedTick % 2 !== 0) return;
     if (speed === 75 && this.gameSpeedTick % 4 === 0) return;
+
+    // Training Mode Infinite Resources
+    if (this.isTraining) {
+      if (this.f1) {
+        this.f1.health = this.f1.maxHealth;
+        this.f1.stamina = this.f1.maxStamina;
+        this.f1.superMeter = this.f1.maxSuperMeter;
+      }
+      if (this.f2) {
+        this.f2.health = this.f2.maxHealth;
+        this.f2.stamina = this.f2.maxStamina;
+      }
+    }
 
     // FIGHT & ROUND_OVER states
     if (this.slowMotion) {
@@ -412,7 +535,7 @@ export class Game {
     });
 
     // 7. Bouncer Twins Blood Rage Synergy
-    if (this.isGauntlet && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
+    if (this.isCampaign && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
       if (this.f2 && this.f2.isDead && this.f4 && !this.f4.isDead && !this.f4.isBloodRage) {
         this.f4.isBloodRage = true;
         this.f4.walkSpeed = 5.2;
@@ -454,7 +577,7 @@ export class Game {
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
     this.hud.update(this.f1, primaryEnemy);
 
-    // 13. Check Match End / Round Over / Gauntlet
+    // 13. Check Match End / Round Over / Campaign
     this.checkMatchEnd();
   }
 
@@ -545,13 +668,6 @@ export class Game {
         this.hud.showCrowdBanner('CROWD SHOVE!');
         soundFX.playCrowdCheer();
       }
-    }
-  }
-
-  throttleNav(callback) {
-    if (!this.lastNav || Date.now() - this.lastNav > 220) {
-      this.lastNav = Date.now();
-      callback();
     }
   }
 
@@ -660,9 +776,16 @@ export class Game {
   }
 
   checkMatchEnd() {
-    // 1. Arcade Boss Gauntlet Progression
-    if (this.isGauntlet) {
+    // 1. Campaign Progression Check
+    if (this.isCampaign) {
       const isBouncerStage = this.bossQueue[this.bossIndex] === 'bouncer_twins';
+      const isChampionStage = this.bossQueue[this.bossIndex] === 'champion';
+
+      // Elden Ring Phase 1 transition guard: do not end if Rex Gannon is transitioning to Phase 2
+      if (isChampionStage && this.f2 && this.f2.phase === 1 && this.f2.hasTransitioned) {
+        return; // Fight continues in Phase 2!
+      }
+
       const enemiesDefeated = isBouncerStage
         ? (this.f2.isDead && (!this.f4 || this.f4.isDead))
         : (this.f2.isDead);
@@ -672,9 +795,14 @@ export class Game {
       if ((enemiesDefeated || playerDefeated) && this.screen === GAME_SCREENS.FIGHT) {
         this.screen = GAME_SCREENS.ROUND_OVER;
         this.slowMotion = true;
-        this.roundOverTimer = 150;
-        this.hud.setAnnouncement(enemiesDefeated ? 'STAGE CLEAR!' : 'DEFEAT', 120);
-        this.hud.triggerShake(12);
+        this.roundOverTimer = 160;
+
+        if (enemiesDefeated && isChampionStage && this.f2.phase === 2) {
+          this.hud.setAnnouncement('LEGEND VANQUISHED', 150);
+        } else {
+          this.hud.setAnnouncement(enemiesDefeated ? 'STAGE CLEAR!' : 'DEFEAT', 120);
+        }
+        this.hud.triggerShake(14);
       }
 
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
@@ -686,18 +814,18 @@ export class Game {
               // Advance to next boss! Heal player 50%
               this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
               this.f1.stamina = this.f1.maxStamina;
-              this.setupGauntletStage(this.f1.id);
+              this.setupCampaignStage(this.f1.id);
               this.screen = GAME_SCREENS.FIGHT;
               this.slowMotion = false;
               soundFX.playAnnouncer('ROUND1');
             } else {
-              // All 7 bosses defeated! Gauntlet Champion!
+              // All 7 bosses defeated! Campaign Champion!
               this.screen = GAME_SCREENS.VICTORY;
               this.winner = this.f1;
               soundFX.playAnnouncer('YOU_WIN');
             }
           } else {
-            // Player lost gauntlet
+            // Player lost campaign
             this.screen = GAME_SCREENS.VICTORY;
             this.winner = this.f2;
           }
@@ -772,6 +900,11 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.TITLE) {
       this.titleScreen.render(ctx, W, H);
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.MODE_SELECT) {
+      this.modeSelect.render(ctx, W, H);
       return;
     }
 
@@ -866,11 +999,11 @@ export class Game {
     ctx.fillStyle = '#fde047';
     ctx.font = 'bold 28px monospace';
 
-    if (this.isGauntlet && this.winner === this.f1) {
-      ctx.fillText('GAUNTLET CHAMPION!', W / 2, 85);
+    if (this.isCampaign && this.winner === this.f1) {
+      ctx.fillText('CAMPAIGN CONQUEROR!', W / 2, 85);
       ctx.fillStyle = '#38bdf8';
       ctx.font = '12px monospace';
-      ctx.fillText('ALL 7 UNDERGROUND BOSSES DEFEATED', W / 2, 106);
+      ctx.fillText('ALL 7 BOSSES & THE PRIMEVAL APEX FELLED', W / 2, 106);
     } else {
       ctx.fillText(`${this.winner ? this.winner.name : 'PLAYER'} WINS!`, W / 2, 85);
       ctx.fillStyle = '#38bdf8';
@@ -895,7 +1028,7 @@ export class Game {
 
     ctx.fillStyle = '#94a3b8';
     ctx.font = '11px monospace';
-    ctx.fillText('PRESS [ENTER] OR [SPACE] TO RETURN TO CHARACTER SELECT', W / 2, H - 15);
+    ctx.fillText('PRESS [ENTER] OR [SPACE] TO RETURN TO MODE SELECT', W / 2, H - 15);
 
     ctx.textAlign = 'left';
   }
