@@ -212,6 +212,20 @@ export class Game {
 
     // Global Key Listener for Debug & Shortcuts
     window.addEventListener('keydown', (e) => {
+      // If settings modal is open, avoid triggering game shortcuts or screen changes
+      if (this.settingsManager && this.settingsManager.isOpen) {
+        if (this.settingsManager.isRebinding) {
+          // Key is currently being captured by keybind rebinding
+          return;
+        }
+        if (e.code === 'Escape' || e.code === 'KeyP') {
+          e.preventDefault();
+          this.settingsManager.close();
+          return;
+        }
+        return;
+      }
+
       if (e.code === 'KeyH') {
         this.showHitboxes = !this.showHitboxes;
         window.__GAME_HITBOXES = this.showHitboxes;
@@ -926,6 +940,9 @@ export class Game {
 
     // 13. Check Match End / Round Over / Campaign
     this.checkMatchEnd();
+
+    // 14. End Input Frame (resets single-frame leading-edge triggers)
+    input.endFrame();
   }
 
   syncCharSelect() {
@@ -964,7 +981,30 @@ export class Game {
 
       if (this.f2 && !this.f2.isDead) {
         const remoteInput = this.netplay.remoteInputState || {};
+
+        // Bridge remote attack triggers into player 2 action buffer
+        if (remoteInput.ultimateJust) input.queueAction(2, 'ULTIMATE');
+        else if (remoteInput.dirtyJust) input.queueAction(2, 'DIRTY');
+        else if (remoteInput.sp3Just) input.queueAction(2, 'SP3');
+        else if (remoteInput.sp2Just) input.queueAction(2, 'SP2');
+        else if (remoteInput.sp1Just) input.queueAction(2, 'SP1');
+        else if (remoteInput.hpJust) input.queueAction(2, 'HP');
+        else if (remoteInput.hkJust) input.queueAction(2, 'HK');
+        else if (remoteInput.lpJust) input.queueAction(2, 'LP');
+        else if (remoteInput.lkJust) input.queueAction(2, 'LK');
+
         this.f2.handleInput(remoteInput, input, targetForF2);
+
+        // Clear remote one-shot triggers so attacks don't spam indefinitely
+        remoteInput.lpJust = false;
+        remoteInput.hpJust = false;
+        remoteInput.lkJust = false;
+        remoteInput.hkJust = false;
+        remoteInput.sp1Just = false;
+        remoteInput.sp2Just = false;
+        remoteInput.sp3Just = false;
+        remoteInput.dirtyJust = false;
+        remoteInput.ultimateJust = false;
 
         if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
           if (remoteInput.lpJust || remoteInput.hpJust || remoteInput.lkJust || remoteInput.hkJust || remoteInput.dirtyJust) {
@@ -1010,6 +1050,18 @@ export class Game {
       // Client controls f2 via local P1 controls
       if (this.f2 && !this.f2.isDead) {
         const localInput = input.getState(1, this.f2.facingRight);
+
+        // Queue local client attack into player 2 action queue so f2 (playerNum: 2) registers it immediately
+        if (localInput.ultimateJust) input.queueAction(2, 'ULTIMATE');
+        else if (localInput.dirtyJust) input.queueAction(2, 'DIRTY');
+        else if (localInput.sp3Just) input.queueAction(2, 'SP3');
+        else if (localInput.sp2Just) input.queueAction(2, 'SP2');
+        else if (localInput.sp1Just) input.queueAction(2, 'SP1');
+        else if (localInput.hpJust) input.queueAction(2, 'HP');
+        else if (localInput.hkJust) input.queueAction(2, 'HK');
+        else if (localInput.lpJust) input.queueAction(2, 'LP');
+        else if (localInput.lkJust) input.queueAction(2, 'LK');
+
         this.netplay.sendInput(localInput);
         this.f2.handleInput(localInput, input, targetForF2);
 
@@ -1023,14 +1075,30 @@ export class Game {
 
       // Challenger applies host remote inputs to f1
       const remoteInput = this.netplay.remoteInputState || {};
+
+      // Queue host remote attacks for f1
+      if (remoteInput.ultimateJust) input.queueAction(1, 'ULTIMATE');
+      else if (remoteInput.dirtyJust) input.queueAction(1, 'DIRTY');
+      else if (remoteInput.sp3Just) input.queueAction(1, 'SP3');
+      else if (remoteInput.sp2Just) input.queueAction(1, 'SP2');
+      else if (remoteInput.sp1Just) input.queueAction(1, 'SP1');
+      else if (remoteInput.hpJust) input.queueAction(1, 'HP');
+      else if (remoteInput.hkJust) input.queueAction(1, 'HK');
+      else if (remoteInput.lpJust) input.queueAction(1, 'LP');
+      else if (remoteInput.lkJust) input.queueAction(1, 'LK');
+
       this.f1.handleInput(remoteInput, input, targetForP1);
 
-      if (this.f1.state === FIGHTER_STATE.SUBMISSION_LOCK) {
-        if (remoteInput.lpJust || remoteInput.hpJust || remoteInput.lkJust || remoteInput.hkJust || remoteInput.dirtyJust) {
-          this.f1.submissionStruggle = Math.min(100, (this.f1.submissionStruggle || 0) + 14);
-          soundFX.playWhoosh('light');
-        }
-      }
+      // Clear remote triggers
+      remoteInput.lpJust = false;
+      remoteInput.hpJust = false;
+      remoteInput.lkJust = false;
+      remoteInput.hkJust = false;
+      remoteInput.sp1Just = false;
+      remoteInput.sp2Just = false;
+      remoteInput.sp3Just = false;
+      remoteInput.dirtyJust = false;
+      remoteInput.ultimateJust = false;
 
       // Reconcile client with authoritative host snapshot
       if (this.netplay.latestSnapshot) {

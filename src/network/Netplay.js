@@ -180,7 +180,19 @@ export class Netplay {
     }
 
     if (data.type === 'INPUT') {
-      this.remoteInputState = data.inputs || {};
+      const incoming = data.inputs || {};
+      if (this.remoteInputState) {
+        if (this.remoteInputState.lpJust) incoming.lpJust = true;
+        if (this.remoteInputState.hpJust) incoming.hpJust = true;
+        if (this.remoteInputState.lkJust) incoming.lkJust = true;
+        if (this.remoteInputState.hkJust) incoming.hkJust = true;
+        if (this.remoteInputState.sp1Just) incoming.sp1Just = true;
+        if (this.remoteInputState.sp2Just) incoming.sp2Just = true;
+        if (this.remoteInputState.sp3Just) incoming.sp3Just = true;
+        if (this.remoteInputState.dirtyJust) incoming.dirtyJust = true;
+        if (this.remoteInputState.ultimateJust) incoming.ultimateJust = true;
+      }
+      this.remoteInputState = incoming;
     } else if (data.type === 'SNAPSHOT') {
       this.latestSnapshot = data;
     }

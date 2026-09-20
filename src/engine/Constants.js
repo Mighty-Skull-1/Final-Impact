@@ -127,6 +127,7 @@ export const DEFAULT_CONTROLS = {
     SP2: 'KeyL',       // Special Move 2 (Uppercut / Flash Kick / Spiral)
     SP3: 'Semicolon',  // Special Move 3 (Hurricane / Blitz / Kunai)
     DIRTY: 'KeyC',     // Dirty Tactic Desperation Move
+    ULTIMATE: 'Space', // Naruto Ultimate Secret Technique
     // Quick Action Specials:
     QUICK_SP1: 'KeyQ',
     QUICK_SP2: 'KeyE',
@@ -146,6 +147,7 @@ export const DEFAULT_CONTROLS = {
     SP2: 'Numpad8',
     SP3: 'Numpad9',
     DIRTY: 'Numpad3',  // Dirty Tactic Desperation Move
+    ULTIMATE: 'Numpad0',
     START: 'NumpadEnter'
   }
 };

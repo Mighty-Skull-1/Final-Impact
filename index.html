@@ -72,56 +72,80 @@
           <button id="closeSettingsX" class="close-btn">✕</button>
         </div>
 
-        <div class="setting-group">
-          <div class="setting-row">
-            <label for="masterVol">Master Volume: <span id="masterVolVal">80%</span></label>
-            <input type="range" id="masterVol" min="0" max="100" value="80">
+        <div class="modal-tabs">
+          <button id="tabGeneralBtn" class="tab-btn active">⚙️ GENERAL</button>
+          <button id="tabControlsBtn" class="tab-btn">🎮 CONTROLS / KEYBINDS</button>
+        </div>
+
+        <!-- General Settings Tab -->
+        <div id="tabGeneralContent" class="tab-pane active">
+          <div class="setting-group">
+            <div class="setting-row">
+              <label for="masterVol">Master Volume: <span id="masterVolVal">80%</span></label>
+              <input type="range" id="masterVol" min="0" max="100" value="80">
+            </div>
+
+            <div class="setting-row">
+              <label for="musicVol">Music Volume: <span id="musicVolVal">70%</span></label>
+              <input type="range" id="musicVol" min="0" max="100" value="70">
+            </div>
+
+            <div class="setting-row">
+              <label for="sfxVol">Sound FX Volume: <span id="sfxVolVal">90%</span></label>
+              <input type="range" id="sfxVol" min="0" max="100" value="90">
+            </div>
           </div>
 
-          <div class="setting-row">
-            <label for="musicVol">Music Volume: <span id="musicVolVal">70%</span></label>
-            <input type="range" id="musicVol" min="0" max="100" value="70">
-          </div>
+          <div class="setting-group">
+            <div class="setting-row">
+              <label for="gameSpeedSelect">Game Speed (Pacing):</label>
+              <select id="gameSpeedSelect" class="arcade-select">
+                <option value="50">50% (Slow Motion / Relaxed)</option>
+                <option value="75">75% (Smooth & Relaxed)</option>
+                <option value="100" selected>100% (Standard 60 FPS)</option>
+                <option value="125">125% (Turbo Speed)</option>
+              </select>
+            </div>
 
-          <div class="setting-row">
-            <label for="sfxVol">Sound FX Volume: <span id="sfxVolVal">90%</span></label>
-            <input type="range" id="sfxVol" min="0" max="100" value="90">
+            <div class="setting-row">
+              <label for="aiDiffSelect">AI Difficulty:</label>
+              <select id="aiDiffSelect" class="arcade-select">
+                <option value="easy">Beginner / Casual</option>
+                <option value="normal" selected>Normal Arcade</option>
+                <option value="hard">Master / Tournament</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="shakeSelect">Screen Shake:</label>
+              <select id="shakeSelect" class="arcade-select">
+                <option value="off">Off (Zero Shake)</option>
+                <option value="low">Low Shake</option>
+                <option value="full" selected>Full Impact</option>
+              </select>
+            </div>
+
+            <div class="setting-row checkbox-row">
+              <label>
+                <input type="checkbox" id="easyInputsCheck"> Easy Specials & 1-Button Ultimates
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="setting-group">
-          <div class="setting-row">
-            <label for="gameSpeedSelect">Game Speed (Pacing):</label>
-            <select id="gameSpeedSelect" class="arcade-select">
-              <option value="50">50% (Slow Motion / Relaxed)</option>
-              <option value="75">75% (Smooth & Relaxed)</option>
-              <option value="100" selected>100% (Standard 60 FPS)</option>
-              <option value="125">125% (Turbo Speed)</option>
-            </select>
+        <!-- Controls / Keybinds Tab -->
+        <div id="tabControlsContent" class="tab-pane" style="display: none;">
+          <div class="player-toggle-bar">
+            <button id="p1ControlsBtn" class="player-subtab-btn active">PLAYER 1 (MAIN / ONLINE)</button>
+            <button id="p2ControlsBtn" class="player-subtab-btn">PLAYER 2 (LOCAL 2P)</button>
           </div>
 
-          <div class="setting-row">
-            <label for="aiDiffSelect">AI Difficulty:</label>
-            <select id="aiDiffSelect" class="arcade-select">
-              <option value="easy">Beginner / Casual</option>
-              <option value="normal" selected>Normal Arcade</option>
-              <option value="hard">Master / Tournament</option>
-            </select>
-          </div>
+          <p class="controls-hint">CLICK ANY BUTTON &amp; PRESS A KEY TO REBIND. ESCAPE TO CANCEL.</p>
 
-          <div class="setting-row">
-            <label for="shakeSelect">Screen Shake:</label>
-            <select id="shakeSelect" class="arcade-select">
-              <option value="off">Off (Zero Shake)</option>
-              <option value="low">Low Shake</option>
-              <option value="full" selected>Full Impact</option>
-            </select>
-          </div>
+          <div id="keybindsContainer" class="keybinds-scroll"></div>
 
-          <div class="setting-row checkbox-row">
-            <label>
-              <input type="checkbox" id="easyInputsCheck"> Easy Specials & 1-Button Ultimates
-            </label>
+          <div class="controls-actions">
+            <button id="resetKeybindsBtn" class="arcade-btn danger-btn">↺ RESET KEYBINDS</button>
           </div>
         </div>
 

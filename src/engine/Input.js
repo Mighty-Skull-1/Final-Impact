@@ -35,9 +35,76 @@ export class InputManager {
     // Easy input mode toggle
     this.easyInputs = false;
 
+    // Configurable Keybindings
+    this.controls = {
+      P1: { ...DEFAULT_CONTROLS.P1 },
+      P2: { ...DEFAULT_CONTROLS.P2 }
+    };
+    this.loadCustomControls();
+
+    // Frame-cached states for consistent leading-edge triggers across the 60fps tick
+    this.p1CurrentState = null;
+    this.p2CurrentState = null;
+
     // Listeners
-    window.addEventListener('keydown', this.onKeyDown.bind(this));
-    window.addEventListener('keyup', this.onKeyUp.bind(this));
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', this.onKeyDown.bind(this));
+      window.addEventListener('keyup', this.onKeyUp.bind(this));
+    }
+  }
+
+  loadCustomControls() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('final_impact_custom_controls');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.P1) this.controls.P1 = { ...this.controls.P1, ...parsed.P1 };
+          if (parsed.P2) this.controls.P2 = { ...this.controls.P2, ...parsed.P2 };
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load custom controls', e);
+    }
+  }
+
+  saveCustomControls() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('final_impact_custom_controls', JSON.stringify(this.controls));
+      }
+    } catch (e) {}
+  }
+
+  setKeybind(playerNum, action, keyCode) {
+    const pKey = playerNum === 1 ? 'P1' : 'P2';
+    if (this.controls[pKey]) {
+      this.controls[pKey][action] = keyCode;
+      if (action === 'QUICK_SP1') this.controls[pKey].SP1 = keyCode;
+      if (action === 'QUICK_SP2') this.controls[pKey].SP2 = keyCode;
+      if (action === 'QUICK_SP3') this.controls[pKey].SP3 = keyCode;
+      this.saveCustomControls();
+    }
+  }
+
+  resetDefaultControls() {
+    this.controls = {
+      P1: { ...DEFAULT_CONTROLS.P1 },
+      P2: { ...DEFAULT_CONTROLS.P2 }
+    };
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('final_impact_custom_controls');
+      }
+    } catch (e) {}
+  }
+
+  endFrame() {
+    this.p1CurrentState = null;
+    this.p2CurrentState = null;
+    for (const k of Object.keys(this.justPressed)) {
+      this.justPressed[k] = false;
+    }
   }
 
   onKeyDown(e) {
@@ -97,7 +164,7 @@ export class InputManager {
   // Get current frame state
   getState(playerNum = 1, facingRight = true) {
     const isP1 = playerNum === 1;
-    const ctrl = isP1 ? DEFAULT_CONTROLS.P1 : DEFAULT_CONTROLS.P2;
+    const ctrl = isP1 ? this.controls.P1 : this.controls.P2;
     const gp = this.pollGamepad(isP1 ? 0 : 1);
 
     const rawUp = this.isDown(ctrl.UP) || gp?.up;
@@ -129,10 +196,11 @@ export class InputManager {
     const sp3Just = (ctrl.SP3 && this.isJustPressed(ctrl.SP3)) || (ctrl.QUICK_SP3 && this.isJustPressed(ctrl.QUICK_SP3));
     const dirtyJust = (ctrl.DIRTY && this.isJustPressed(ctrl.DIRTY)) || this.checkDownDownPunch(playerNum);
 
-    // Naruto Ultimate Activation: Spacebar (or U + I / HP + HK / Gamepad trigger)
-    const ultimateJust = isP1 
-      ? (this.isJustPressed('Space') || (this.isDown(ctrl.HP) && this.isDown(ctrl.HK)) || gp?.ultimate)
-      : ((this.isDown(ctrl.HP) && this.isDown(ctrl.HK)) || gp?.ultimate);
+    // Naruto Ultimate Activation: Configured key, Spacebar (for P1), HP+HK, or Gamepad trigger
+    const ultimateJust = (ctrl.ULTIMATE && this.isJustPressed(ctrl.ULTIMATE)) ||
+      (isP1 && this.isJustPressed('Space')) ||
+      (this.isDown(ctrl.HP) && this.isDown(ctrl.HK)) ||
+      gp?.ultimate;
 
     // Directional notation (1-9)
     let dir = 5;
@@ -192,8 +260,8 @@ export class InputManager {
     // 1. Double tap dash detection for P1
     this.p1DashFwd = false;
     this.p1DashBack = false;
-    const p1FwdKey = p1FacingRight ? DEFAULT_CONTROLS.P1.RIGHT : DEFAULT_CONTROLS.P1.LEFT;
-    const p1BackKey = p1FacingRight ? DEFAULT_CONTROLS.P1.LEFT : DEFAULT_CONTROLS.P1.RIGHT;
+    const p1FwdKey = p1FacingRight ? this.controls.P1.RIGHT : this.controls.P1.LEFT;
+    const p1BackKey = p1FacingRight ? this.controls.P1.LEFT : this.controls.P1.RIGHT;
 
     if (this.isJustPressed(p1FwdKey)) {
       const now = performance.now();
@@ -213,8 +281,8 @@ export class InputManager {
     // 2. Double tap dash for P2
     this.p2DashFwd = false;
     this.p2DashBack = false;
-    const p2FwdKey = p2FacingRight ? DEFAULT_CONTROLS.P2.RIGHT : DEFAULT_CONTROLS.P2.LEFT;
-    const p2BackKey = p2FacingRight ? DEFAULT_CONTROLS.P2.LEFT : DEFAULT_CONTROLS.P2.RIGHT;
+    const p2FwdKey = p2FacingRight ? this.controls.P2.RIGHT : this.controls.P2.LEFT;
+    const p2BackKey = p2FacingRight ? this.controls.P2.LEFT : this.controls.P2.RIGHT;
 
     if (this.isJustPressed(p2FwdKey)) {
       const now = performance.now();
@@ -275,11 +343,6 @@ export class InputManager {
 
     this.p2Buffer.unshift(s2);
     if (this.p2Buffer.length > this.bufferMaxLength) this.p2Buffer.pop();
-
-    // Reset single-frame triggers at end of tick
-    for (const k of Object.keys(this.justPressed)) {
-      this.justPressed[k] = false;
-    }
   }
 
   queueAction(playerNum, action) {
@@ -370,7 +433,7 @@ export class InputManager {
 
   checkDownDownPunch(playerNum = 1) {
     const isP1 = playerNum === 1;
-    const ctrl = isP1 ? DEFAULT_CONTROLS.P1 : DEFAULT_CONTROLS.P2;
+    const ctrl = isP1 ? this.controls.P1 : this.controls.P2;
     const punchJust = this.isJustPressed(ctrl.LP) || this.isJustPressed(ctrl.HP);
     const rawDown = this.isDown(ctrl.DOWN);
     if (!punchJust || !rawDown) return false;
