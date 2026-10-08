@@ -37,6 +37,22 @@ export class HUD {
     // Dirty Tactic & Crowd Banners
     this.dirtyBanner = null;
     this.crowdBanner = null;
+
+    // Gamepad Connection Arcade Toast Banner
+    this.gamepadToast = null;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('gamepad-notification', (e) => {
+        const detail = e.detail || {};
+        const text = detail.connected
+          ? `🎮 CONTROLLER ${detail.playerNum || 1} CONNECTED!`
+          : `🎮 CONTROLLER ${detail.playerNum || 1} DISCONNECTED`;
+        this.gamepadToast = {
+          text,
+          connected: detail.connected,
+          timer: 140
+        };
+      });
+    }
   }
 
   triggerEldenRingPhase2(boss) {
@@ -697,6 +713,27 @@ export class HUD {
       ctx.font = 'bold 12px monospace';
       ctx.fillText('CAMPAIGN CHAMPION OF FINAL IMPACT', W / 2, H / 2 + 18);
 
+      ctx.restore();
+    }
+
+    // 13. Gamepad Hot-plug Arcade Toast
+    if (this.gamepadToast && this.gamepadToast.timer > 0) {
+      this.gamepadToast.timer--;
+      ctx.save();
+      const alpha = Math.min(1.0, this.gamepadToast.timer / 25);
+      ctx.globalAlpha = alpha;
+      const bY = 22;
+      const bW = 280;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+      ctx.fillRect(W / 2 - bW / 2, bY, bW, 26);
+      ctx.strokeStyle = this.gamepadToast.connected ? '#38bdf8' : '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(W / 2 - bW / 2, bY, bW, 26);
+
+      ctx.fillStyle = this.gamepadToast.connected ? '#38bdf8' : '#fbbf24';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.gamepadToast.text, W / 2, bY + 17);
       ctx.restore();
     }
 

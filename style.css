@@ -517,3 +517,108 @@ body {
   }
 }
 
+/* ========================================================
+   GAMEPAD & CONTROLLER ARCADE STYLES
+   ======================================================== */
+.gamepad-card {
+  background: #0f172a;
+  border: 1px solid #38bdf8;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.15);
+}
+
+.gamepad-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 6px;
+}
+
+.gamepad-card-title {
+  font-size: 8px;
+  color: #38bdf8;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.gamepad-status-pill {
+  font-size: 7px;
+  background: #090a10;
+  border: 1px solid #334155;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-family: monospace;
+}
+
+.gamepad-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.gamepad-layout-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #141b2d;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid #1e293b;
+}
+
+.gp-btn {
+  font-size: 7px;
+  color: #facc15;
+  font-weight: bold;
+}
+
+.gp-desc {
+  font-size: 6.5px;
+  color: #cbd5e1;
+}
+
+.gamepad-live-tester {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #090a10;
+  border: 1px dashed #475569;
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.tester-label {
+  font-size: 7px;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.tester-output {
+  font-size: 7.5px;
+  color: #4ade80;
+  font-family: monospace;
+}
+
+/* Controller Focus Highlight */
+.arcade-focus {
+  outline: 2px solid #facc15 !important;
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.8) !important;
+  animation: pulse-focus 0.9s infinite alternate !important;
+}
+
+@keyframes pulse-focus {
+  from {
+    outline-color: #facc15;
+    box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  }
+  to {
+    outline-color: #38bdf8;
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.85);
+  }
+}
+

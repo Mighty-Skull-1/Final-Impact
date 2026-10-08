@@ -79,6 +79,7 @@ export class SettingsManager {
     this.isRebinding = false;
     this.rebindingAction = null;
     this.listenersInitialized = false;
+    this.focusIndex = 0;
 
     this.settings = {
       masterVolume: 80,
@@ -462,6 +463,9 @@ export class SettingsManager {
   close() {
     this.isOpen = false;
     this.cancelRebinding();
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('.arcade-focus').forEach(el => el.classList.remove('arcade-focus'));
+    }
     const modal = document.getElementById('settingsModal');
     if (modal) modal.style.display = 'none';
   }
@@ -622,6 +626,176 @@ export class SettingsManager {
       }
       if (matchGroup) {
         matchGroup.style.display = 'none';
+      }
+    }
+
+    // Sync Gamepad Connection status pill
+    const connectedGps = input.getConnectedGamepads();
+    const statusEl = document.getElementById('gamepadStatusText');
+    if (statusEl) {
+      if (connectedGps.length > 0) {
+        const p1Gp = connectedGps[0];
+        statusEl.innerHTML = `<span style="color: #4ade80;">● CONNECTED: ${p1Gp.id.slice(0, 24)}</span>`;
+      } else {
+        statusEl.innerHTML = `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
+      }
+    }
+  }
+
+  getFocusableElements() {
+    const list = [];
+    if (this.currentTab === 'general') {
+      const ids = [
+        'tabGeneralBtn', 'tabControlsBtn',
+        'masterVol', 'musicVol', 'sfxVol',
+        'gameSpeedSelect', 'aiDiffSelect', 'shakeSelect',
+        'easyInputsCheck',
+        'generalLeaveMatchBtn', 'generalCharSelectBtn',
+        'closeSettingsBtn'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.offsetParent !== null && el.style.display !== 'none') {
+          list.push(el);
+        }
+      });
+    } else {
+      const ids = [
+        'tabGeneralBtn', 'tabControlsBtn',
+        'p1ControlsBtn', 'p2ControlsBtn',
+        'resetKeybindsBtn',
+        'leaveFightBtn', 'closeSettingsBtn'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.offsetParent !== null && el.style.display !== 'none') {
+          list.push(el);
+        }
+      });
+    }
+    return list;
+  }
+
+  highlightFocused(elements) {
+    if (typeof document === 'undefined') return;
+    document.querySelectorAll('.arcade-focus').forEach(el => el.classList.remove('arcade-focus'));
+    if (elements && elements[this.focusIndex]) {
+      const target = elements[this.focusIndex];
+      target.classList.add('arcade-focus');
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }
+
+  updateGamepad() {
+    if (!this.isOpen) return;
+
+    // 1. Live Controller Status and Live Tester Text
+    const connectedGps = input.getConnectedGamepads();
+    const statusEl = document.getElementById('gamepadStatusText');
+    if (statusEl) {
+      if (connectedGps.length > 0) {
+        const p1Gp = connectedGps[0];
+        statusEl.innerHTML = `<span style="color: #4ade80;">● CONNECTED: ${p1Gp.id.slice(0, 24)}</span>`;
+      } else {
+        statusEl.innerHTML = `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
+      }
+    }
+
+    const gp0 = input.getGamepadState(0);
+    const lastInputEl = document.getElementById('gamepadLastInput');
+    if (lastInputEl && gp0) {
+      const activeBtns = [];
+      if (gp0.lp) activeBtns.push('X / LP');
+      if (gp0.hp) activeBtns.push('Y / HP');
+      if (gp0.lk) activeBtns.push('A / LK');
+      if (gp0.hk) activeBtns.push('B / HK');
+      if (gp0.sp1) activeBtns.push('RB / SP1');
+      if (gp0.sp2) activeBtns.push('RT / SP2');
+      if (gp0.sp3) activeBtns.push('LB / SP3');
+      if (gp0.dirty) activeBtns.push('LT / DIRTY');
+      if (gp0.ultimate) activeBtns.push('ULTIMATE');
+      if (gp0.start) activeBtns.push('START');
+      if (gp0.select) activeBtns.push('SELECT');
+      if (gp0.up) activeBtns.push('UP');
+      if (gp0.down) activeBtns.push('DOWN');
+      if (gp0.left) activeBtns.push('LEFT');
+      if (gp0.right) activeBtns.push('RIGHT');
+      if (activeBtns.length > 0) {
+        lastInputEl.textContent = activeBtns.join(' + ');
+        lastInputEl.style.color = '#fde047';
+      }
+    }
+
+    // 2. Navigation through modal controls
+    const nav = input.getAnyMenuNav();
+    if (!nav) return;
+
+    // B button or Start button closes settings modal
+    if (nav.back || nav.start) {
+      this.close();
+      try { soundFX.playMenuSelect(); } catch (e) {}
+      return;
+    }
+
+    const focusable = this.getFocusableElements();
+    if (focusable.length === 0) return;
+
+    if (this.focusIndex === undefined || this.focusIndex < 0 || this.focusIndex >= focusable.length) {
+      this.focusIndex = 0;
+    }
+
+    if (nav.up) {
+      this.focusIndex = (this.focusIndex - 1 + focusable.length) % focusable.length;
+      this.highlightFocused(focusable);
+      try { soundFX.playWhoosh('light'); } catch (e) {}
+      return;
+    }
+
+    if (nav.down) {
+      this.focusIndex = (this.focusIndex + 1) % focusable.length;
+      this.highlightFocused(focusable);
+      try { soundFX.playWhoosh('light'); } catch (e) {}
+      return;
+    }
+
+    const curEl = focusable[this.focusIndex];
+    if (!curEl) return;
+
+    // Left / Right adjustments
+    if (nav.left || nav.right) {
+      const delta = nav.right ? 1 : -1;
+      if (curEl.id === 'tabGeneralBtn' || curEl.id === 'tabControlsBtn') {
+        this.switchTab(this.currentTab === 'general' ? 'controls' : 'general');
+        try { soundFX.playWhoosh('light'); } catch (e) {}
+      } else if (curEl.id === 'p1ControlsBtn' || curEl.id === 'p2ControlsBtn') {
+        this.switchPlayer(this.selectedPlayer === 1 ? 2 : 1);
+        try { soundFX.playWhoosh('light'); } catch (e) {}
+      } else if (curEl.type === 'range') {
+        const step = 5;
+        const newVal = Math.max(Number(curEl.min || 0), Math.min(Number(curEl.max || 100), Number(curEl.value) + delta * step));
+        curEl.value = newVal;
+        curEl.dispatchEvent(new Event('input', { bubbles: true }));
+        try { soundFX.playWhoosh('light'); } catch (e) {}
+      } else if (curEl.tagName === 'SELECT') {
+        const newIdx = Math.max(0, Math.min(curEl.options.length - 1, curEl.selectedIndex + delta));
+        if (newIdx !== curEl.selectedIndex) {
+          curEl.selectedIndex = newIdx;
+          curEl.dispatchEvent(new Event('change', { bubbles: true }));
+          try { soundFX.playWhoosh('light'); } catch (e) {}
+        }
+      }
+    }
+
+    // Confirm (A button)
+    if (nav.confirm) {
+      if (curEl.type === 'checkbox') {
+        curEl.checked = !curEl.checked;
+        curEl.dispatchEvent(new Event('change', { bubbles: true }));
+        try { soundFX.playHitLight(); } catch (e) {}
+      } else if (curEl.tagName === 'BUTTON') {
+        curEl.click();
       }
     }
   }

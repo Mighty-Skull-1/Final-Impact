@@ -296,29 +296,7 @@ export class Game {
       if (isBackKey) {
         e.preventDefault();
         e.stopPropagation();
-        if (this.screen === GAME_SCREENS.MODE_SELECT) {
-          this.screen = GAME_SCREENS.TITLE;
-        } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
-          if (this.onlineLobby.subState === 'MENU') {
-            this.screen = GAME_SCREENS.MODE_SELECT;
-          } else {
-            this.onlineLobby.handleInput({ back: true });
-          }
-        } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-          if (this.isOnline) {
-            this.netplay.disconnect();
-            this.isOnline = false;
-            this.screen = GAME_SCREENS.ONLINE_LOBBY;
-          } else {
-            this.screen = GAME_SCREENS.MODE_SELECT;
-          }
-        } else if (this.screen === GAME_SCREENS.VICTORY) {
-          if (this.isOnline) {
-            this.voteRematch('no');
-          } else {
-            this.screen = GAME_SCREENS.MODE_SELECT;
-          }
-        }
+        this.handleBackPress();
       }
       if (e.code === 'KeyP') {
         e.preventDefault();
@@ -476,6 +454,46 @@ export class Game {
         this.bossIndex = 0;
         this.screen = GAME_SCREENS.MODE_SELECT;
       }
+    }
+  }
+
+  handleBackPress() {
+    if (this.settingsManager && this.settingsManager.isOpen) {
+      this.settingsManager.close();
+      return;
+    }
+    if (this.screen === GAME_SCREENS.MODE_SELECT) {
+      soundFX.playWhoosh('light');
+      this.screen = GAME_SCREENS.TITLE;
+    } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+      if (this.onlineLobby.subState === 'MENU') {
+        soundFX.playWhoosh('light');
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      } else {
+        this.onlineLobby.handleInput({ back: true });
+      }
+    } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+      soundFX.playWhoosh('light');
+      if (this.charSelect && this.charSelect.showCodeModal) {
+        this.charSelect.closeCodeModal();
+        return;
+      }
+      if (this.isOnline) {
+        this.netplay.disconnect();
+        this.isOnline = false;
+        this.screen = GAME_SCREENS.ONLINE_LOBBY;
+      } else {
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      }
+    } else if (this.screen === GAME_SCREENS.VICTORY) {
+      soundFX.playWhoosh('light');
+      if (this.isOnline) {
+        this.voteRematch('no');
+      } else {
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      }
+    } else if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.ROUND_OVER) {
+      this.settingsManager.toggle();
     }
   }
 
@@ -949,76 +967,126 @@ export class Game {
   }
 
   update() {
+    // 1. Always poll Gamepads at the start of every frame
+    input.pollGamepads();
+
+    // 2. Settings Modal handling
     if (this.settingsManager.isOpen) {
+      if (typeof this.settingsManager.updateGamepad === 'function') {
+        this.settingsManager.updateGamepad();
+      }
+      input.endFrame();
       return; // Paused while settings menu is open
     }
 
+    // Check Pause / Options button on Gamepad during gameplay or anytime
+    const gp1 = input.getGamepadState(0);
+    const gp2 = input.getGamepadState(1);
+    if ((gp1 && gp1.startJust) || (gp2 && gp2.startJust)) {
+      this.settingsManager.toggle();
+      input.endFrame();
+      return;
+    }
+
+    const menuNav = input.getAnyMenuNav();
+
     if (this.screen === GAME_SCREENS.TITLE) {
+      if (menuNav && (menuNav.confirm || menuNav.start)) {
+        this.handleConfirmPress();
+      }
+      input.endFrame();
       return;
     }
 
     // 0. Online Lobby Navigation
     if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
-      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+      const up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && menuNav.up);
+      const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && menuNav.down);
+      if (up) {
         input.consumeKey('KeyW');
         input.consumeKey('ArrowUp');
         this.onlineLobby.handleInput({ up: true });
-      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+      } else if (down) {
         input.consumeKey('KeyS');
         input.consumeKey('ArrowDown');
         this.onlineLobby.handleInput({ down: true });
       }
+      if (menuNav && menuNav.confirm) {
+        this.handleConfirmPress();
+      } else if (menuNav && menuNav.back) {
+        this.handleBackPress();
+      }
+      input.endFrame();
       return;
     }
 
     // 1. Mode Select Navigation (Discrete single-tap checks)
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
-      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+      const up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && menuNav.up);
+      const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && menuNav.down);
+      const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (menuNav && menuNav.left);
+      const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (menuNav && menuNav.right);
+
+      if (up) {
         input.consumeKey('KeyW');
         input.consumeKey('ArrowUp');
         this.modeSelect.handleInput({ up: true });
-      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+      } else if (down) {
         input.consumeKey('KeyS');
         input.consumeKey('ArrowDown');
         this.modeSelect.handleInput({ down: true });
       }
 
-      if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft')) {
+      if (left) {
         input.consumeKey('KeyA');
         input.consumeKey('ArrowLeft');
         this.modeSelect.handleInput({ left: true });
-      } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight')) {
+      } else if (right) {
         input.consumeKey('KeyD');
         input.consumeKey('ArrowRight');
         this.modeSelect.handleInput({ right: true });
       }
+
+      if (menuNav && menuNav.confirm) {
+        this.handleConfirmPress();
+      } else if (menuNav && menuNav.back) {
+        this.handleBackPress();
+      }
+      input.endFrame();
       return;
     }
 
     // 2. Character Select Navigation (Discrete single-tap checks)
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
       const isHostOrLocal = !this.isOnline || this.netplay.isHost;
+      const p1Nav = input.getMenuNav(0) || menuNav;
+      const p2Nav = input.getMenuNav(1);
 
-      if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft')) {
+      const p1Left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (p1Nav && p1Nav.left);
+      const p1Right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (p1Nav && p1Nav.right);
+      const p1Up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (p1Nav && p1Nav.up);
+      const p1Down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (p1Nav && p1Nav.down);
+
+      if (p1Left) {
         input.consumeKey('KeyA');
         input.consumeKey('ArrowLeft');
         this.charSelect.handleInput({ left: true }, isHostOrLocal);
         if (this.isOnline) this.syncCharSelect();
-      } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight')) {
+      } else if (p1Right) {
         input.consumeKey('KeyD');
         input.consumeKey('ArrowRight');
         this.charSelect.handleInput({ right: true }, isHostOrLocal);
         if (this.isOnline) this.syncCharSelect();
       }
 
-      if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+      if (p1Up) {
         input.consumeKey('KeyW');
         input.consumeKey('ArrowUp');
         if (isHostOrLocal) {
           this.charSelect.handleInput({ up: true }, true);
           if (this.isOnline) this.syncCharSelect();
         }
-      } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+      } else if (p1Down) {
         input.consumeKey('KeyS');
         input.consumeKey('ArrowDown');
         if (isHostOrLocal) {
@@ -1027,21 +1095,38 @@ export class Game {
         }
       }
 
-      // Player 2 selection in 2P mode
+      // Player 2 selection in 2P mode (Gamepad 1 or Numpad keys)
       if (this.charSelect.gameMode === '2p') {
-        if (input.isJustPressed('Numpad4')) {
+        const p2Left = input.isJustPressed('Numpad4') || (p2Nav && p2Nav.left);
+        const p2Right = input.isJustPressed('Numpad6') || (p2Nav && p2Nav.right);
+        if (p2Left) {
           input.consumeKey('Numpad4');
           this.charSelect.handleInput({ left: true }, false);
-        } else if (input.isJustPressed('Numpad6')) {
+        } else if (p2Right) {
           input.consumeKey('Numpad6');
           this.charSelect.handleInput({ right: true }, false);
         }
       }
+
+      // Open secret code modal on controller X button
+      if (p1Nav && p1Nav.extra) {
+        if (!this.charSelect.showCodeModal) {
+          this.charSelect.openCodeModal();
+        }
+      }
+
+      if (p1Nav && p1Nav.confirm) {
+        this.handleConfirmPress();
+      } else if (p1Nav && p1Nav.back) {
+        this.handleBackPress();
+      }
+      input.endFrame();
       return;
     }
 
     if (this.screen === GAME_SCREENS.VICTORY) {
       this.updateVictoryScreen();
+      input.endFrame();
       return;
     }
 
@@ -1622,16 +1707,18 @@ export class Game {
               isLocal = (this.netplay.isHost && f.playerNum === 1) || (!this.netplay.isHost && f.playerNum === 2);
             }
             if (isLocal) {
-              wantsPickup = (input.isDown('KeyS') && input.isJustPressed('KeyC'));
+              const fInput = input.getState(f.playerNum, f.facingRight);
+              wantsPickup = (input.isDown('KeyS') && input.isJustPressed('KeyC')) || (fInput.down && fInput.dirtyJust);
             } else {
               const remote = this.netplay.remoteInputState || {};
               wantsPickup = !!(remote.rawDown && remote.dirtyJust);
             }
           } else {
             const isP1 = f.playerNum === 1;
+            const fInput = input.getState(f.playerNum, f.facingRight);
             wantsPickup = isP1
-              ? (input.isDown('KeyS') && input.isJustPressed('KeyC'))
-              : (f.isCpu ? Math.random() < 0.04 : (input.isDown('Numpad2') && input.isJustPressed('Numpad3')));
+              ? ((input.isDown('KeyS') && input.isJustPressed('KeyC')) || (fInput.down && fInput.dirtyJust))
+              : (f.isCpu ? Math.random() < 0.04 : ((input.isDown('Numpad2') && input.isJustPressed('Numpad3')) || (fInput.down && fInput.dirtyJust)));
           }
 
           if (wantsPickup) {
@@ -2026,9 +2113,11 @@ export class Game {
         return;
       }
 
+      const menuNav = input.getAnyMenuNav();
+
       // Navigation if player hasn't voted yet
       if (this.myRematchVote === null) {
-        if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+        if (input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && (menuNav.left || menuNav.up))) {
           input.consumeKey('KeyA');
           input.consumeKey('ArrowLeft');
           input.consumeKey('KeyW');
@@ -2037,7 +2126,7 @@ export class Game {
             this.onlineRematchOption = 0;
             soundFX.playWhoosh('light');
           }
-        } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+        } else if (input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && (menuNav.right || menuNav.down))) {
           input.consumeKey('KeyD');
           input.consumeKey('ArrowRight');
           input.consumeKey('KeyS');
@@ -2046,6 +2135,12 @@ export class Game {
             this.onlineRematchOption = 1;
             soundFX.playWhoosh('light');
           }
+        }
+
+        if (menuNav && menuNav.confirm) {
+          this.voteRematch(this.onlineRematchOption === 0 ? 'yes' : 'no');
+        } else if (menuNav && menuNav.back) {
+          this.voteRematch('no');
         }
 
         // Direct quick hotkeys
@@ -2061,16 +2156,23 @@ export class Game {
     }
 
     // Offline Victory Menu Navigation
-    if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp')) {
+    const menuNav = input.getAnyMenuNav();
+    if (input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && menuNav.up)) {
       input.consumeKey('KeyW');
       input.consumeKey('ArrowUp');
       this.victoryMenuIndex = (this.victoryMenuIndex - 1 + 3) % 3;
       soundFX.playWhoosh('light');
-    } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown')) {
+    } else if (input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && menuNav.down)) {
       input.consumeKey('KeyS');
       input.consumeKey('ArrowDown');
       this.victoryMenuIndex = (this.victoryMenuIndex + 1) % 3;
       soundFX.playWhoosh('light');
+    }
+
+    if (menuNav && menuNav.confirm) {
+      this.handleConfirmPress();
+    } else if (menuNav && menuNav.back) {
+      this.handleBackPress();
     }
   }
 

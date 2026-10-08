@@ -1,4 +1,5 @@
 // Final Impact - Title Screen Engine
+import { input } from '../engine/Input.js';
 
 export class TitleScreen {
   constructor() {
@@ -49,8 +50,10 @@ export class TitleScreen {
     // Flashing "PRESS START / SPACE TO PLAY"
     if (Math.floor(this.time / 25) % 2 === 0) {
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 18px monospace';
-      ctx.fillText('PRESS [SPACE] OR [ENTER] TO START', W / 2, 210);
+      ctx.font = 'bold 16px monospace';
+      const hasGp = input.hasGamepadConnected();
+      const prompt = hasGp ? 'PRESS [A], [START], OR [SPACE] TO START' : 'PRESS [SPACE] OR [ENTER] TO START';
+      ctx.fillText(prompt, W / 2, 210);
     }
 
     // Quick Controls Guide Box
@@ -75,7 +78,12 @@ export class TitleScreen {
     ctx.fillText('• Movement: [W] Jump, [S] Crouch, [A] Back, [D] Forward', boxX + 16, boxY + 38);
     ctx.fillText('• Punches: [U] Light Punch, [I] Heavy Punch, [O] Special 1', boxX + 16, boxY + 54);
     ctx.fillText('• Kicks:   [J] Light Kick,  [K] Heavy Kick,  [L] Special 2', boxX + 16, boxY + 70);
-    ctx.fillText('• Gamepads & 2-Player keyboard supported!', boxX + 16, boxY + 86);
+    if (input.hasGamepadConnected()) {
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText('🎮 GAMEPAD CONNECTED & READY! (STICK, D-PAD & BUTTONS ACTIVE)', boxX + 16, boxY + 86);
+    } else {
+      ctx.fillText('• Controllers (Xbox/PS/USB) & 2P keyboard supported!', boxX + 16, boxY + 86);
+    }
 
     // Copyright / Credits
     ctx.textAlign = 'center';

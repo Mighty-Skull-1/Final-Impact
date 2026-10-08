@@ -35,6 +35,7 @@
           <span><strong>MOVE / JUMP / CROUCH:</strong> W, A, S, D</span>
           <span><strong>ATTACKS:</strong> U (Light Punch), I (Heavy Punch), J (Light Kick), K (Heavy Kick)</span>
           <span><strong>DIRTY TACTIC (DESPERATION):</strong> C</span>
+          <span style="color: #38bdf8;"><strong>🎮 CONTROLLER:</strong> Stick/D-Pad = Move &amp; Dash | X/Y/A/B = LP/HP/LK/HK | RB/RT/LB = Specials | LT = Dirty | R3/Select = Ultimate | Start = Pause</span>
         </div>
       </div>
 
@@ -157,6 +158,31 @@
 
         <!-- Controls / Keybinds Tab -->
         <div id="tabControlsContent" class="tab-pane" style="display: none;">
+          <!-- Dedicated Controller / Gamepad Quick Reference & Live Tester -->
+          <div class="gamepad-card">
+            <div class="gamepad-card-header">
+              <span class="gamepad-card-title">🎮 CONTROLLER / GAMEPAD (XBOX / PLAYSTATION / USB)</span>
+              <span id="gamepadStatusText" class="gamepad-status-pill">DETECTING...</span>
+            </div>
+            <div class="gamepad-layout-grid">
+              <div class="gamepad-layout-item"><span class="gp-btn">🕹 STICK / D-PAD</span><span class="gp-desc">MOVE / CROUCH / JUMP / DASH</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">Ⓧ / ▢ SQUARE</span><span class="gp-desc">LIGHT PUNCH (LP)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">Ⓨ / △ TRIANGLE</span><span class="gp-desc">HEAVY PUNCH (HP)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">Ⓐ / ✕ CROSS</span><span class="gp-desc">LIGHT KICK (LK) / CONFIRM</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">Ⓑ / ◯ CIRCLE</span><span class="gp-desc">HEAVY KICK (HK) / CANCEL</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[RB] / [R1]</span><span class="gp-desc">SPECIAL 1 (FIREBALL / WARP)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[RT] / [R2]</span><span class="gp-desc">SPECIAL 2 (UPPERCUT / SPIRAL)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[LB] / [L1]</span><span class="gp-desc">SPECIAL 3 (HURRICANE / TATSU)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[LT] / [L2]</span><span class="gp-desc">DIRTY TACTIC (DESPERATION)</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[R3] / [SELECT]</span><span class="gp-desc">★ NARUTO ULTIMATE JUTSU</span></div>
+              <div class="gamepad-layout-item"><span class="gp-btn">[START] / [MENU]</span><span class="gp-desc">PAUSE / ARCADE SETTINGS</span></div>
+            </div>
+            <div class="gamepad-live-tester">
+              <span class="tester-label">LIVE TESTER:</span>
+              <span id="gamepadLastInput" class="tester-output">READY — PRESS ANY CONTROLLER BUTTON</span>
+            </div>
+          </div>
+
           <div class="player-toggle-bar">
             <button id="p1ControlsBtn" class="player-subtab-btn active">PLAYER 1 (MAIN / ONLINE)</button>
             <button id="p2ControlsBtn" class="player-subtab-btn">PLAYER 2 (LOCAL 2P)</button>

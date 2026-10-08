@@ -39,6 +39,26 @@ Featuring smooth frame-based animation, responsive attack cancel combos, impact 
 
 *Also supports standard USB/Bluetooth Gamepads (Xbox, PlayStation, etc.) automatically.*
 
+### 🎮 Gamepad / Controller Controls (Xbox / PlayStation / Switch / USB)
+
+| Action | Xbox Controller | PlayStation Controller | Switch Pro Controller |
+| :--- | :--- | :--- | :--- |
+| **Move / Jump / Crouch** | Left Stick / D-Pad | Left Stick / D-Pad | Left Stick / D-Pad |
+| **Dash (Fwd / Back)** | Double-tap Stick / D-Pad | Double-tap Stick / D-Pad | Double-tap Stick / D-Pad |
+| **Light Punch (LP)** | `X` | `Square (▢)` | `Y` |
+| **Heavy Punch (HP)** | `Y` | `Triangle (△)` | `X` |
+| **Light Kick (LK) / Confirm** | `A` | `Cross (✕)` | `B` |
+| **Heavy Kick (HK) / Back** | `B` | `Circle (◯)` | `A` |
+| **Special 1 (Fireball / Warp)** | `RB` | `R1` | `R` |
+| **Special 2 (Uppercut / Spiral)** | `RT` (Right Trigger) | `R2` | `ZR` |
+| **Special 3 (Spin / Hurricane)** | `LB` | `L1` | `L` |
+| **Dirty Tactic (Desperation)** | `LT` (Left Trigger) | `L2` | `ZL` |
+| **🔥 ULTIMATE JUTSU (Ougi)** | `R3` (Stick Click) / `Select` / `LB+RB` | `R3` / `Share` / `L1+R1` | `R3` / `-` / `L+R` |
+| **Pause / Arcade Settings** | `Start / Menu` | `Options` | `+` |
+| **Menu Navigation** | D-Pad / Left Stick | D-Pad / Left Stick | D-Pad / Left Stick |
+
+*Hot-plugging is fully supported — connect up to 2 controllers for seamless couch multiplayer!*
+
 ---
 
 ## ✨ Features & Mechanics
