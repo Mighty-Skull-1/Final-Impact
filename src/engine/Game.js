@@ -34,6 +34,7 @@ import { StageSelect } from '../ui/StageSelect.js';
 import { VersusScreen } from '../ui/VersusScreen.js';
 import { FinishHim } from '../ui/FinishHim.js';
 import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
+import { ROSTER_CLASSES, ROSTER_QUOTES } from '../fighters/RosterFighters.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -263,6 +264,7 @@ export class Game {
 
     // Victory quotes for all fighters & bosses
     this.victoryQuotes = {
+      ...ROSTER_QUOTES,
       kazuki: '"The true strength comes from mastering oneself in battle!"',
       raven: '"Mission accomplished. Standard tactical superiority."',
       kagura: '"You cannot strike what your eyes cannot follow."',
@@ -991,6 +993,7 @@ export class Game {
     else if (id === 'urban_legend') fighter = new UrbanLegend(opts);
     else if (id === 'champion') fighter = new Champion(opts);
     else if (id === 'endless_dragon') fighter = new EndlessDragon(opts);
+    else if (ROSTER_CLASSES[id]) fighter = new ROSTER_CLASSES[id](opts);
     else fighter = new Kazuki(opts);
 
     // Team 1: playerNum 1 & 3. Team 2: playerNum 2 & 4
@@ -1201,6 +1204,11 @@ export class Game {
       if (this.charSelect.gameMode === '2p') {
         const p2Left = input.isJustPressed('Numpad4') || (p2Nav && p2Nav.left);
         const p2Right = input.isJustPressed('Numpad6') || (p2Nav && p2Nav.right);
+        if (input.isJustPressed('Numpad8') || input.isJustPressed('Numpad5')) {
+          const up8 = input.isJustPressed('Numpad8');
+          input.consumeKey('Numpad8'); input.consumeKey('Numpad5');
+          this.charSelect.handleInput(up8 ? { up: true } : { down: true }, false);
+        }
         if (p2Left) {
           input.consumeKey('Numpad4');
           this.charSelect.handleInput({ left: true }, false);

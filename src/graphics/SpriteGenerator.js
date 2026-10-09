@@ -1,6 +1,9 @@
 // Final Impact - 16-Bit Pixel Art Sprite Engine & Generator
 // Generates authentic retro arcade pixel spritesheets on offscreen canvases
 
+import { buildRigFrames } from './FighterRig.js';
+import { FIGHTER_DESIGNS } from './FighterDesigns.js';
+
 export class SpriteGenerator {
   constructor() {
     this.cache = new Map();
@@ -26,6 +29,13 @@ export class SpriteGenerator {
   generateFighterSprites(fighterId) {
     const key = `fighter_${fighterId}`;
     if (this.cache.has(key)) return this.cache.get(key);
+
+    // Redesigned fighters are drawn by the articulated rig from their design sheet
+    if (FIGHTER_DESIGNS[fighterId] && !this.legacy) {
+      const rigged = buildRigFrames(FIGHTER_DESIGNS[fighterId], (w, h) => this.createCanvas(w, h), 80, 90);
+      this.cache.set(key, rigged);
+      return rigged;
+    }
 
     const sprites = {};
     const width = 80;
