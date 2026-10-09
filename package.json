@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "esbuild src/main.js --bundle --outfile=dist/game.bundle.js --format=iife",
     "test": "node test_overhaul_systems.mjs && node test_admin_and_shop.mjs && node test_gamepad.mjs"
   },
   "keywords": ["fighting-game", "pixel-art", "street-fighter", "retro", "arcade", "canvas"],
