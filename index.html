@@ -4,19 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FINAL IMPACT - 16-Bit Arcade Fighting Game</title>
-  <link rel="stylesheet" href="style.css?v=2.8.0">
+  <link rel="stylesheet" href="style.css?v=3.0.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="arcade-cabinet">
-    <!-- Arcade Header Marquee -->
-    <header class="marquee">
-      <div class="marquee-glow">
-        <h1 class="logo">FINAL IMPACT</h1>
-        <span class="edition">ARCADE CHAMPIONSHIP EDITION</span>
+    <!-- Slim top bar: brand + quick toggles -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dragon">龍</span>
+        <div class="brand-text">
+          <h1 class="logo">FINAL IMPACT</h1>
+          <span class="edition">ARCADE TOURNAMENT</span>
+        </div>
       </div>
+      <nav class="toolbar">
+        <button id="settingsBtn" class="arcade-btn highlight-btn">SETTINGS [P]</button>
+        <button id="toggleCrtBtn" class="arcade-btn">CRT: ON</button>
+        <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF</button>
+        <button id="toggleEasyBtn" class="arcade-btn">EASY: OFF</button>
+        <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN</button>
+      </nav>
     </header>
 
     <!-- CRT Bezel & Screen Wrapper -->
@@ -27,41 +37,51 @@
       </div>
     </main>
 
-    <!-- Arcade Control Dashboard & Shortcuts -->
-    <footer class="control-panel">
-      <div class="panel-section inputs">
-        <h3>PLAYER 1 CONTROLS</h3>
-        <div class="control-keys">
-          <span><strong>MOVE / JUMP / CROUCH:</strong> W, A, S, D</span>
-          <span><strong>ATTACKS:</strong> U (Light Punch), I (Heavy Punch), J (Light Kick), K (Heavy Kick)</span>
-          <span><strong>DIRTY TACTIC (DESPERATION):</strong> C</span>
-          <span style="color: #38bdf8;"><strong>🎮 CONTROLLER:</strong> Stick/D-Pad = Move &amp; Dash | X/Y/A/B = LP/HP/LK/HK | RB/RT/LB = Specials | LT = Dirty | R3/Select = Ultimate | Start = Pause</span>
-        </div>
+    <!-- Collapsible controls reference -->
+    <details class="controls-drawer">
+      <summary>HOW TO PLAY &mdash; CONTROLS &amp; MOVES</summary>
+      <div class="controls-grid">
+        <section class="ctrl-card">
+          <h3>MOVEMENT</h3>
+          <ul>
+            <li><kbd>W</kbd> Jump</li>
+            <li><kbd>S</kbd> Crouch</li>
+            <li><kbd>A</kbd><kbd>D</kbd> Back / Forward</li>
+            <li><kbd>D</kbd><kbd>D</kbd> Dash (double tap)</li>
+          </ul>
+        </section>
+        <section class="ctrl-card">
+          <h3>ATTACKS</h3>
+          <ul>
+            <li><kbd>U</kbd> Light Punch</li>
+            <li><kbd>I</kbd> Heavy Punch</li>
+            <li><kbd>J</kbd> Light Kick</li>
+            <li><kbd>K</kbd> Heavy Kick</li>
+            <li><kbd>C</kbd> Dirty Tactic</li>
+          </ul>
+        </section>
+        <section class="ctrl-card">
+          <h3>SPECIALS</h3>
+          <ul>
+            <li><kbd>Q</kbd>/<kbd>O</kbd> Special 1 <em>(↓ ↘ → + Punch)</em></li>
+            <li><kbd>E</kbd>/<kbd>L</kbd> Special 2 <em>(→ ↓ ↘ + Punch/Kick)</em></li>
+            <li><kbd>R</kbd>/<kbd>;</kbd> Special 3 <em>(↓ ↙ ← + Kick)</em></li>
+            <li><kbd>SPACE</kbd> Ultimate / FINISH HIM</li>
+          </ul>
+        </section>
+        <section class="ctrl-card">
+          <h3>CONTROLLER</h3>
+          <ul>
+            <li><kbd>X</kbd><kbd>Y</kbd><kbd>A</kbd><kbd>B</kbd> LP / HP / LK / HK</li>
+            <li><kbd>RB</kbd><kbd>RT</kbd><kbd>LB</kbd> Specials</li>
+            <li><kbd>LT</kbd> Dirty &nbsp; <kbd>R3</kbd> Ultimate</li>
+            <li><kbd>START</kbd> Pause</li>
+          </ul>
+        </section>
       </div>
+      <p class="tip">TIP: Slamming an opponent into a corner makes the crowd bounce them for juggle combos!</p>
+    </details>
 
-      <div class="panel-section specials">
-        <h3>SPECIAL MOVES (QUICK KEYS / MOTIONS)</h3>
-        <div class="control-keys">
-          <span><strong>SPECIAL 1 (FIREBALL / SONIC / WARP):</strong> Q or O (or ↓ ↘ → + Punch)</span>
-          <span><strong>SPECIAL 2 (UPPERCUT / SOMERSAULT / SPIRAL):</strong> E or L (or → ↓ ↘ + Punch/Kick)</span>
-          <span><strong>SPECIAL 3 (HURRICANE / BLITZ / KUNAI):</strong> R or ; (or ↓ ↙ ← + Kick)</span>
-          <span style="color:#fde047"><strong>★ NARUTO ULTIMATE (OUGI):</strong> [SPACE] (When Meter is 100%!)</span>
-          <span style="color:#4ade80"><strong>★ ARENA CROWD SHOVE:</strong> Slamming into corners triggers crowd bounce for juggle combos!</span>
-          <span><strong>DASH:</strong> Double tap [D, D] (Fwd) or [A, A] (Back)</span>
-        </div>
-      </div>
-
-      <div class="panel-section toggles">
-        <h3>SHORTCUTS</h3>
-        <div class="button-group">
-          <button id="settingsBtn" class="arcade-btn highlight-btn">⚙️ PAUSE / SETTINGS [P]</button>
-          <button id="toggleCrtBtn" class="arcade-btn">CRT SCANLINES: ON</button>
-          <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF [H]</button>
-          <button id="toggleEasyBtn" class="arcade-btn">EASY SPECIALS: OFF [T]</button>
-          <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN [F11]</button>
-        </div>
-      </div>
-    </footer>
 
     <!-- Settings Overlay Modal -->
     <div id="settingsModal" class="modal-backdrop" style="display: none;">
@@ -221,7 +241,7 @@
     crtBtn.addEventListener('click', () => {
       crtOn = !crtOn;
       crtOverlay.style.display = crtOn ? 'block' : 'none';
-      crtBtn.textContent = `CRT SCANLINES: ${crtOn ? 'ON' : 'OFF'}`;
+      crtBtn.textContent = `CRT: ${crtOn ? 'ON' : 'OFF'}`;
     });
 
     // Hitboxes toggle button
@@ -229,7 +249,7 @@
     hitboxBtn.addEventListener('click', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' }));
       setTimeout(() => {
-        hitboxBtn.textContent = `HITBOXES: ${window.__GAME_HITBOXES ? 'ON' : 'OFF'} [H]`;
+        hitboxBtn.textContent = `HITBOXES: ${window.__GAME_HITBOXES ? 'ON' : 'OFF'}`;
       }, 50);
     });
 
@@ -238,7 +258,7 @@
     easyBtn.addEventListener('click', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
       setTimeout(() => {
-        easyBtn.textContent = `EASY SPECIALS: ${window.__GAME_EASY ? 'ON' : 'OFF'} [T]`;
+        easyBtn.textContent = `EASY: ${window.__GAME_EASY ? 'ON' : 'OFF'}`;
       }, 50);
     });
 
@@ -367,7 +387,7 @@
 
     document.addEventListener('fullscreenchange', async () => {
       if (fullscreenBtn) {
-        fullscreenBtn.textContent = document.fullscreenElement ? 'EXIT FULLSCREEN [F11]' : 'FULLSCREEN [F11]';
+        fullscreenBtn.textContent = document.fullscreenElement ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
       }
       if (document.fullscreenElement) {
         if (navigator.keyboard && navigator.keyboard.lock) {

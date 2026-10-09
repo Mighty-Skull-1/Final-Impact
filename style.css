@@ -8,63 +8,84 @@
 }
 
 body {
-  background-color: #050508;
-  color: #f1f5f9;
+  background-color: #060202;
+  color: #f5f5f4;
   font-family: 'Press Start 2P', monospace;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(circle at 50% 20%, rgba(219, 39, 119, 0.15) 0%, transparent 60%),
-    radial-gradient(circle at 50% 80%, rgba(37, 99, 235, 0.15) 0%, transparent 60%);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(185, 28, 28, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(250, 204, 21, 0.08) 0%, transparent 55%);
 }
 
 .arcade-cabinet {
   width: 100%;
-  max-width: 1040px;
-  padding: 16px;
+  max-width: 1200px;
+  padding: 12px 16px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
 }
 
-/* Marquee Header */
-.marquee {
+/* Slim top bar */
+.topbar {
   width: 100%;
-  max-width: 960px;
-  background: linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
-  border: 4px solid #facc15;
-  border-radius: 8px;
-  box-shadow: 0 0 24px rgba(250, 204, 21, 0.4), inset 0 0 16px rgba(250, 204, 21, 0.2);
-  padding: 14px 20px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(250, 204, 21, 0.25);
 }
 
-.marquee-glow .logo {
-  font-size: 26px;
-  letter-spacing: 4px;
-  background: linear-gradient(180deg, #fef08a 0%, #f59e0b 45%, #ef4444 80%, #7f1d1d 100%);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-dragon {
+  font-family: serif;
+  font-size: 30px;
+  line-height: 1;
+  color: #facc15;
+  text-shadow: 0 0 12px rgba(220, 38, 38, 0.9);
+}
+
+.brand-text .logo {
+  font-size: 15px;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #fef9c3 0%, #facc15 50%, #dc2626 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 8px rgba(239, 68, 68, 0.6));
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
-.marquee-glow .edition {
-  font-size: 9px;
-  color: #38bdf8;
+.brand-text .edition {
+  font-size: 7px;
+  color: #a8a29e;
   letter-spacing: 3px;
   display: block;
 }
 
-/* CRT Screen Bezel */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* CRT Screen Bezel: sized to fit the viewport */
 .screen-container {
   width: 100%;
-  max-width: 960px;
+  max-width: min(1100px, calc((100vh - 150px) * 16 / 9));
+  min-width: 320px;
   display: flex;
   justify-content: center;
 }
@@ -74,12 +95,12 @@ body {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000000;
-  border: 12px solid #18181b;
-  border-radius: 12px;
-  box-shadow: 
-    0 0 0 4px #27272a,
-    0 12px 36px rgba(0, 0, 0, 0.8),
-    inset 0 0 20px rgba(0, 0, 0, 0.9);
+  border: 8px solid #1c1917;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 2px #7f1d1d,
+    0 0 30px rgba(185, 28, 28, 0.35),
+    0 14px 40px rgba(0, 0, 0, 0.85);
   overflow: hidden;
 }
 
@@ -111,65 +132,122 @@ body {
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.65);
 }
 
-/* Arcade Control Dashboard */
-.control-panel {
+/* Collapsible controls drawer */
+.controls-drawer {
   width: 100%;
-  max-width: 960px;
-  background: #090a10;
-  border: 2px solid #1e293b;
+  max-width: min(1100px, calc((100vh - 150px) * 16 / 9));
+  min-width: 320px;
+  background: rgba(20, 6, 6, 0.85);
+  border: 1px solid #3f1d1d;
   border-radius: 8px;
-  padding: 14px 18px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
   font-size: 8px;
-  line-height: 1.6;
+  line-height: 1.8;
 }
 
-.control-panel h3 {
+.controls-drawer summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 16px;
   color: #facc15;
   font-size: 9px;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-align: center;
 }
 
-.control-keys {
+.controls-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.controls-drawer summary::after {
+  content: '  ▼';
+  color: #b91c1c;
+}
+
+.controls-drawer[open] summary::after {
+  content: '  ▲';
+}
+
+.controls-drawer summary:hover {
+  color: #fef08a;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  padding: 4px 16px 12px;
+}
+
+.ctrl-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid #2a1212;
+  border-top: 2px solid #b91c1c;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.ctrl-card h3 {
+  color: #facc15;
+  font-size: 8px;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.ctrl-card ul {
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  color: #cbd5e1;
+  gap: 5px;
+  color: #d6d3d1;
 }
 
-.control-keys strong {
-  color: #38bdf8;
+.ctrl-card em {
+  color: #78716c;
+  font-style: normal;
+  font-size: 7px;
 }
 
-.toggles {
-  grid-column: 1 / -1;
-  border-top: 1px solid #1e293b;
-  padding-top: 10px;
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 5px;
+  margin-right: 3px;
+  background: #1c1917;
+  border: 1px solid #57534e;
+  border-bottom-width: 3px;
+  border-radius: 4px;
+  color: #fde68a;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  text-align: center;
 }
 
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.tip {
+  padding: 0 16px 14px;
+  color: #86efac;
+  font-size: 7px;
+  text-align: center;
 }
 
 .arcade-btn {
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  color: #f8fafc;
+  background: linear-gradient(180deg, #292524 0%, #1c1917 100%);
+  color: #f5f5f4;
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
-  padding: 8px 12px;
-  border: 2px solid #334155;
+  padding: 9px 12px;
+  border: 2px solid #44403c;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
+.arcade-btn:hover {
+  border-color: #facc15;
+  color: #fde047;
+}
+
 .arcade-btn.highlight-btn {
-  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
   border-color: #facc15;
   color: #ffffff;
 }
@@ -179,6 +257,7 @@ body {
   color: #000000;
   box-shadow: 0 0 14px rgba(250, 204, 21, 0.6);
 }
+
 
 /* Settings Modal Backdrop & Card */
 .modal-backdrop {
@@ -509,12 +588,6 @@ body {
   background: #dc2626;
   color: #ffffff;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
-}
-
-@media (max-width: 768px) {
-  .control-panel {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ========================================================
