@@ -8622,6 +8622,13 @@
       if (diffSelect) diffSelect.value = this.settings.difficulty;
       if (shakeSelect) shakeSelect.value = this.settings.screenShake;
       if (easyToggle) easyToggle.checked = this.settings.easyInputs;
+      const scaleSelect = document.getElementById("screenScaleSelect");
+      if (scaleSelect) {
+        try {
+          scaleSelect.value = localStorage.getItem("final_impact_screen_size") || "large";
+        } catch (e) {
+        }
+      }
       const masterLabel = document.getElementById("masterVolVal");
       const musicLabel = document.getElementById("musicVolVal");
       const sfxLabel = document.getElementById("sfxVolVal");
@@ -8715,6 +8722,7 @@
           "gameSpeedSelect",
           "aiDiffSelect",
           "shakeSelect",
+          "screenScaleSelect",
           "easyInputsCheck",
           "generalLeaveMatchBtn",
           "generalCharSelectBtn",

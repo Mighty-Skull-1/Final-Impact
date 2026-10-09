@@ -28,9 +28,13 @@
         <button id="toggleCrtBtn" class="arcade-btn">CRT: ON</button>
         <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF</button>
         <button id="toggleEasyBtn" class="arcade-btn">EASY: OFF</button>
-        <button id="fullscreenBtn" class="arcade-btn">FULLSCREEN</button>
+        <button id="screenSizeBtn" class="arcade-btn" style="border-color: #38bdf8; color: #7dd3fc;" title="Toggle Screen Scale: Large / Theater / Normal">SIZE: LARGE</button>
+        <button id="fullscreenBtn" class="arcade-btn highlight-btn">FULLSCREEN</button>
       </nav>
     </header>
+
+    <!-- Floating Exit Button for Fullscreen -->
+    <button id="fsFloatingExitBtn" class="fs-floating-exit">✕ EXIT FULLSCREEN [F11]</button>
 
     <!-- CRT Bezel & Screen Wrapper -->
     <main class="screen-container">
@@ -144,6 +148,15 @@
                 <option value="off">Off (Zero Shake)</option>
                 <option value="low">Low Shake</option>
                 <option value="full" selected>Full Impact</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="screenScaleSelect">Display Scale:</label>
+              <select id="screenScaleSelect" class="arcade-select">
+                <option value="large" selected>Large (Fit Window - Recommended)</option>
+                <option value="max">Max / Theater (Ultra-Wide Fill)</option>
+                <option value="normal">Classic (Retro Cabinet 1100px)</option>
               </select>
             </div>
 
@@ -412,7 +425,59 @@
       }
     });
 
-    // Fullscreen toggle with Keyboard Lock API (Prevents Escape from exiting fullscreen)
+    // Screen Scale Mode Management (Large / Max / Normal)
+    const SCREEN_MODES = [
+      { id: 'large', label: 'SIZE: LARGE', desc: 'Fills window cleanly' },
+      { id: 'max', label: 'SIZE: MAX', desc: 'Ultra-wide theater fill' },
+      { id: 'normal', label: 'SIZE: NORMAL', desc: 'Classic 1100px cabinet' }
+    ];
+    let currentScreenModeIdx = 0;
+    try {
+      const savedMode = localStorage.getItem('final_impact_screen_size');
+      const idx = SCREEN_MODES.findIndex(m => m.id === savedMode);
+      if (idx !== -1) currentScreenModeIdx = idx;
+    } catch (e) {}
+
+    const screenSizeBtn = document.getElementById('screenSizeBtn');
+    const screenScaleSelect = document.getElementById('screenScaleSelect');
+
+    function applyScreenMode(idx) {
+      currentScreenModeIdx = (idx + SCREEN_MODES.length) % SCREEN_MODES.length;
+      const mode = SCREEN_MODES[currentScreenModeIdx];
+      document.body.classList.remove('screen-size-normal', 'screen-size-large', 'screen-size-max');
+      document.body.classList.add(`screen-size-${mode.id}`);
+
+      if (screenSizeBtn) {
+        screenSizeBtn.textContent = mode.label;
+        screenSizeBtn.title = `Screen Scale: ${mode.desc} (Click to cycle)`;
+        screenSizeBtn.style.color = mode.id === 'max' ? '#f43f5e' : (mode.id === 'large' ? '#7dd3fc' : '#a8a29e');
+        screenSizeBtn.style.borderColor = mode.id === 'max' ? '#f43f5e' : (mode.id === 'large' ? '#38bdf8' : '#78716c');
+      }
+      if (screenScaleSelect) {
+        screenScaleSelect.value = mode.id;
+      }
+      try {
+        localStorage.setItem('final_impact_screen_size', mode.id);
+      } catch (e) {}
+    }
+
+    if (screenSizeBtn) {
+      screenSizeBtn.addEventListener('click', () => {
+        applyScreenMode(currentScreenModeIdx + 1);
+      });
+    }
+
+    if (screenScaleSelect) {
+      screenScaleSelect.addEventListener('change', (e) => {
+        const idx = SCREEN_MODES.findIndex(m => m.id === e.target.value);
+        if (idx !== -1) applyScreenMode(idx);
+      });
+    }
+
+    // Initialize screen scale on load
+    applyScreenMode(currentScreenModeIdx);
+
+    // Fullscreen toggle with Keyboard Lock API
     async function toggleFullscreen() {
       try {
         if (!document.fullscreenElement) {
@@ -434,11 +499,16 @@
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 
+    const fsFloatingExitBtn = document.getElementById('fsFloatingExitBtn');
+    if (fsFloatingExitBtn) fsFloatingExitBtn.addEventListener('click', toggleFullscreen);
+
     document.addEventListener('fullscreenchange', async () => {
+      const isFs = !!document.fullscreenElement;
+      document.body.classList.toggle('is-fullscreen', isFs);
       if (fullscreenBtn) {
-        fullscreenBtn.textContent = document.fullscreenElement ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+        fullscreenBtn.textContent = isFs ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
       }
-      if (document.fullscreenElement) {
+      if (isFs) {
         if (navigator.keyboard && navigator.keyboard.lock) {
           try {
             await navigator.keyboard.lock(['Escape']);
@@ -459,7 +529,6 @@
         toggleFullscreen();
       }
       if (e.code === 'Escape' && document.fullscreenElement) {
-        // Prevent default browser escape-from-fullscreen behavior so Escape doesn't exit fullscreen
         e.preventDefault();
       }
     });
