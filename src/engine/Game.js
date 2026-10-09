@@ -93,7 +93,7 @@ export class Game {
         this.isOnline = false;
         this.isCoopCampaign = false;
         soundFX.playBlock();
-        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER || this.screen === GAME_SCREENS.VERSUS) {
+        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER || this.screen === GAME_SCREENS.VERSUS || this.screen === GAME_SCREENS.STAGE_SELECT) {
           this.onlineLobby.reset();
           this.onlineLobby.subState = 'MENU';
           this.onlineLobby.netplay.statusMessage = 'CHALLENGER DISCONNECTED';
@@ -121,6 +121,23 @@ export class Game {
         }
         if (msg.startMatch) {
           this.startMatch();
+        }
+      } else if (msg.type === 'STAGE_SCREEN') {
+        if (!this.netplay.isHost) {
+          if (msg.p1Index !== undefined) this.charSelect.p1Index = msg.p1Index;
+          if (msg.matchMode) {
+            this.onlineLobby.matchMode = msg.matchMode;
+            this.charSelect.gameMode = msg.matchMode;
+          }
+          this.goToStageSelect();
+          if (msg.index !== undefined) this.stageSelect.setIndex(msg.index);
+        }
+      } else if (msg.type === 'STAGE_NAV') {
+        if (!this.netplay.isHost && this.screen === GAME_SCREENS.STAGE_SELECT) this.stageSelect.setIndex(msg.index);
+      } else if (msg.type === 'STAGE_BACK') {
+        if (!this.netplay.isHost && this.screen === GAME_SCREENS.STAGE_SELECT) {
+          this.screen = GAME_SCREENS.CHAR_SELECT;
+          soundFX.playWhoosh('light');
         }
       } else if (msg.type === 'CAMPAIGN_NEXT_STAGE') {
         this.bossIndex = msg.bossIndex;
@@ -174,6 +191,14 @@ export class Game {
         }, () => {
           this.handleConfirmPress();
         }, this.canvas.width, this.canvas.height);
+      } else if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+        this.stageSelect.handleClick(x, y, this.canvas.width, this.canvas.height, {
+          onBack: () => this.handleBackPress(),
+          onConfirm: () => this.handleConfirmPress()
+        });
+        if (this.isOnline && this.netplay.isHost && this.screen === GAME_SCREENS.STAGE_SELECT) {
+          this.netplay.send({ type: 'STAGE_NAV', index: this.stageSelect.index });
+        }
       } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
         this.onlineLobby.handleClick(x, y);
       } else if (this.screen === GAME_SCREENS.VICTORY) {
@@ -405,14 +430,20 @@ export class Game {
       }
       if (this.isOnline) {
         if (this.netplay.isHost) {
-          this.netplay.send({
-            type: 'CHAR_SYNC',
-            p1Index: this.charSelect.p1Index,
-            stageIndex: this.charSelect.stageIndex,
-            matchMode: this.onlineLobby.matchMode,
-            startMatch: true
-          });
-          this.startMatch();
+          if (this.onlineLobby.matchMode === 'coop_campaign') {
+            this.netplay.send({
+              type: 'CHAR_SYNC',
+              p1Index: this.charSelect.p1Index,
+              stageIndex: this.charSelect.stageIndex,
+              matchMode: this.onlineLobby.matchMode,
+              startMatch: true
+            });
+            this.startMatch();
+          } else {
+            // Versus: host picks the arena on the Stage Select screen
+            this.goToStageSelect();
+            this.netplay.send({ type: 'STAGE_SCREEN', p1Index: this.charSelect.p1Index, p2Index: this.charSelect.p2Index, matchMode: this.onlineLobby.matchMode, index: this.stageSelect.index });
+          }
         } else {
           this.netplay.send({
             type: 'CHAR_SYNC',
@@ -497,8 +528,10 @@ export class Game {
         this.screen = GAME_SCREENS.MODE_SELECT;
       }
     } else if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+      if (this.isOnline && !this.netplay.isHost) return;
       soundFX.playWhoosh('light');
       this.screen = GAME_SCREENS.CHAR_SELECT;
+      if (this.isOnline) this.netplay.send({ type: 'STAGE_BACK' });
     } else if (this.screen === GAME_SCREENS.VICTORY) {
       soundFX.playWhoosh('light');
       if (this.isOnline) {
@@ -756,18 +789,28 @@ export class Game {
 
   goToStageSelect() {
     const gm = this.charSelect.gameMode;
-    const p2Name = gm === '2p' ? 'PLAYER 2' : (gm === 'training' ? 'DUMMY' : 'CPU');
+    const p2Name = gm === '2p' ? 'PLAYER 2' : (gm === 'training' ? 'DUMMY' : (this.isOnline ? 'CHALLENGER' : 'CPU'));
     const names = this.charSelect.characters || [];
     const nm = (i) => (names[i] && names[i].name) ? names[i].name : '';
-    this.stageSelect.setContext({ mode: gm, p1Name: nm(this.charSelect.p1Index), p2Name: gm === '2p' ? nm(this.charSelect.p2Index) : p2Name, canChoose: true });
+    this.stageSelect.setContext({ mode: gm, p1Name: nm(this.charSelect.p1Index), p2Name: (gm === '2p' || this.isOnline) ? (nm(this.charSelect.p2Index) || p2Name) : p2Name, canChoose: !this.isOnline || this.netplay.isHost });
     this.stageSelect.setIndex(this.charSelect.stageIndex || 0);
     this.screen = GAME_SCREENS.STAGE_SELECT;
     soundFX.playMenuSelect();
   }
 
   confirmStage() {
+    if (this.isOnline && !this.netplay.isHost) return; // only the host picks the arena
     this.charSelect.stageIndex = this.stageSelect.resolveSelection();
     soundFX.playGong();
+    if (this.isOnline) {
+      this.netplay.send({
+        type: 'CHAR_SYNC',
+        p1Index: this.charSelect.p1Index,
+        stageIndex: this.charSelect.stageIndex,
+        matchMode: this.onlineLobby.matchMode,
+        startMatch: true
+      });
+    }
     this.startMatch();
   }
 
@@ -1192,8 +1235,11 @@ export class Game {
       const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || nav.down;
       if (left || right || up || down) {
         ['KeyA', 'ArrowLeft', 'Numpad4', 'KeyD', 'ArrowRight', 'Numpad6', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown'].forEach(k => input.consumeKey(k));
-        this.stageSelect.handleInput({ left, right, up, down });
-        soundFX.playWhoosh('light');
+        if (!this.isOnline || this.netplay.isHost) {
+          this.stageSelect.handleInput({ left, right, up, down });
+          soundFX.playWhoosh('light');
+          if (this.isOnline) this.netplay.send({ type: 'STAGE_NAV', index: this.stageSelect.index });
+        }
       }
       if (nav.confirm) this.handleConfirmPress();
       else if (nav.back) this.handleBackPress();
