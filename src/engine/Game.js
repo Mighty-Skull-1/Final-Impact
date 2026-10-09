@@ -406,6 +406,21 @@ export class Game {
     });
   }
 
+  syncStealthUI() {
+    try {
+      if (typeof document === 'undefined') return;
+      const stealth = isStealthMode();
+      const topbarAdminBtn = document.getElementById('topbarAdminBtn');
+      if (topbarAdminBtn) {
+        topbarAdminBtn.style.display = stealth ? 'none' : 'inline-block';
+      }
+      const adminGroup = document.getElementById('adminPortalLauncherGroup');
+      if (adminGroup) {
+        adminGroup.style.display = stealth ? 'none' : 'block';
+      }
+    } catch (e) {}
+  }
+
   handleConfirmPress() {
     soundFX.ensureContext();
 

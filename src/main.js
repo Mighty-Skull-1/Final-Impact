@@ -2,9 +2,13 @@
 import { Game } from './engine/Game.js';
 import { soundFX } from './audio/SoundFX.js';
 
-window.addEventListener('DOMContentLoaded', () => {
+function initGame() {
   const canvas = document.getElementById('gameCanvas');
+  if (!canvas) return;
+  if (window.__GAME_INSTANCE) return;
+
   const game = new Game(canvas);
+  window.__GAME_INSTANCE = game;
 
   // Resume Web Audio Context on first interaction
   const unlockAudio = () => {
@@ -52,4 +56,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   requestAnimationFrame(loop);
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initGame);
+} else {
+  initGame();
+}
