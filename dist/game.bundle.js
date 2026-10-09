@@ -3088,22 +3088,6 @@
           color: "#facc15"
         },
         {
-          id: "arcade_towers",
-          badge: "CHOOSE YOUR DESTINY",
-          title: "\u{1F3DB}\uFE0F ARCADE TOWERS",
-          subtitle: "NOVICE / WARRIOR / MASTER",
-          description: "Mortal Kombat style stone monolith tower climbing. Ascend the floors, face scaling rivals, and conquer Test Your Might checkpoints.",
-          color: "#ef4444"
-        },
-        {
-          id: "test_your_might",
-          badge: "BUTTON MASH",
-          title: "\u{1FAB5} TEST YOUR MIGHT",
-          subtitle: "CHOP WOOD, STONE & DIAMOND",
-          description: "Mash attack buttons to build up power above the chop line and karate chop through dense materials for big tournament coin payouts.",
-          color: "#f59e0b"
-        },
-        {
           id: "coop_campaign",
           badge: "2P CO-OP RAID",
           title: "\u{1F91D} CO-OP CAMPAIGN",
@@ -18355,459 +18339,6 @@
   };
   var eldenManager = new EldenRingManager();
 
-  // src/ui/ArcadeTower.js
-  var ARCADE_TOWERS = [
-    {
-      id: "novice",
-      name: "NOVICE TOWER",
-      subtitle: "5 FLOORS",
-      color: "#38bdf8",
-      description: "Entry tournament ladder for emerging warriors.",
-      floors: [
-        { type: "fight", opponent: "zephyr", stage: "dojo" },
-        { type: "fight", opponent: "fang", stage: "underground_club" },
-        { type: "fight", opponent: "glacier", stage: "cyber_city" },
-        { type: "fight", opponent: "cinder", stage: "lava_shrine" },
-        { type: "fight", opponent: "kazuki", stage: "rooftop", isBoss: true }
-      ]
-    },
-    {
-      id: "warrior",
-      name: "WARRIOR TOWER",
-      subtitle: "8 FLOORS",
-      color: "#eab308",
-      description: "Veteran tournament gauntlet with Test Your Might trial.",
-      floors: [
-        { type: "fight", opponent: "zephyr", stage: "dojo" },
-        { type: "fight", opponent: "fang", stage: "underground_club" },
-        { type: "fight", opponent: "colossus", stage: "temple" },
-        { type: "minigame", minigame: "test_your_might", tier: 1 },
-        { type: "fight", opponent: "glacier", stage: "cyber_city" },
-        { type: "fight", opponent: "cinder", stage: "lava_shrine" },
-        { type: "fight", opponent: "raven", stage: "neon_cyber" },
-        { type: "fight", opponent: "kazuki", stage: "rooftop", isBoss: true }
-      ]
-    },
-    {
-      id: "master",
-      name: "MASTER TOWER",
-      subtitle: "12 FLOORS",
-      color: "#ef4444",
-      description: "Ultimate Mortal Kombat trial ending with the Endless Dragon.",
-      floors: [
-        { type: "fight", opponent: "zephyr", stage: "dojo" },
-        { type: "fight", opponent: "fang", stage: "underground_club" },
-        { type: "fight", opponent: "colossus", stage: "temple" },
-        { type: "minigame", minigame: "test_your_might", tier: 2 },
-        { type: "fight", opponent: "glacier", stage: "cyber_city" },
-        { type: "fight", opponent: "cinder", stage: "lava_shrine" },
-        { type: "fight", opponent: "kagura", stage: "shrine" },
-        { type: "fight", opponent: "raven", stage: "neon_cyber" },
-        { type: "minigame", minigame: "test_your_might", tier: 3 },
-        { type: "fight", opponent: "kazuki", stage: "rooftop" },
-        { type: "fight", opponent: "champion", stage: "grand_shrine", isSubBoss: true },
-        { type: "fight", opponent: "endless_dragon", stage: "dragon_peak", isBoss: true }
-      ]
-    }
-  ];
-  var ArcadeTowerScreen = class {
-    constructor() {
-      this.selectedTowerIndex = 1;
-      this.currentFloor = 0;
-      this.subState = "SELECT";
-      this.animTimer = 0;
-      this.playerCharId = "kazuki";
-    }
-    get currentTower() {
-      return ARCADE_TOWERS[this.selectedTowerIndex];
-    }
-    getCurrentFloorData() {
-      const tower = this.currentTower;
-      return tower.floors[this.currentFloor] || null;
-    }
-    advanceFloor() {
-      this.currentFloor++;
-      if (this.currentFloor >= this.currentTower.floors.length) {
-        return { complete: true };
-      }
-      return { complete: false, next: this.getCurrentFloorData() };
-    }
-    resetProgress(charId = "kazuki") {
-      this.currentFloor = 0;
-      this.subState = "LADDER";
-      this.playerCharId = charId;
-    }
-    handleInput(inputState) {
-      if (this.subState === "SELECT") {
-        if (inputState.left) {
-          this.selectedTowerIndex = (this.selectedTowerIndex - 1 + ARCADE_TOWERS.length) % ARCADE_TOWERS.length;
-          soundFX.playWhoosh("light");
-        } else if (inputState.right) {
-          this.selectedTowerIndex = (this.selectedTowerIndex + 1) % ARCADE_TOWERS.length;
-          soundFX.playWhoosh("light");
-        }
-      }
-    }
-    handleClick(x, y, onBack, onSelectTower, W = 640, H = 360) {
-      if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
-        soundFX.playWhoosh("light");
-        if (onBack) onBack();
-        return true;
-      }
-      if (this.subState === "SELECT") {
-        const cardW = 160;
-        const cardH = 220;
-        const cardY = 70;
-        const gap = 20;
-        const totalW = ARCADE_TOWERS.length * cardW + (ARCADE_TOWERS.length - 1) * gap;
-        const startX = (W - totalW) / 2;
-        for (let i = 0; i < ARCADE_TOWERS.length; i++) {
-          const cx = startX + i * (cardW + gap);
-          if (x >= cx && x <= cx + cardW && y >= cardY && y <= cardY + cardH) {
-            if (this.selectedTowerIndex === i) {
-              if (onSelectTower) onSelectTower(this.currentTower);
-            } else {
-              this.selectedTowerIndex = i;
-              soundFX.playWhoosh("light");
-            }
-            return true;
-          }
-        }
-      } else if (this.subState === "LADDER") {
-        if (y >= H - 46 && y <= H - 12) {
-          if (onSelectTower) onSelectTower(this.currentTower);
-          return true;
-        }
-      }
-      return false;
-    }
-    render(ctx, W = 640, H = 360) {
-      this.animTimer++;
-      const t = this.animTimer;
-      const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, "#0c070e");
-      bg.addColorStop(0.6, "#180a18");
-      bg.addColorStop(1, "#050206");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-      for (let i = 0; i < 20; i++) {
-        const ex = (i * 73 + Math.sin(t * 0.02 + i) * 16 + W) % W;
-        const ey = H - (t * (0.4 + i % 4 * 0.15) + i * 37) % H;
-        ctx.fillStyle = i % 2 === 0 ? "#ef4444" : "#f59e0b";
-        ctx.globalAlpha = 0.25;
-        ctx.fillRect(ex, ey, 2, 2);
-      }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "#450a0a";
-      ctx.fillRect(12, 10, 98, 24);
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(12.5, 10.5, 97, 23);
-      ctx.fillStyle = "#fde68a";
-      ctx.font = "bold 9px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("< BACK [B]", 61, 25);
-      if (this.subState === "SELECT") {
-        this.renderTowerSelection(ctx, W, H);
-      } else {
-        this.renderLadderView(ctx, W, H);
-      }
-    }
-    renderTowerSelection(ctx, W, H) {
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#facc15";
-      ctx.font = "900 20px serif";
-      ctx.fillText("CHOOSE YOUR DESTINY", W / 2, 34);
-      ctx.font = '7px "Press Start 2P"';
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText("SELECT AN ARCADE TOWER MONOLITH TO CLIMB", W / 2, 48);
-      const cardW = 160;
-      const cardH = 220;
-      const cardY = 65;
-      const gap = 20;
-      const totalW = ARCADE_TOWERS.length * cardW + (ARCADE_TOWERS.length - 1) * gap;
-      const startX = (W - totalW) / 2;
-      for (let i = 0; i < ARCADE_TOWERS.length; i++) {
-        const tow = ARCADE_TOWERS[i];
-        const cx = startX + i * (cardW + gap);
-        const isSel = i === this.selectedTowerIndex;
-        ctx.fillStyle = isSel ? "#1c1917" : "#0c0a09";
-        ctx.fillRect(cx, cardY, cardW, cardH);
-        ctx.strokeStyle = isSel ? tow.color : "#44403c";
-        ctx.lineWidth = isSel ? 2.5 : 1;
-        ctx.strokeRect(cx, cardY, cardW, cardH);
-        ctx.fillStyle = isSel ? tow.color : "#292524";
-        ctx.fillRect(cx, cardY, cardW, 28);
-        ctx.fillStyle = isSel ? "#000000" : "#d6d3d1";
-        ctx.font = "bold 10px monospace";
-        ctx.fillText(tow.name, cx + cardW / 2, cardY + 18);
-        ctx.fillStyle = tow.color;
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillText(tow.subtitle, cx + cardW / 2, cardY + 54);
-        const blockH = 10;
-        const numBlocks = tow.floors.length;
-        const bY0 = cardY + 70;
-        for (let f = 0; f < numBlocks; f++) {
-          const by = bY0 + (numBlocks - 1 - f) * (blockH + 2);
-          const fl = tow.floors[f];
-          if (fl.type === "minigame") {
-            ctx.fillStyle = "#f59e0b";
-          } else if (fl.isBoss) {
-            ctx.fillStyle = "#ef4444";
-          } else {
-            ctx.fillStyle = "#57534e";
-          }
-          ctx.fillRect(cx + 20, by, cardW - 40, blockH);
-          ctx.strokeStyle = "#292524";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(cx + 20, by, cardW - 40, blockH);
-        }
-        ctx.fillStyle = "#a8a29e";
-        ctx.font = "7px monospace";
-        ctx.fillText(isSel ? "\u25B6 PRESS SPACE TO ASCEND \u25C0" : "CLICK OR USE ARROWS", cx + cardW / 2, cardY + cardH - 12);
-      }
-    }
-    renderLadderView(ctx, W, H) {
-      const tower = this.currentTower;
-      const floors = tower.floors;
-      ctx.textAlign = "center";
-      ctx.fillStyle = tower.color;
-      ctx.font = "900 16px serif";
-      ctx.fillText(`${tower.name} \u2014 FLOOR ${this.currentFloor + 1} OF ${floors.length}`, W / 2, 30);
-      const colW = 200;
-      const colX = (W - colW) / 2;
-      const rowH = 22;
-      const startY = 50;
-      for (let f = 0; f < floors.length; f++) {
-        const fl = floors[f];
-        const ry = startY + (floors.length - 1 - f) * (rowH + 2);
-        const isCurrent = f === this.currentFloor;
-        const isBeaten = f < this.currentFloor;
-        ctx.fillStyle = isCurrent ? "#292524" : isBeaten ? "#1c1917" : "#0c0a09";
-        ctx.fillRect(colX, ry, colW, rowH);
-        ctx.strokeStyle = isCurrent ? "#facc15" : "#44403c";
-        ctx.lineWidth = isCurrent ? 2 : 1;
-        ctx.strokeRect(colX, ry, colW, rowH);
-        let label = fl.type === "fight" ? fl.opponent.toUpperCase() : "\u2605 TEST YOUR MIGHT \u2605";
-        if (fl.isBoss) label = `\u{1F451} BOSS: ${label}`;
-        ctx.fillStyle = isCurrent ? "#facc15" : isBeaten ? "#6ee7b7" : "#94a3b8";
-        ctx.font = isCurrent ? "bold 9px monospace" : "8px monospace";
-        ctx.fillText(label, colX + colW / 2, ry + 15);
-        if (isCurrent) {
-          ctx.fillStyle = "#ef4444";
-          ctx.fillText("\u25B6", colX - 16, ry + 15);
-          ctx.fillText("\u25C0", colX + colW + 16, ry + 15);
-        }
-      }
-      ctx.fillStyle = "#dc2626";
-      ctx.fillRect(W / 2 - 120, H - 38, 240, 26);
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(W / 2 - 120, H - 38, 240, 26);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 9px monospace";
-      ctx.fillText("ENTER FLOOR BATTLE [SPACE]", W / 2, H - 22);
-    }
-  };
-  var arcadeTowerScreen = new ArcadeTowerScreen();
-
-  // src/minigames/TestYourMight.js
-  var TEST_MATERIALS = [
-    { id: "wood", name: "PINE WOOD", requiredPower: 42, reward: 250, color: "#b45309", debrisColor: "#d97706" },
-    { id: "stone", name: "GRANITE STONE", requiredPower: 58, reward: 500, color: "#64748b", debrisColor: "#94a3b8" },
-    { id: "steel", name: "TEMPERED STEEL", requiredPower: 74, reward: 1e3, color: "#0284c7", debrisColor: "#38bdf8" },
-    { id: "diamond", name: "ELDEN DIAMOND", requiredPower: 88, reward: 2500, color: "#eab308", debrisColor: "#fef08a" }
-  ];
-  var TestYourMight = class {
-    constructor() {
-      this.reset();
-    }
-    reset(tier = 0) {
-      this.active = false;
-      this.tier = Math.max(0, Math.min(tier, TEST_MATERIALS.length - 1));
-      this.material = TEST_MATERIALS[this.tier];
-      this.power = 0;
-      this.maxPower = 100;
-      this.decayRate = 0.55 + this.tier * 0.18;
-      this.timer = 300;
-      this.state = "playing";
-      this.animTimer = 0;
-      this.debris = [];
-      this.resultDelay = 0;
-    }
-    start(tier = 0) {
-      this.reset(tier);
-      this.active = true;
-      try {
-        announcer.testYourMight();
-        soundFX.playGong();
-      } catch (e) {
-      }
-    }
-    handleInput(inputState) {
-      if (!this.active || this.state !== "playing") return;
-      if (inputState.lp || inputState.hp || inputState.lk || inputState.hk || inputState.special1 || inputState.special2) {
-        this.power = Math.min(this.maxPower, this.power + 5.5);
-        try {
-          soundFX.playHitLight();
-        } catch (e) {
-        }
-      }
-      if (inputState.confirm || inputState.space || inputState.chop) {
-        this.executeChop();
-      }
-    }
-    executeChop() {
-      if (this.state !== "playing") return;
-      if (this.power >= this.material.requiredPower) {
-        this.state = "chop_success";
-        this.resultDelay = 120;
-        EconomyManager.addCoins(this.material.reward);
-        try {
-          soundFX.playUltimateFinisher();
-          soundFX.playLowGong();
-        } catch (e) {
-        }
-        this.spawnDebris(320, 220, this.material.debrisColor, 40);
-      } else {
-        this.state = "chop_fail";
-        this.resultDelay = 100;
-        try {
-          soundFX.playBlock();
-        } catch (e) {
-        }
-      }
-    }
-    spawnDebris(x, y, color, count = 30) {
-      for (let i = 0; i < count; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const sp = 3 + Math.random() * 8;
-        this.debris.push({
-          x,
-          y,
-          vx: Math.cos(a) * sp,
-          vy: Math.sin(a) * sp - 3,
-          color,
-          size: 3 + Math.random() * 5,
-          life: 40 + Math.random() * 30
-        });
-      }
-    }
-    update() {
-      if (!this.active) return false;
-      this.animTimer++;
-      this.debris = this.debris.filter((d) => {
-        d.x += d.vx;
-        d.y += d.vy;
-        d.vy += 0.3;
-        d.life--;
-        return d.life > 0;
-      });
-      if (this.state === "playing") {
-        this.power = Math.max(0, this.power - this.decayRate);
-        this.timer--;
-        if (this.timer <= 0) {
-          this.executeChop();
-        }
-      } else if (this.state === "chop_success" || this.state === "chop_fail") {
-        this.resultDelay--;
-        if (this.resultDelay <= 0) {
-          this.active = false;
-          return true;
-        }
-      }
-      return false;
-    }
-    render(ctx, W = 640, H = 360) {
-      if (!this.active) return;
-      const t = this.animTimer;
-      ctx.fillStyle = "#0f0a0d";
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "#1c1917";
-      ctx.fillRect(40, 40, 50, H - 40);
-      ctx.fillRect(W - 90, 40, 50, H - 40);
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#dc2626";
-      ctx.font = "900 24px serif";
-      ctx.fillText("TEST YOUR MIGHT", W / 2, 44);
-      ctx.fillStyle = "#fef08a";
-      ctx.font = '8px "Press Start 2P"';
-      ctx.fillText(`MATERIAL: ${this.material.name}  |  REWARD: \u{1FA99} ${this.material.reward}`, W / 2, 64);
-      const secRemain = Math.max(0, this.timer / 60).toFixed(1);
-      ctx.fillStyle = this.timer < 60 ? "#ef4444" : "#ffffff";
-      ctx.font = "900 18px monospace";
-      ctx.fillText(`TIME: ${secRemain}s`, W / 2, 92);
-      const blockX = W / 2;
-      const blockY = 220;
-      ctx.fillStyle = "#292524";
-      ctx.fillRect(blockX - 60, blockY, 120, 70);
-      ctx.strokeStyle = "#44403c";
-      ctx.strokeRect(blockX - 60, blockY, 120, 70);
-      if (this.state !== "chop_success") {
-        ctx.fillStyle = this.material.color;
-        ctx.fillRect(blockX - 45, blockY - 30, 90, 30);
-        ctx.strokeStyle = "#facc15";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(blockX - 45, blockY - 30, 90, 30);
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 8px monospace";
-        ctx.fillText(this.material.name, blockX, blockY - 12);
-      }
-      this.debris.forEach((d) => {
-        ctx.fillStyle = d.color;
-        ctx.fillRect(d.x, d.y, d.size, d.size);
-      });
-      const meterX = 140;
-      const meterY = 90;
-      const meterW = 28;
-      const meterH = 170;
-      ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-      ctx.fillRect(meterX, meterY, meterW, meterH);
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(meterX, meterY, meterW, meterH);
-      const fillH = this.power / this.maxPower * (meterH - 4);
-      const fillY = meterY + meterH - 2 - fillH;
-      const isReady = this.power >= this.material.requiredPower;
-      const meterGrad = ctx.createLinearGradient(0, meterY + meterH, 0, meterY);
-      meterGrad.addColorStop(0, "#22c55e");
-      meterGrad.addColorStop(0.6, "#facc15");
-      meterGrad.addColorStop(1, "#ef4444");
-      ctx.fillStyle = isReady ? "#22c55e" : meterGrad;
-      ctx.fillRect(meterX + 2, fillY, meterW - 4, fillH);
-      const threshY = meterY + meterH - 2 - this.material.requiredPower / this.maxPower * (meterH - 4);
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(meterX - 6, threshY);
-      ctx.lineTo(meterX + meterW + 6, threshY);
-      ctx.stroke();
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 8px monospace";
-      ctx.fillText("CHOP LINE", meterX + meterW / 2 + 50, threshY + 3);
-      if (this.state === "playing") {
-        const pulse = Math.floor(t / 10) % 2 === 0 ? 1 : 0.7;
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = isReady ? "#4ade80" : "#fde047";
-        ctx.font = "bold 11px monospace";
-        ctx.fillText(isReady ? "PRESS [SPACE] TO CHOP NOW!" : "MASH [U / I / J / K] RAPIDLY!", W / 2, H - 36);
-        ctx.globalAlpha = 1;
-      } else if (this.state === "chop_success") {
-        ctx.fillStyle = "#4ade80";
-        ctx.font = "900 18px monospace";
-        ctx.fillText("FLAWLESS CHOP! EXCELLENT!", W / 2, H - 36);
-        ctx.fillStyle = "#fde047";
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillText(`+${this.material.reward} TOURNAMENT COINS EARNED`, W / 2, H - 18);
-      } else if (this.state === "chop_fail") {
-        ctx.fillStyle = "#ef4444";
-        ctx.font = "900 16px monospace";
-        ctx.fillText("CHOP FAILED! WEAK IMPACT!", W / 2, H - 36);
-      }
-    }
-  };
-  var testYourMight = new TestYourMight();
-
   // src/engine/Game.js
   var GAME_SCREENS = {
     TITLE: "TITLE",
@@ -18820,8 +18351,6 @@
     ROUND_OVER: "ROUND_OVER",
     VICTORY: "VICTORY",
     SHOP: "SHOP",
-    ARCADE_TOWERS: "ARCADE_TOWERS",
-    TEST_YOUR_MIGHT: "TEST_YOUR_MIGHT",
     SITE_OF_GRACE: "SITE_OF_GRACE"
   };
   var Game = class {
@@ -18843,8 +18372,6 @@
       this.stageSelect = new StageSelect(STAGE_CATALOG);
       this.versus = new VersusScreen();
       this.finish = new FinishHim();
-      this.arcadeTowers = arcadeTowerScreen;
-      this.testYourMight = testYourMight;
       this.elden = eldenManager;
       this.announcer = announcer;
       this.syncStealthUI();
@@ -18983,14 +18510,6 @@
             this.onlineLobby.handleClick(x, y);
           } else if (this.screen === GAME_SCREENS.VICTORY) {
             this.handleVictoryClick(x, y);
-          } else if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-            this.arcadeTowers.handleClick(x, y, () => {
-              this.screen = GAME_SCREENS.MODE_SELECT;
-            }, () => {
-              this.handleConfirmPress();
-            }, this.canvas.width, this.canvas.height);
-          } else if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-            this.testYourMight.handleInput({ confirm: true, space: true });
           } else if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
             const res = this.elden.executeGraceSelection();
             if (res && res.action === "proceed") {
@@ -19158,17 +18677,6 @@
           soundFX.playMenuSelect();
           return;
         }
-        if (this.modeSelect.selectedMode === "arcade_towers") {
-          this.arcadeTowers.subState = "SELECT";
-          this.screen = GAME_SCREENS.ARCADE_TOWERS;
-          soundFX.playMenuSelect();
-          return;
-        }
-        if (this.modeSelect.selectedMode === "test_your_might") {
-          this.testYourMight.start(1);
-          this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
-          return;
-        }
         if (this.modeSelect.selectedMode === "coop_campaign") {
           this.onlineLobby.reset(true);
           this.onlineLobby.matchMode = "coop_campaign";
@@ -19186,27 +18694,6 @@
         this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
         this.charSelect.refreshPreviews();
         this.screen = GAME_SCREENS.CHAR_SELECT;
-        return;
-      }
-      if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-        if (this.arcadeTowers.subState === "SELECT") {
-          this.arcadeTowers.subState = "LADDER";
-          soundFX.playMenuSelect();
-        } else {
-          const floor = this.arcadeTowers.getCurrentFloorData();
-          if (floor) {
-            if (floor.type === "minigame") {
-              this.testYourMight.start(floor.tier || 1);
-              this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
-            } else {
-              this.startTowerMatch(floor);
-            }
-          }
-        }
-        return;
-      }
-      if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-        this.testYourMight.handleInput({ confirm: true, space: true });
         return;
       }
       if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
@@ -19308,20 +18795,6 @@
         soundFX.playWhoosh("light");
         this.screen = GAME_SCREENS.MODE_SELECT;
         this.charSelect.refreshPreviews();
-        return;
-      }
-      if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-        soundFX.playWhoosh("light");
-        if (this.arcadeTowers.subState === "LADDER") {
-          this.arcadeTowers.subState = "SELECT";
-        } else {
-          this.screen = GAME_SCREENS.MODE_SELECT;
-        }
-        return;
-      }
-      if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-        soundFX.playWhoosh("light");
-        this.screen = GAME_SCREENS.MODE_SELECT;
         return;
       }
       if (this.screen === GAME_SCREENS.MODE_SELECT) {
@@ -19574,26 +19047,6 @@
         this.announcer.round1();
       } catch (e) {
       }
-    }
-    startTowerMatch(floor) {
-      soundFX.stopMusic();
-      const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
-      this.stage = new Stage(floor.stage || "suzaku");
-      this.round = 1;
-      this.projectiles = [];
-      this.spawnDefaultPickups();
-      this.f1 = this.createFighter(p1Id, 220, true, 1, false);
-      this.f2 = this.createFighter(floor.opponent, 700, false, 2, true);
-      this.f3 = null;
-      this.f4 = null;
-      this.allFighters = [this.f1, this.f2];
-      this.elden.applyUpgradesToFighter(this.f1);
-      this.ai.setDifficulty(floor.isBoss ? "hard" : "normal", 5);
-      this.isArcadeTower = true;
-      this.hud.reset(1);
-      this.hud.p1RedHealth = this.f1.health;
-      this.hud.p2RedHealth = this.f2.health;
-      this.beginVersus();
     }
     startNextCampaignStage() {
       this.bossIndex++;
@@ -19962,54 +19415,6 @@
           this.handleConfirmPress();
         } else if (menuNav && menuNav.back) {
           this.handleBackPress();
-        }
-        input.endFrame();
-        return;
-      }
-      if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-        const left = input.isJustPressed("KeyA") || input.isJustPressed("ArrowLeft") || menuNav && menuNav.left;
-        const right = input.isJustPressed("KeyD") || input.isJustPressed("ArrowRight") || menuNav && menuNav.right;
-        if (left) {
-          input.consumeKey("KeyA");
-          input.consumeKey("ArrowLeft");
-          this.arcadeTowers.handleInput({ left: true });
-        } else if (right) {
-          input.consumeKey("KeyD");
-          input.consumeKey("ArrowRight");
-          this.arcadeTowers.handleInput({ right: true });
-        }
-        if (menuNav && menuNav.confirm) {
-          this.handleConfirmPress();
-        } else if (menuNav && menuNav.back) {
-          this.handleBackPress();
-        }
-        input.endFrame();
-        return;
-      }
-      if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-        const anyMash = input.isJustPressed("KeyU") || input.isJustPressed("KeyI") || input.isJustPressed("KeyJ") || input.isJustPressed("KeyK") || input.isJustPressed("KeyQ") || input.isJustPressed("KeyE") || menuNav && (menuNav.confirm || menuNav.up || menuNav.down);
-        if (anyMash) {
-          this.testYourMight.handleInput({ lp: true });
-        }
-        if (input.isJustPressed("Space") || menuNav && menuNav.start) {
-          this.testYourMight.handleInput({ confirm: true });
-        }
-        const done = this.testYourMight.update();
-        if (done) {
-          if (this.isArcadeTower) {
-            const adv = this.arcadeTowers.advanceFloor();
-            if (adv.complete) {
-              EconomyManager.addCoins(1e3);
-              this.initVictoryScreen();
-              this.winner = this.f1;
-              soundFX.playAnnouncer("YOU_WIN");
-            } else {
-              this.arcadeTowers.subState = "LADDER";
-              this.screen = GAME_SCREENS.ARCADE_TOWERS;
-            }
-          } else {
-            this.screen = GAME_SCREENS.MODE_SELECT;
-          }
         }
         input.endFrame();
         return;
@@ -21088,14 +20493,6 @@
       }
       if (this.screen === GAME_SCREENS.VERSUS) {
         this.versus.render(ctx, W, H, this.stage, this.cameraX);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-        this.arcadeTowers.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-        this.testYourMight.render(ctx, W, H);
         return;
       }
       if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {

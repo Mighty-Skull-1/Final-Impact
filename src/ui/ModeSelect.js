@@ -13,22 +13,6 @@ export class ModeSelect {
         color: '#facc15'
       },
       {
-        id: 'arcade_towers',
-        badge: 'CHOOSE YOUR DESTINY',
-        title: '🏛️ ARCADE TOWERS',
-        subtitle: 'NOVICE / WARRIOR / MASTER',
-        description: 'Mortal Kombat style stone monolith tower climbing. Ascend the floors, face scaling rivals, and conquer Test Your Might checkpoints.',
-        color: '#ef4444'
-      },
-      {
-        id: 'test_your_might',
-        badge: 'BUTTON MASH',
-        title: '🪵 TEST YOUR MIGHT',
-        subtitle: 'CHOP WOOD, STONE & DIAMOND',
-        description: 'Mash attack buttons to build up power above the chop line and karate chop through dense materials for big tournament coin payouts.',
-        color: '#f59e0b'
-      },
-      {
         id: 'coop_campaign',
         badge: '2P CO-OP RAID',
         title: '🤝 CO-OP CAMPAIGN',

@@ -12,8 +12,6 @@ import { isStealthMode, setStealthMode, verifyAdminPassword, isAdminAuthenticate
 import { FATALITY_CATALOG, fatalitySystem } from './src/combat/FatalitySystem.js';
 import { announcer } from './src/audio/Announcer.js';
 import { eldenManager } from './src/elden/EldenRingMechanics.js';
-import { ARCADE_TOWERS, arcadeTowerScreen } from './src/ui/ArcadeTower.js';
-import { TEST_MATERIALS, testYourMight } from './src/minigames/TestYourMight.js';
 import { AURA_CATALOG, SPARK_CATALOG, TITLE_CATALOG, EconomyManager } from './src/shop/SkinCatalog.js';
 
 let passed = 0;
@@ -96,35 +94,8 @@ eldenManager.flaskCharges = 0;
 const graceRes = eldenManager.executeGraceSelection();
 assert(eldenManager.flaskCharges === eldenManager.maxFlaskCharges, 'Site of Grace rest refills Crimson Flask charges');
 
-// 5. Arcade Towers ("Choose Your Destiny")
-console.log('\n[SECTION 5] Mortal Kombat Arcade Towers');
-assert(ARCADE_TOWERS.length === 3, 'Includes Novice, Warrior, and Master Towers');
-assert(ARCADE_TOWERS[0].floors.length === 5, 'Novice Tower has 5 floors');
-assert(ARCADE_TOWERS[1].floors.length === 8, 'Warrior Tower has 8 floors');
-assert(ARCADE_TOWERS[2].floors.length === 12, 'Master Tower has 12 floors');
-assert(ARCADE_TOWERS[2].floors[11].opponent === 'endless_dragon', 'Master Tower culminates in Endless Dragon fight');
-
-arcadeTowerScreen.selectedTowerIndex = 0;
-arcadeTowerScreen.resetProgress('kazuki');
-assert(arcadeTowerScreen.currentFloor === 0, 'Tower resets to floor 0');
-const nextFloor = arcadeTowerScreen.advanceFloor();
-assert(arcadeTowerScreen.currentFloor === 1, 'Tower advances to floor 1');
-
-// 6. Test Your Might Button Mash Minigame
-console.log('\n[SECTION 6] Test Your Might Button Mash Minigame');
-assert(TEST_MATERIALS.length === 4, '4 material tiers available (Wood, Stone, Steel, Diamond)');
-testYourMight.start(0); // Wood
-assert(testYourMight.active === true, 'Minigame starts active');
-assert(testYourMight.material.name === 'PINE WOOD', 'Initial material is Pine Wood');
-testYourMight.power = 0;
-testYourMight.handleInput({ lp: true });
-assert(testYourMight.power > 0, 'Attack button mashing builds chop gauge');
-testYourMight.power = 50; // Above wood requirement 42
-testYourMight.handleInput({ confirm: true });
-assert(testYourMight.state === 'chop_success', 'Chop above threshold executes flawless chop!');
-
-// 7. Expanded Cosmetics & Economy
-console.log('\n[SECTION 7] Cosmetic Catalogs (Auras, Hit Sparks, Titles)');
+// 5. Expanded Cosmetics & Economy
+console.log('\n[SECTION 5] Cosmetic Catalogs (Auras, Hit Sparks, Titles)');
 assert(AURA_CATALOG.length >= 6, 'Aura Catalog has 6+ distinct energetic trails');
 assert(SPARK_CATALOG.length >= 4, 'Spark Catalog has 4+ visual impact styles');
 assert(TITLE_CATALOG.length >= 5, 'Title Catalog has 5+ grand title badges');

@@ -18,12 +18,7 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
   * **Kagura**: *Shadow Decapitation* (Sub-zero phantom assassination).
   * **M1GHTY**: *Void Singularity* (Cosmic gravitational tear collapsing foe into oblivion).
 * **Stage Fatalities**: Knock foes into deadly hazards (*Industrial Crusher*, *Abyssal Pit*, etc.).
-* **Digitized Arcade Announcer**: Authentic retro speech synthesis announcing *"Round 1... FIGHT!"*, *"Finish Him!"*, *"FATALITY"*, *"BRUTALITY"*, *"FLAWLESS VICTORY"*, and *"TEST YOUR MIGHT!"*.
-* **Arcade Towers ("Choose Your Destiny")**: Ascend the classic MK stone monolith ladders:
-  * **Novice Tower** (5 Floors)
-  * **Warrior Tower** (8 Floors)
-  * **Master Tower** (12 Floors — concludes with the primeval Endless Dragon boss)
-* **"Test Your Might" Minigame**: Rapidly mash attack buttons to drive your chop gauge past the threshold line and split through **Pine Wood**, **Granite Stone**, **Tempered Steel**, and **Elden Diamond** for massive coin payouts!
+* **Digitized Arcade Announcer**: Authentic retro speech synthesis announcing *"Round 1... FIGHT!"*, *"Finish Him!"*, *"FATALITY"*, *"BRUTALITY"*, and *"FLAWLESS VICTORY"*.
 
 ### ⚔️ Elden Ring Combat & Progression
 * **Stance / Poise Break & Critical Ripostes**: Every strike chips away at the enemy's hidden Poise bar. Depleting poise triggers a glass-shattering stance break sound, staggered animation, golden rune sparks, and a critical riposte window dealing **2.5× bonus damage**.
@@ -32,7 +27,7 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
   * **GREAT ENEMY FELLED** (Mid-tier campaign bosses)
   * **LEGEND FELLED** (Tournament Champions)
   * **G O D   S L A I N** (Defeating the Primeval Endless Dragon)
-* **Sites of Grace**: Intermission resting checkpoints between tower floors and campaign battles that refill Crimson Flask charges and save tournament progress.
+* **Sites of Grace**: Intermission resting checkpoints between campaign battles that refill Crimson Flask charges and save tournament progress.
 
 ### 🛍️ Item Shop & Cosmetic Customization
 * **18+ Fighter Skins**: Unlock Rare, Epic, and Legendary skins with earned tournament fight coins.
@@ -47,8 +42,6 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 | Mode | Type | Description |
 | :--- | :--- | :--- |
 | **🏆 Campaign** | Story / Boss Rush | Battle through 7 scaling underground crime bosses leading to the 2-Phase Elden Ring Primeval Apex & Endless Dragon. |
-| **🏛️ Arcade Towers** | Tower Ladder | "Choose Your Destiny" MK-style stone monolith towers (Novice, Warrior, Master) with Test Your Might checkpoints. |
-| **🪵 Test Your Might** | Minigame | Rapid button-mash chopping challenge across 4 material tiers for coin bounties. |
 | **🤝 Co-Op Campaign** | Online 2P Raid | Team up with a friend online to conquer all 8 campaign bosses together in simultaneous 2v1 and 2v2 boss battles. |
 | **⚔️ 1v1 vs CPU** | Single Match | Quick arcade exhibition against tactical AI with customizable difficulty and reaction speeds. |
 | **🥊 1v1 vs Friend** | Local Couch 2P | Head-to-head local battle sharing one keyboard or dual gamepads. |

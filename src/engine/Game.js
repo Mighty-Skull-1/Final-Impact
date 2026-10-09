@@ -41,8 +41,6 @@ import { EconomyManager } from '../shop/SkinCatalog.js';
 import { getAdminCheats, isStealthMode, isAdminAuthenticated, setStealthMode } from '../utils/CryptoAuth.js';
 import { announcer } from '../audio/Announcer.js';
 import { eldenManager } from '../elden/EldenRingMechanics.js';
-import { arcadeTowerScreen } from '../ui/ArcadeTower.js';
-import { testYourMight } from '../minigames/TestYourMight.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -55,8 +53,6 @@ export const GAME_SCREENS = {
   ROUND_OVER: 'ROUND_OVER',
   VICTORY: 'VICTORY',
   SHOP: 'SHOP',
-  ARCADE_TOWERS: 'ARCADE_TOWERS',
-  TEST_YOUR_MIGHT: 'TEST_YOUR_MIGHT',
   SITE_OF_GRACE: 'SITE_OF_GRACE'
 };
 
@@ -80,8 +76,6 @@ export class Game {
     this.stageSelect = new StageSelect(STAGE_CATALOG);
     this.versus = new VersusScreen();
     this.finish = new FinishHim();
-    this.arcadeTowers = arcadeTowerScreen;
-    this.testYourMight = testYourMight;
     this.elden = eldenManager;
     this.announcer = announcer;
     this.syncStealthUI();
@@ -232,14 +226,6 @@ export class Game {
         this.onlineLobby.handleClick(x, y);
       } else if (this.screen === GAME_SCREENS.VICTORY) {
         this.handleVictoryClick(x, y);
-      } else if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-        this.arcadeTowers.handleClick(x, y, () => {
-          this.screen = GAME_SCREENS.MODE_SELECT;
-        }, () => {
-          this.handleConfirmPress();
-        }, this.canvas.width, this.canvas.height);
-      } else if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-        this.testYourMight.handleInput({ confirm: true, space: true });
       } else if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
         const res = this.elden.executeGraceSelection();
         if (res && res.action === 'proceed') {
@@ -437,17 +423,6 @@ export class Game {
         soundFX.playMenuSelect();
         return;
       }
-      if (this.modeSelect.selectedMode === 'arcade_towers') {
-        this.arcadeTowers.subState = 'SELECT';
-        this.screen = GAME_SCREENS.ARCADE_TOWERS;
-        soundFX.playMenuSelect();
-        return;
-      }
-      if (this.modeSelect.selectedMode === 'test_your_might') {
-        this.testYourMight.start(1);
-        this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
-        return;
-      }
       if (this.modeSelect.selectedMode === 'coop_campaign') {
         this.onlineLobby.reset(true);
         this.onlineLobby.matchMode = 'coop_campaign';
@@ -465,29 +440,6 @@ export class Game {
       this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
       this.charSelect.refreshPreviews();
       this.screen = GAME_SCREENS.CHAR_SELECT;
-      return;
-    }
-
-    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-      if (this.arcadeTowers.subState === 'SELECT') {
-        this.arcadeTowers.subState = 'LADDER';
-        soundFX.playMenuSelect();
-      } else {
-        const floor = this.arcadeTowers.getCurrentFloorData();
-        if (floor) {
-          if (floor.type === 'minigame') {
-            this.testYourMight.start(floor.tier || 1);
-            this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
-          } else {
-            this.startTowerMatch(floor);
-          }
-        }
-      }
-      return;
-    }
-
-    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-      this.testYourMight.handleInput({ confirm: true, space: true });
       return;
     }
 
@@ -598,20 +550,6 @@ export class Game {
       soundFX.playWhoosh('light');
       this.screen = GAME_SCREENS.MODE_SELECT;
       this.charSelect.refreshPreviews();
-      return;
-    }
-    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-      soundFX.playWhoosh('light');
-      if (this.arcadeTowers.subState === 'LADDER') {
-        this.arcadeTowers.subState = 'SELECT';
-      } else {
-        this.screen = GAME_SCREENS.MODE_SELECT;
-      }
-      return;
-    }
-    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-      soundFX.playWhoosh('light');
-      this.screen = GAME_SCREENS.MODE_SELECT;
       return;
     }
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
@@ -892,29 +830,6 @@ export class Game {
     soundFX.startMusic('fight');
     soundFX.playAnnouncer('ROUND1');
     try { this.announcer.round1(); } catch (e) {}
-  }
-
-  startTowerMatch(floor) {
-    soundFX.stopMusic();
-    const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
-    this.stage = new Stage(floor.stage || 'suzaku');
-    this.round = 1;
-    this.projectiles = [];
-    this.spawnDefaultPickups();
-
-    this.f1 = this.createFighter(p1Id, 220, true, 1, false);
-    this.f2 = this.createFighter(floor.opponent, 700, false, 2, true);
-    this.f3 = null;
-    this.f4 = null;
-    this.allFighters = [this.f1, this.f2];
-    this.elden.applyUpgradesToFighter(this.f1);
-
-    this.ai.setDifficulty(floor.isBoss ? 'hard' : 'normal', 5);
-    this.isArcadeTower = true;
-    this.hud.reset(1);
-    this.hud.p1RedHealth = this.f1.health;
-    this.hud.p2RedHealth = this.f2.health;
-    this.beginVersus();
   }
 
   startNextCampaignStage() {
@@ -1337,58 +1252,6 @@ export class Game {
         this.handleConfirmPress();
       } else if (menuNav && menuNav.back) {
         this.handleBackPress();
-      }
-      input.endFrame();
-      return;
-    }
-
-    // 1.5 Arcade Towers & Minigames Navigation
-    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-      const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (menuNav && menuNav.left);
-      const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (menuNav && menuNav.right);
-      if (left) {
-        input.consumeKey('KeyA');
-        input.consumeKey('ArrowLeft');
-        this.arcadeTowers.handleInput({ left: true });
-      } else if (right) {
-        input.consumeKey('KeyD');
-        input.consumeKey('ArrowRight');
-        this.arcadeTowers.handleInput({ right: true });
-      }
-      if (menuNav && menuNav.confirm) {
-        this.handleConfirmPress();
-      } else if (menuNav && menuNav.back) {
-        this.handleBackPress();
-      }
-      input.endFrame();
-      return;
-    }
-
-    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-      const anyMash = input.isJustPressed('KeyU') || input.isJustPressed('KeyI') || input.isJustPressed('KeyJ') || input.isJustPressed('KeyK') ||
-                      input.isJustPressed('KeyQ') || input.isJustPressed('KeyE') || (menuNav && (menuNav.confirm || menuNav.up || menuNav.down));
-      if (anyMash) {
-        this.testYourMight.handleInput({ lp: true });
-      }
-      if (input.isJustPressed('Space') || (menuNav && menuNav.start)) {
-        this.testYourMight.handleInput({ confirm: true });
-      }
-      const done = this.testYourMight.update();
-      if (done) {
-        if (this.isArcadeTower) {
-          const adv = this.arcadeTowers.advanceFloor();
-          if (adv.complete) {
-            EconomyManager.addCoins(1000);
-            this.initVictoryScreen();
-            this.winner = this.f1;
-            soundFX.playAnnouncer('YOU_WIN');
-          } else {
-            this.arcadeTowers.subState = 'LADDER';
-            this.screen = GAME_SCREENS.ARCADE_TOWERS;
-          }
-        } else {
-          this.screen = GAME_SCREENS.MODE_SELECT;
-        }
       }
       input.endFrame();
       return;
@@ -2658,16 +2521,6 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.VERSUS) {
       this.versus.render(ctx, W, H, this.stage, this.cameraX);
-      return;
-    }
-
-    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
-      this.arcadeTowers.render(ctx, W, H);
-      return;
-    }
-
-    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
-      this.testYourMight.render(ctx, W, H);
       return;
     }
 
