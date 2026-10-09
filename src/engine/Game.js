@@ -30,12 +30,18 @@ import { Champion } from '../fighters/bosses/Champion.js';
 import { EndlessDragon } from '../fighters/bosses/EndlessDragon.js';
 import { Netplay } from '../network/Netplay.js';
 import { OnlineLobby } from '../ui/OnlineLobby.js';
+import { StageSelect } from '../ui/StageSelect.js';
+import { VersusScreen } from '../ui/VersusScreen.js';
+import { FinishHim } from '../ui/FinishHim.js';
+import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
   MODE_SELECT: 'MODE_SELECT',
   ONLINE_LOBBY: 'ONLINE_LOBBY',
   CHAR_SELECT: 'CHAR_SELECT',
+  STAGE_SELECT: 'STAGE_SELECT',
+  VERSUS: 'VERSUS',
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
   VICTORY: 'VICTORY'
@@ -52,6 +58,9 @@ export class Game {
     this.modeSelect = new ModeSelect();
     this.charSelect = new CharacterSelect();
     this.hud = new HUD();
+    this.stageSelect = new StageSelect(STAGE_CATALOG);
+    this.versus = new VersusScreen();
+    this.finish = new FinishHim();
 
     // Online Multiplayer Netplay Engine & Lobby UI
     this.netplay = new Netplay();
@@ -84,7 +93,7 @@ export class Game {
         this.isOnline = false;
         this.isCoopCampaign = false;
         soundFX.playBlock();
-        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER) {
+        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.CHAR_SELECT || this.screen === GAME_SCREENS.ROUND_OVER || this.screen === GAME_SCREENS.VERSUS) {
           this.onlineLobby.reset();
           this.onlineLobby.subState = 'MENU';
           this.onlineLobby.netplay.statusMessage = 'CHALLENGER DISCONNECTED';
@@ -111,8 +120,6 @@ export class Game {
           if (msg.p2Index !== undefined) this.charSelect.p2Index = msg.p2Index;
         }
         if (msg.startMatch) {
-          soundFX.playAnnouncer('ROUND1');
-          soundFX.startMusic('fight');
           this.startMatch();
         }
       } else if (msg.type === 'CAMPAIGN_NEXT_STAGE') {
@@ -120,10 +127,8 @@ export class Game {
         if (this.f1) this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
         if (this.f3) this.f3.health = Math.min(this.f3.maxHealth, this.f3.health + 500);
         this.setupCampaignStage(this.f1 ? this.f1.id : 'kazuki', false);
-        this.screen = GAME_SCREENS.FIGHT;
         this.slowMotion = false;
-        soundFX.startMusic('fight');
-        soundFX.playAnnouncer('ROUND1');
+        this.beginVersus();
       } else if (msg.type === 'CAMPAIGN_VICTORY') {
         if (typeof window !== 'undefined' && window.localStorage) {
           try {
@@ -138,8 +143,6 @@ export class Game {
       } else if (msg.type === 'REMATCH_VOTE') {
         this.handleOpponentRematchVote(msg.vote);
       } else if (msg.type === 'REMATCH') {
-        soundFX.playAnnouncer('ROUND1');
-        soundFX.startMusic('fight');
         this.startMatch();
       }
     });
@@ -409,8 +412,6 @@ export class Game {
             matchMode: this.onlineLobby.matchMode,
             startMatch: true
           });
-          soundFX.playAnnouncer('ROUND1');
-          soundFX.startMusic('fight');
           this.startMatch();
         } else {
           this.netplay.send({
@@ -422,9 +423,21 @@ export class Game {
         }
         return;
       }
-      soundFX.playAnnouncer('ROUND1');
-      soundFX.startMusic('fight');
+      if (['cpu', '2p', '2v2', 'training'].includes(this.charSelect.gameMode)) {
+        this.goToStageSelect();
+        return;
+      }
       this.startMatch();
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+      this.confirmStage();
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.VERSUS) {
+      this.versus.skip();
       return;
     }
 
@@ -438,8 +451,6 @@ export class Game {
       if (this.victoryMenuIndex === 0) {
         // Rematch
         soundFX.stopMusic();
-        soundFX.playAnnouncer('ROUND1');
-        soundFX.startMusic('fight');
         this.startMatch(true);
       } else if (this.victoryMenuIndex === 1) {
         // Character Select
@@ -485,6 +496,9 @@ export class Game {
       } else {
         this.screen = GAME_SCREENS.MODE_SELECT;
       }
+    } else if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+      soundFX.playWhoosh('light');
+      this.screen = GAME_SCREENS.CHAR_SELECT;
     } else if (this.screen === GAME_SCREENS.VICTORY) {
       soundFX.playWhoosh('light');
       if (this.isOnline) {
@@ -498,6 +512,7 @@ export class Game {
   }
 
   initVictoryScreen() {
+    if (this.finish) this.finish.reset();
     soundFX.stopMusic();
     this.screen = GAME_SCREENS.VICTORY;
     this.victoryMenuIndex = 0;
@@ -708,8 +723,52 @@ export class Game {
     this.hud.reset(this.round);
     this.hud.p1RedHealth = this.f1 ? this.f1.health : 1000;
     this.hud.p2RedHealth = this.f2 ? this.f2.health : 1000;
+    this.beginVersus();
+  }
+
+  /** Shows the MK-style VS splash, then hands over to the fight. */
+  beginVersus() {
+    soundFX.stopMusic();
+    this.finish.reset();
+    const info = STAGE_CATALOG.find(s => s.id === (this.stage && this.stage.stageId)) || {};
+    let topLabel = 'FIGHT';
+    if (this.isCampaign) topLabel = 'STAGE ' + ((this.bossIndex || 0) + 1);
+    else if (this.isCoopCampaign) topLabel = '2P RAID';
+    else if (this.isTraining) topLabel = 'TRAINING';
+    this.versus.start({
+      f1: this.f1,
+      f2: this.f2,
+      p1Label: 'P1',
+      p2Label: this.isOnline ? 'P2' : (this.isCampaign || this.isTraining ? 'CPU' : (this.charSelect.gameMode === '2p' ? 'P2' : 'CPU')),
+      stageName: info.name || '',
+      stageLocation: info.location || '',
+      topLabel,
+      duration: this.isOnline ? 100 : 150
+    });
+    this.screen = GAME_SCREENS.VERSUS;
+  }
+
+  finishVersus() {
     this.screen = GAME_SCREENS.FIGHT;
     soundFX.startMusic('fight');
+    soundFX.playAnnouncer('ROUND1');
+  }
+
+  goToStageSelect() {
+    const gm = this.charSelect.gameMode;
+    const p2Name = gm === '2p' ? 'PLAYER 2' : (gm === 'training' ? 'DUMMY' : 'CPU');
+    const names = this.charSelect.characters || [];
+    const nm = (i) => (names[i] && names[i].name) ? names[i].name : '';
+    this.stageSelect.setContext({ mode: gm, p1Name: nm(this.charSelect.p1Index), p2Name: gm === '2p' ? nm(this.charSelect.p2Index) : p2Name, canChoose: true });
+    this.stageSelect.setIndex(this.charSelect.stageIndex || 0);
+    this.screen = GAME_SCREENS.STAGE_SELECT;
+    soundFX.playMenuSelect();
+  }
+
+  confirmStage() {
+    this.charSelect.stageIndex = this.stageSelect.resolveSelection();
+    soundFX.playGong();
+    this.startMatch();
   }
 
   setupCampaignStage(p1Id, isFreshStart = false) {
@@ -1124,6 +1183,34 @@ export class Game {
       return;
     }
 
+    // 2b. Stage Select (MK-style arena picker)
+    if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+      const nav = menuNav || {};
+      const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || input.isJustPressed('Numpad4') || nav.left;
+      const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || input.isJustPressed('Numpad6') || nav.right;
+      const up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || nav.up;
+      const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || nav.down;
+      if (left || right || up || down) {
+        ['KeyA', 'ArrowLeft', 'Numpad4', 'KeyD', 'ArrowRight', 'Numpad6', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown'].forEach(k => input.consumeKey(k));
+        this.stageSelect.handleInput({ left, right, up, down });
+        soundFX.playWhoosh('light');
+      }
+      if (nav.confirm) this.handleConfirmPress();
+      else if (nav.back) this.handleBackPress();
+      this.stageSelect.update();
+      input.endFrame();
+      return;
+    }
+
+    // 2c. VS intro splash
+    if (this.screen === GAME_SCREENS.VERSUS) {
+      if (menuNav && menuNav.confirm) this.versus.skip();
+      if (this.stage) this.stage.update();
+      if (this.versus.update()) this.finishVersus();
+      input.endFrame();
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.VICTORY) {
       this.updateVictoryScreen();
       input.endFrame();
@@ -1158,7 +1245,9 @@ export class Game {
     // 1. Update Input Manager
     input.update(this.f1.facingRight, this.f2 ? this.f2.facingRight : false);
 
-    if (this.isOnline) {
+    if (this.finish && this.finish.active) {
+      // Fighters are frozen for input during the FINISH HIM sequence
+    } else if (this.isOnline) {
       this.updateOnlineMatch();
     } else {
       // 2. Process Player 1 Inputs
@@ -1990,10 +2079,8 @@ export class Game {
                 this.f3.stamina = this.f3.maxStamina;
               }
               this.setupCampaignStage(this.f1.id, false);
-              this.screen = GAME_SCREENS.FIGHT;
               this.slowMotion = false;
-              soundFX.startMusic('fight');
-              soundFX.playAnnouncer('ROUND1');
+              this.beginVersus();
 
               // Sync next stage to Challenger in Co-Op Campaign
               if (this.isCoopCampaign && this.netplay.isHost) {
@@ -2068,13 +2155,31 @@ export class Game {
 
       if (this.f1.roundsWon >= 2 || this.f2.roundsWon >= 2) {
         soundFX.stopMusic();
+        const w = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
+        this.koFlawless = w.health >= w.maxHealth;
       }
     }
 
     if (this.screen === GAME_SCREENS.ROUND_OVER) {
+      // MK-style FINISH HIM sequence (offline 1v1, human winner only)
+      if (this.finish.active) {
+        if (this.finish.update()) {
+          this.initVictoryScreen();
+          this.winner = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
+          soundFX.playAnnouncer('YOU_WIN');
+        }
+        return;
+      }
       this.roundOverTimer--;
       if (this.roundOverTimer <= 0) {
         if (this.f1.roundsWon >= 2 || this.f2.roundsWon >= 2) {
+          const fw = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
+          const fl = fw === this.f1 ? this.f2 : this.f1;
+          if (!this.isOnline && !this.isTraining && !fw.isCpu && fl.isDead) {
+            this.slowMotion = false;
+            this.finish.start(fw, fl, this.hud, { flawless: !!this.koFlawless });
+            return;
+          }
           this.initVictoryScreen();
           this.winner = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
           soundFX.playAnnouncer('YOU_WIN');
@@ -2100,8 +2205,6 @@ export class Game {
         this.rematchTimer--;
         if (this.rematchTimer === 0) {
           if (this.myRematchVote === 'yes' && this.oppRematchVote === 'yes') {
-            soundFX.playAnnouncer('ROUND1');
-            soundFX.startMusic('fight');
             this.startMatch();
           } else {
             this.screen = GAME_SCREENS.ONLINE_LOBBY;
@@ -2203,6 +2306,16 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+      this.stageSelect.render(ctx, W, H);
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.VERSUS) {
+      this.versus.render(ctx, W, H, this.stage, this.cameraX);
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.VICTORY) {
       this.renderVictoryScreen();
       return;
@@ -2229,6 +2342,11 @@ export class Game {
     // Projectiles
     this.projectiles.forEach(p => p.render(ctx));
 
+    // Finisher world-space FX (aura, shockwaves, sparks)
+    if (this.finish && this.finish.active) {
+      this.finish.renderWorld(ctx);
+    }
+
     // Debug Hitbox / Hurtbox Visualizer
     if (this.showHitboxes) {
       this.renderHitboxDebug(ctx);
@@ -2239,6 +2357,11 @@ export class Game {
     // 3. Render HUD (Health, Stamina, Timer, Super, Announcements)
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
     this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4);
+
+    // 4. FINISH HIM overlay (text, letterbox, impact flash)
+    if (this.finish && this.finish.active) {
+      this.finish.renderOverlay(ctx, W, H);
+    }
 
     // Online Connection & Ping Badge
     if (this.isOnline && this.netplay) {

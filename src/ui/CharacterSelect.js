@@ -1,3 +1,4 @@
+import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 // Final Impact - Character Select Screen
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
@@ -129,12 +130,7 @@ export class CharacterSelect {
       }
     ];
 
-    this.stages = [
-      { id: 'suzaku', name: 'SUZAKU ROOFTOP', location: 'Tokyo Sunset' },
-      { id: 'neo_tokyo', name: 'NEO UNDERPASS', location: 'Cyberpunk District' },
-      { id: 'thunder_dojo', name: 'THUNDER DOJO', location: 'Ancient Storm Hall' },
-      { id: 'dragon_shrine', name: 'DRAGON SHRINE', location: 'Crimson Twilight' }
-    ];
+    this.stages = STAGE_CATALOG;
 
     this.p1Index = 0;
     this.p2Index = 1;
@@ -514,7 +510,7 @@ export class CharacterSelect {
     // Stage Selector & Navigation instructions
     ctx.fillStyle = '#ec4899';
     ctx.font = '10px monospace';
-    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ STAGE]  [A/D CHOOSE]  [C CODE]  [ENTER START]`, W / 2, 64);
+    ctx.fillText(`STAGE: ${this.stages[this.stageIndex].name}  [↑/↓ STAGE]  [A/D CHOOSE]  [C CODE]  [ENTER NEXT]`, W / 2, 64);
 
     // 2. Character Cards (8 Fighters Roster)
     const cardW = 72;
@@ -769,7 +765,7 @@ export class CharacterSelect {
 
       ctx.fillStyle = '#fef08a';
       ctx.font = 'bold 12px monospace';
-      ctx.fillText('⚔️ START BATTLE [ENTER / CLICK]  |  [B / ESC] BACK', W / 2, btnY + 17);
+      ctx.fillText((["cpu","2p","2v2","training"].includes(this.gameMode) ? '⚔️ CHOOSE STAGE [ENTER / CLICK]' : '⚔️ START BATTLE [ENTER / CLICK]') + '  |  [B / ESC] BACK', W / 2, btnY + 17);
     }
 
     // 3. Secret Code In-Canvas Modal Overlay

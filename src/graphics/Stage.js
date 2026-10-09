@@ -89,6 +89,31 @@ export class Stage {
         setTimeout(() => { this.isLightning = false; }, 80);
       }
     }
+
+    // Stage 5: Ember Forge - embers rise from the lava rivers
+    if (this.stageId === 'ember_forge') {
+      this.petals.forEach(p => {
+        p.y -= p.speedY * 1.4;
+        p.x += Math.sin(this.time * 0.03 + p.angle) * 0.5;
+        p.angle += p.rotSpeed;
+        if (p.y < -10) {
+          p.y = 300 + Math.random() * 60;
+          p.x = Math.random() * 1000;
+        }
+      });
+    }
+
+    // Stage 6: Moonlit Bamboo - fireflies wander
+    if (this.stageId === 'bamboo_night') {
+      this.petals.forEach(p => {
+        p.angle += p.rotSpeed * 0.8;
+        p.x += Math.cos(p.angle) * 0.6 - 0.1;
+        p.y += Math.sin(p.angle * 1.3) * 0.5;
+        if (p.x < -10) p.x = 1000;
+        if (p.y < 40) p.y = 40;
+        if (p.y > 290) p.y = 290;
+      });
+    }
   }
 
   render(ctx, cameraX, canvasWidth, canvasHeight) {
@@ -98,6 +123,10 @@ export class Stage {
       this.renderNeoTokyo(ctx, cameraX, canvasWidth, canvasHeight);
     } else if (this.stageId === 'dragon_shrine') {
       this.renderDragonShrine(ctx, cameraX, canvasWidth, canvasHeight);
+    } else if (this.stageId === 'ember_forge') {
+      this.renderEmberForge(ctx, cameraX, canvasWidth, canvasHeight);
+    } else if (this.stageId === 'bamboo_night') {
+      this.renderBambooNight(ctx, cameraX, canvasWidth, canvasHeight);
     } else {
       this.renderThunderDojo(ctx, cameraX, canvasWidth, canvasHeight);
     }
@@ -601,5 +630,235 @@ export class Stage {
     // 9. Dark fog at bottom
     ctx.fillStyle = 'rgba(12, 0, 21, 0.4)';
     ctx.fillRect(0, 270, W, 25);
+  }
+
+  // ==========================================
+  // STAGE 5: EMBER FORGE (Volcanic Foundry)
+  // ==========================================
+  renderEmberForge(ctx, cameraX, W, H) {
+    const pulse = 0.5 + Math.sin(this.time * 0.04) * 0.5;
+
+    // 1. Smoldering sky
+    const sky = ctx.createLinearGradient(0, 0, 0, 260);
+    sky.addColorStop(0, '#0a0303');
+    sky.addColorStop(0.5, '#2a0a06');
+    sky.addColorStop(1, '#7c2d12');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Distant volcano silhouettes with glowing crater (parallax 0.1)
+    const vx = -cameraX * 0.1;
+    ctx.fillStyle = '#1c0a07';
+    ctx.beginPath();
+    ctx.moveTo(-50 + vx, 250);
+    ctx.lineTo(120 + vx, 120);
+    ctx.lineTo(170 + vx, 128);
+    ctx.lineTo(330 + vx, 250);
+    ctx.lineTo(380 + vx, 250);
+    ctx.lineTo(520 + vx, 90);
+    ctx.lineTo(580 + vx, 100);
+    ctx.lineTo(760 + vx, 250);
+    ctx.lineTo(900 + vx, 250);
+    ctx.fill();
+    ctx.fillStyle = `rgba(251, 146, 60, ${0.55 + pulse * 0.3})`;
+    ctx.fillRect(120 + vx, 118, 52, 6);
+    ctx.fillRect(520 + vx, 88, 60, 6);
+
+    // 3. Lava river glow band (parallax 0.25)
+    const lg = ctx.createLinearGradient(0, 215, 0, 262);
+    lg.addColorStop(0, `rgba(249, 115, 22, ${0.35 + pulse * 0.2})`);
+    lg.addColorStop(1, 'rgba(127, 29, 29, 0.0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 215, W, 47);
+    const lavaX = -cameraX * 0.25;
+    ctx.fillStyle = '#fb923c';
+    for (let x = -60; x < W + 120; x += 90) {
+      const sx = x + (lavaX % 90);
+      ctx.fillRect(sx, 246 + Math.sin(this.time * 0.05 + x) * 2, 42, 3);
+    }
+
+    // 4. Iron forge columns, chains and furnace mouths (parallax 0.45)
+    const colX = -cameraX * 0.45;
+    for (let x = 40; x < 1400; x += 260) {
+      const px = x + colX;
+      if (px < -80 || px > W + 40) continue;
+      ctx.fillStyle = '#1f1917';
+      ctx.fillRect(px, 70, 34, 230);
+      ctx.fillStyle = '#3a2d28';
+      ctx.fillRect(px + 4, 70, 6, 230);
+      // Iron bands
+      ctx.fillStyle = '#57534e';
+      for (let y = 96; y < 290; y += 44) ctx.fillRect(px - 3, y, 40, 5);
+      // Hanging chain
+      ctx.fillStyle = '#78716c';
+      for (let y = 0; y < 70; y += 8) ctx.fillRect(px + 15 + Math.sin(this.time * 0.03 + y) * 1.5, y, 3, 5);
+      // Furnace glow
+      ctx.fillStyle = `rgba(251, 146, 60, ${0.5 + pulse * 0.4})`;
+      ctx.fillRect(px + 8, 210, 18, 22);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(px + 12, 216, 10, 10);
+    }
+
+    // 5. Giant anvil centerpiece (parallax 0.6)
+    const ax = 380 - cameraX * 0.6;
+    ctx.fillStyle = '#0c0a09';
+    ctx.fillRect(ax, 236, 120, 18);
+    ctx.fillRect(ax + 22, 254, 76, 36);
+    ctx.fillRect(ax + 8, 222, 104, 14);
+    ctx.fillRect(ax + 108, 226, 28, 7);
+    ctx.fillStyle = '#292524';
+    ctx.fillRect(ax + 8, 222, 104, 3);
+
+    // 6. Basalt floor with molten cracks
+    const floorY = 290;
+    const fg = ctx.createLinearGradient(0, floorY, 0, H);
+    fg.addColorStop(0, '#292524');
+    fg.addColorStop(1, '#0c0a09');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, floorY, W, H - floorY);
+    ctx.fillStyle = '#44403c';
+    ctx.fillRect(0, floorY, W, 3);
+    ctx.strokeStyle = `rgba(251, 146, 60, ${0.55 + pulse * 0.35})`;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const rx = 30 + i * 130 - cameraX;
+      ctx.beginPath();
+      ctx.moveTo(rx, floorY + 4);
+      ctx.lineTo(rx + 14, floorY + 16);
+      ctx.lineTo(rx + 2, floorY + 28);
+      ctx.lineTo(rx + 18, floorY + 42);
+      ctx.stroke();
+    }
+
+    // 7. Rising embers
+    ctx.globalAlpha = 0.85;
+    for (const p of this.petals) {
+      const ex = p.x - cameraX * 0.35;
+      ctx.fillStyle = p.size > 3.5 ? '#fde047' : (p.size > 2.6 ? '#fb923c' : '#ef4444');
+      ctx.fillRect(ex, p.y, p.size * 0.6, p.size * 0.6);
+    }
+    ctx.globalAlpha = 1.0;
+
+    // 8. Heat haze at the base
+    ctx.fillStyle = `rgba(124, 45, 18, ${0.18 + pulse * 0.1})`;
+    ctx.fillRect(0, 262, W, 30);
+  }
+
+  // ==========================================
+  // STAGE 6: MOONLIT BAMBOO (Silent Midnight Grove)
+  // ==========================================
+  renderBambooNight(ctx, cameraX, W, H) {
+    // 1. Deep teal night sky
+    const sky = ctx.createLinearGradient(0, 0, 0, 280);
+    sky.addColorStop(0, '#02060f');
+    sky.addColorStop(0.55, '#0b2a33');
+    sky.addColorStop(1, '#134e4a');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Silver moon with halo
+    const moonX = 470 - cameraX * 0.04;
+    ctx.fillStyle = 'rgba(203, 213, 225, 0.10)';
+    ctx.beginPath();
+    ctx.arc(moonX, 78, 70, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.18)';
+    ctx.beginPath();
+    ctx.arc(moonX, 78, 50, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f1f5f9';
+    ctx.beginPath();
+    ctx.arc(moonX, 78, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.arc(moonX - 10, 70, 6, 0, Math.PI * 2);
+    ctx.arc(moonX + 9, 86, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Stars
+    ctx.fillStyle = '#e2e8f0';
+    for (let i = 0; i < 40; i++) {
+      const sx = (i * 83 - cameraX * 0.02 + 1000) % W;
+      const sy = (i * 37) % 130;
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(this.time * 0.03 + i));
+      ctx.globalAlpha = tw;
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+    ctx.globalAlpha = 1.0;
+
+    // 4. Far bamboo layer (parallax 0.2)
+    const drawStalks = (parallax, spacing, color, hl, topY, width) => {
+      const off = -cameraX * parallax;
+      for (let x = -spacing; x < W + spacing * 2; x += spacing) {
+        const bx = x + (off % spacing);
+        const sway = Math.sin(this.time * 0.02 + x * 0.05) * 3;
+        ctx.fillStyle = color;
+        ctx.fillRect(bx + sway * 0.4, topY, width, 300 - topY);
+        ctx.fillStyle = hl;
+        ctx.fillRect(bx + sway * 0.4, topY, 2, 300 - topY);
+        // Segments
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        for (let y = topY + 22; y < 300; y += 38) {
+          ctx.fillRect(bx + sway * 0.4 - 1, y, width + 2, 3);
+        }
+        // Leaves
+        ctx.fillStyle = hl;
+        ctx.fillRect(bx + width + sway, topY + 40, 16, 3);
+        ctx.fillRect(bx - 14 + sway, topY + 70, 14, 3);
+      }
+    };
+    drawStalks(0.2, 54, '#0b3b36', '#115e59', 20, 10);
+
+    // 5. Stone lantern pair (parallax 0.55)
+    const lx = 260 - cameraX * 0.55;
+    const lx2 = 700 - cameraX * 0.55;
+    [lx, lx2].forEach(x => {
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(x + 12, 232, 16, 58);
+      ctx.fillRect(x + 4, 224, 32, 10);
+      ctx.fillRect(x + 8, 196, 24, 28);
+      ctx.fillRect(x + 2, 190, 36, 8);
+      const flick = 0.75 + Math.sin(this.time * 0.15 + x) * 0.15;
+      ctx.fillStyle = `rgba(253, 224, 71, ${flick})`;
+      ctx.fillRect(x + 14, 204, 12, 14);
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.12)';
+      ctx.beginPath();
+      ctx.arc(x + 20, 211, 34, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 6. Near bamboo layer (parallax 0.75)
+    drawStalks(0.75, 150, '#064e3b', '#10b981', -10, 18);
+
+    // 7. Moss-covered stone path
+    const floorY = 290;
+    const fg = ctx.createLinearGradient(0, floorY, 0, H);
+    fg.addColorStop(0, '#1e293b');
+    fg.addColorStop(1, '#020617');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, floorY, W, H - floorY);
+    ctx.fillStyle = '#166534';
+    ctx.fillRect(0, floorY, W, 4);
+    ctx.fillStyle = '#334155';
+    for (let x = -80; x < W + 120; x += 96) {
+      const tx = x + ((-cameraX) % 96);
+      ctx.fillRect(tx + 4, floorY + 10, 84, 4);
+      ctx.fillRect(tx + 44, floorY + 14, 4, H - floorY - 14);
+    }
+
+    // 8. Fireflies
+    for (const p of this.petals) {
+      const fx = p.x - cameraX * 0.3;
+      const glow = 0.4 + 0.6 * Math.abs(Math.sin(this.time * 0.08 + p.angle * 3));
+      ctx.fillStyle = `rgba(190, 242, 100, ${glow * 0.25})`;
+      ctx.fillRect(fx - 2, p.y - 2, 7, 7);
+      ctx.fillStyle = `rgba(254, 249, 195, ${glow})`;
+      ctx.fillRect(fx, p.y, 3, 3);
+    }
+
+    // 9. Ground mist
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.10)';
+    ctx.fillRect(0, 262, W, 34);
   }
 }

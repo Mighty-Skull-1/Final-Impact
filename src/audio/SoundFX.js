@@ -720,6 +720,16 @@ class SoundFX {
         speechChord(180, 0.4, 'sawtooth');
         setTimeout(() => speechChord(240, 0.6, 'sawtooth'), 350);
         break;
+      case 'FINISH_HIM':
+        this.playGong();
+        speechChord(110, 0.7, 'sawtooth');
+        setTimeout(() => speechChord(98, 0.9, 'sawtooth'), 380);
+        break;
+      case 'FLAWLESS':
+        speechChord(392, 0.25, 'sine');
+        setTimeout(() => speechChord(523, 0.25, 'sine'), 160);
+        setTimeout(() => speechChord(659, 0.7, 'square'), 320);
+        break;
       case 'FIGHT':
         this.playGong();
         speechChord(330, 0.6, 'sawtooth');
