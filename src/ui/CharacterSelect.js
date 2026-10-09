@@ -366,6 +366,9 @@ export class CharacterSelect {
       const tx = G.x0 + col * (G.tileW + G.gap), ty = G.y0 + row * (G.tileH + G.gap);
       if (x >= tx && x <= tx + G.tileW && y >= ty && y <= ty + G.tileH) {
         const char = this.characters[idx];
+        const prevIdx = (this.gameMode === 'online' && this.localPlayerNum === 2) ? this.p2Index : this.p1Index;
+        const wasAlreadySelected = (prevIdx === idx);
+
         if (this.gameMode === 'online' && this.localPlayerNum === 2) {
           this.p2Index = idx;
         } else {
@@ -381,17 +384,37 @@ export class CharacterSelect {
             this.codeFeedbackColor = '#fbbf24';
             this.openAdminPortal();
           }
+          return true;
         } else if (char.id === 'endless_dragon' && !this.isDragonUnlocked()) {
           try { soundFX.playBlock(); } catch (e) {}
+          return true;
+        }
+
+        // Clicking an already-selected fighter instantly confirms
+        if (wasAlreadySelected && onConfirm && (this.gameMode !== 'online' || this.localPlayerNum === 1)) {
+          onConfirm();
         }
         return true;
       }
     }
+
+    // Check Center Profile Panel click -> also confirms selection
+    const px0 = 218, pw = W - 2 * px0, py0 = 62, ph0 = 176;
+    if (x >= px0 && x <= px0 + pw && y >= py0 && y <= py0 + ph0) {
+      if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
+        const lockedType = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
+        if (!lockedType && onConfirm) {
+          onConfirm();
+          return true;
+        }
+      }
+    }
+
     // Check Bottom Start Battle Button
-    const btnW = 340;
-    const btnH = 28;
+    const btnW = 380;
+    const btnH = 34;
     const btnX = (W - btnW) / 2;
-    const btnY = H - 34;
+    const btnY = H - 38;
     if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
       if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
         // Prevent starting if current selection is locked

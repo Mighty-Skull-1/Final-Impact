@@ -3084,7 +3084,7 @@
           badge: "STORY MODE",
           title: "\u{1F3C6} CAMPAIGN",
           subtitle: "THE 7 UNDERGROUND BOSSES",
-          description: "Battle through 7 scaling crime bosses and face the 2-Phase Elden Ring Primeval Apex & Endless Dragon.",
+          description: "Battle through 7 scaling crime bosses and face the 2-Phase Primeval Apex & Endless Dragon.",
           color: "#facc15"
         },
         {
@@ -3092,7 +3092,7 @@
           badge: "2P CO-OP RAID",
           title: "\u{1F91D} CO-OP CAMPAIGN",
           subtitle: "ONLINE 2-PLAYER BOSS RAID",
-          description: "Team up with an online friend to conquer all 8 campaign bosses together. Face 2v1 boss raids, 2v2 Bouncer Twins, and the Ascended Endless Dragon.",
+          description: "Team up with an online friend to conquer all 8 campaign bosses together in simultaneous 2v1 and 2v2 boss battles.",
           color: "#a855f7"
         },
         {
@@ -3116,7 +3116,7 @@
           badge: "SIMULTANEOUS",
           title: "\u{1F525} 2V2 TEAM BRAWL",
           subtitle: "4-FIGHTER TAG WAR",
-          description: "Two teams of two fighters battle simultaneously on screen with cel-shaded rim lighting, team pushboxes, and multi-target threat AI.",
+          description: "Two teams of two battle simultaneously on-screen with cel-shaded rim lighting and team pushboxes.",
           color: "#f97316"
         },
         {
@@ -3124,7 +3124,7 @@
           badge: "NETPLAY P2P",
           title: "\u{1F310} ONLINE VERSUS",
           subtitle: "BATTLE A FRIEND VIA ROOM CODE",
-          description: "Connect directly with a friend online using zero-setup WebRTC peer-to-peer. Low-latency input streaming with room codes and instant invite links.",
+          description: "Connect directly with a friend online using zero-setup WebRTC peer-to-peer. Low-latency input streaming with room codes.",
           color: "#c084fc"
         },
         {
@@ -3132,7 +3132,7 @@
           badge: "DOJO LAB",
           title: "\u{1F94B} PRACTICE MODE",
           subtitle: "TRAINING & COMBO LAB",
-          description: "Unlimited health, infinite EX super gauge, and stamina. Master special moves, frame traps, cancel strings, and corner juggle combos.",
+          description: "Unlimited health, infinite EX super gauge, and stamina. Master special moves, frame traps, and cancel strings.",
           color: "#4ade80"
         },
         {
@@ -3140,7 +3140,7 @@
           badge: "CUSTOM SKINS",
           title: "\u{1F6CD}\uFE0F ITEM SHOP",
           subtitle: "PREVIEW & EQUIP SKINS",
-          description: "Browse, unlock, and equip custom fighter skins with your earned tournament fight coins. Live animated character model preview.",
+          description: "Browse, unlock, and equip custom fighter skins, auras, hitsparks, and titles with your earned tournament fight coins.",
           color: "#eab308"
         }
       ];
@@ -3173,32 +3173,44 @@
         }
       }
     }
-    // Layout constants (shared by click hit-testing and rendering)
+    // Spacious layout constants across full vertical height (H=360, usable: 48 to 330)
     static get LIST() {
-      return { x: 26, y: 44, w: 250, h: 26, gap: 2.5 };
+      return { x: 18, y: 48, w: 256, h: 32, gap: 3.5 };
     }
     handleClick(x, y, onBack, onConfirm, W = 640) {
-      if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
+      if (x >= 10 && x <= 125 && y >= 6 && y <= 38) {
         soundFX.playWhoosh("light");
         if (onBack) onBack();
         return true;
       }
       const L = _ModeSelect.LIST;
-      if (x >= L.x && x <= L.x + L.w) {
+      if (x >= 12 && x <= L.x + L.w + 20) {
         for (let idx = 0; idx < this.modes.length; idx++) {
           const cy = L.y + idx * (L.h + L.gap);
-          if (y >= cy && y <= cy + L.h) {
-            if (this.selectedIndex === idx) {
+          if (y >= cy - 1 && y <= cy + L.h + L.gap) {
+            const wasSelected = this.selectedIndex === idx;
+            this.selectedIndex = idx;
+            soundFX.playWhoosh("light");
+            if (wasSelected) {
+              soundFX.playGong();
               if (onConfirm) onConfirm();
-            } else {
-              this.selectedIndex = idx;
-              soundFX.playWhoosh("light");
             }
             return true;
           }
         }
       }
-      if (x >= 296 && x <= W - 24 && y >= 62 && y <= 318) {
+      const px2 = 286, py = 48, pw = W - 18 - px2, ph = 282;
+      if (x >= px2 && x <= px2 + pw && y >= py && y <= py + ph) {
+        if (this.selectedMode === "cpu" && y >= py + ph - 85 && y <= py + ph - 52) {
+          if (x < px2 + pw / 2) {
+            this.difficultyIndex = (this.difficultyIndex - 1 + this.difficultyOptions.length) % this.difficultyOptions.length;
+          } else {
+            this.difficultyIndex = (this.difficultyIndex + 1) % this.difficultyOptions.length;
+          }
+          soundFX.playWhoosh("light");
+          return true;
+        }
+        soundFX.playGong();
         if (onConfirm) onConfirm();
         return true;
       }
@@ -3226,56 +3238,56 @@
       const cur = this.modes[this.selectedIndex];
       const pulse = Math.sin(t * 0.12) * 0.5 + 0.5;
       const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, "#1a0505");
-      bg.addColorStop(0.6, "#2a0a0a");
+      bg.addColorStop(0, "#150303");
+      bg.addColorStop(0.55, "#220808");
       bg.addColorStop(1, "#050101");
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
-      ctx.globalAlpha = 0.18 + pulse * 0.08;
-      const glow = ctx.createRadialGradient(W * 0.68, H * 0.5, 10, W * 0.68, H * 0.5, 260);
+      ctx.globalAlpha = 0.16 + pulse * 0.08;
+      const glow = ctx.createRadialGradient(W * 0.7, H * 0.5, 10, W * 0.7, H * 0.5, 280);
       glow.addColorStop(0, cur.color);
       glow.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
-      for (let i = 0; i < 36; i++) {
-        const ex = (i * 71 + Math.sin(t * 0.02 + i) * 14) % W;
-        const ey = H - (t * (0.4 + i % 5 * 0.15) + i * 53) % H;
-        ctx.globalAlpha = 0.25 + i % 4 * 0.12;
+      for (let i = 0; i < 30; i++) {
+        const ex = (i * 73 + Math.sin(t * 0.02 + i) * 14) % W;
+        const ey = H - (t * (0.4 + i % 5 * 0.14) + i * 53) % H;
+        ctx.globalAlpha = 0.22 + i % 4 * 0.1;
         ctx.fillStyle = i % 3 === 0 ? "#fde047" : "#f97316";
         ctx.fillRect(ex, ey, 2, 2);
       }
       ctx.globalAlpha = 1;
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, W, 44);
+      ctx.fillStyle = "#0a0101";
+      ctx.fillRect(0, 0, W, 42);
       ctx.fillRect(0, H - 26, W, 26);
       ctx.fillStyle = "#b91c1c";
-      ctx.fillRect(0, 44, W, 2);
+      ctx.fillRect(0, 42, W, 2);
       ctx.fillRect(0, H - 28, W, 2);
       ctx.fillStyle = "#450a0a";
-      ctx.fillRect(12, 10, 98, 24);
+      ctx.fillRect(12, 8, 102, 26);
       ctx.strokeStyle = "#facc15";
       ctx.lineWidth = 1;
-      ctx.strokeRect(12.5, 10.5, 97, 23);
+      ctx.strokeRect(12.5, 8.5, 101, 25);
       ctx.fillStyle = "#fde68a";
       ctx.font = "bold 9px monospace";
       ctx.textAlign = "center";
-      ctx.fillText("< TITLE [B]", 61, 25);
+      ctx.fillText("< TITLE [B]", 63, 24);
       ctx.fillStyle = "#facc15";
-      ctx.font = "900 20px monospace";
-      ctx.fillText("CHOOSE YOUR DESTINY", W / 2 + 10, 28);
+      ctx.font = "900 18px monospace";
+      ctx.fillText("CHOOSE YOUR DESTINY", W / 2 + 10, 26);
       const L = _ModeSelect.LIST;
       this.modes.forEach((m, idx) => {
         const sel = idx === this.selectedIndex;
         const y = L.y + idx * (L.h + L.gap);
-        const x = L.x + (sel ? 10 : 0);
-        const w = L.w - (sel ? 10 : 0);
-        ctx.fillStyle = sel ? "rgba(127, 29, 29, 0.92)" : "rgba(20, 8, 8, 0.8)";
+        const x = L.x + (sel ? 8 : 0);
+        const w = L.w - (sel ? 8 : 0);
+        ctx.fillStyle = sel ? "rgba(127, 29, 29, 0.95)" : "rgba(20, 8, 8, 0.82)";
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + w - 10, y);
+        ctx.lineTo(x + w - 12, y);
         ctx.lineTo(x + w, y + L.h / 2);
-        ctx.lineTo(x + w - 10, y + L.h);
+        ctx.lineTo(x + w - 12, y + L.h);
         ctx.lineTo(x, y + L.h);
         ctx.closePath();
         ctx.fill();
@@ -3284,57 +3296,92 @@
         ctx.stroke();
         if (sel) {
           ctx.fillStyle = m.color;
-          ctx.fillRect(x - 8, y + 4, 4, L.h - 8);
+          ctx.fillRect(x - 6, y + 3, 4, L.h - 6);
         }
         const label = m.title.replace(/^[^A-Za-z0-9]+/, "");
         ctx.textAlign = "left";
         ctx.fillStyle = sel ? "#ffffff" : "#a8a29e";
         ctx.font = sel ? "bold 12px monospace" : "bold 11px monospace";
-        ctx.fillText(label, x + 12, y + 15);
+        ctx.fillText(label, x + 14, y + 14);
         ctx.fillStyle = sel ? m.color : "#78716c";
         ctx.font = "bold 8px monospace";
-        ctx.fillText(m.badge, x + 12, y + 27);
+        ctx.fillText(m.badge, x + 14, y + 26);
       });
-      const px2 = 296, py = 62, pw = W - 24 - px2, ph = 256;
-      ctx.fillStyle = "rgba(10, 3, 3, 0.88)";
+      const px2 = 286, py = 48, pw = W - 18 - px2, ph = 282;
+      ctx.fillStyle = "rgba(10, 3, 3, 0.92)";
       ctx.fillRect(px2, py, pw, ph);
       ctx.strokeStyle = cur.color;
       ctx.lineWidth = 2;
       ctx.strokeRect(px2 + 1, py + 1, pw - 2, ph - 2);
-      ctx.strokeStyle = "rgba(250, 204, 21, 0.5)";
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
       ctx.lineWidth = 1;
-      ctx.strokeRect(px2 + 6, py + 6, pw - 12, ph - 12);
+      ctx.strokeRect(px2 + 5, py + 5, pw - 10, ph - 10);
       ctx.globalAlpha = 0.1 + pulse * 0.05;
       ctx.fillStyle = cur.color;
-      ctx.font = "900 150px serif";
+      ctx.font = "900 160px serif";
       ctx.textAlign = "center";
-      ctx.fillText("\u9F8D", px2 + pw / 2, py + 175);
+      ctx.fillText("\u9F8D", px2 + pw / 2, py + 185);
       ctx.globalAlpha = 1;
       ctx.fillStyle = cur.color;
-      ctx.font = "bold 10px monospace";
-      ctx.fillText("~ " + cur.badge + " ~", px2 + pw / 2, py + 30);
+      ctx.font = "bold 9px monospace";
+      ctx.fillText("~ " + cur.badge + " ~", px2 + pw / 2, py + 26);
       ctx.fillStyle = "#ffffff";
       ctx.font = "900 20px monospace";
-      ctx.fillText(cur.title.replace(/^[^A-Za-z0-9]+/, ""), px2 + pw / 2, py + 58);
+      ctx.fillText(cur.title.replace(/^[^A-Za-z0-9]+/, ""), px2 + pw / 2, py + 50);
       ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 10px monospace";
-      ctx.fillText(cur.subtitle, px2 + pw / 2, py + 78);
+      ctx.font = "bold 9.5px monospace";
+      ctx.fillText(cur.subtitle, px2 + pw / 2, py + 68);
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.3)";
+      ctx.beginPath();
+      ctx.moveTo(px2 + 24, py + 78);
+      ctx.lineTo(px2 + pw - 24, py + 78);
+      ctx.stroke();
       ctx.fillStyle = "#e7e5e4";
       ctx.font = "11px monospace";
-      this.wrapText(ctx, cur.description, pw - 48).forEach((ln, i) => {
-        ctx.fillText(ln, px2 + pw / 2, py + 108 + i * 16);
+      this.wrapText(ctx, cur.description, pw - 36).forEach((ln, i) => {
+        ctx.fillText(ln, px2 + pw / 2, py + 100 + i * 18);
       });
+      if (cur.id === "campaign") {
+        ctx.fillStyle = "rgba(220, 38, 38, 0.2)";
+        ctx.fillRect(px2 + 16, py + 148, pw - 32, 60);
+        ctx.strokeStyle = "#dc2626";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px2 + 16, py + 148, pw - 32, 60);
+        ctx.fillStyle = "#f87171";
+        ctx.font = "bold 8.5px monospace";
+        ctx.fillText("\u2694\uFE0F CAMPAIGN CHAPTER ROADMAP (8 BOSSES):", px2 + pw / 2, py + 162);
+        ctx.fillStyle = "#fef08a";
+        ctx.font = "bold 7.5px monospace";
+        ctx.fillText("1: SGT. VANCE  \u2794  2: PROMOTER  \u2794  3: BOUNCER TWINS", px2 + pw / 2, py + 178);
+        ctx.fillText("4: MATRIARCH  \u2794  5: STREET LORD  \u2794  6: URBAN LEGEND", px2 + pw / 2, py + 190);
+        ctx.fillText("7: THE CHAMPION  \u2794  8: PRIMEVAL ENDLESS DRAGON \u{1F409}", px2 + pw / 2, py + 201);
+      }
       if (cur.id === "cpu") {
         const d = this.currentDifficulty;
-        ctx.fillStyle = d === "hard" ? "#ef4444" : d === "normal" ? "#f59e0b" : "#22c55e";
-        ctx.font = "bold 13px monospace";
-        ctx.fillText("<  DIFFICULTY: " + d.toUpperCase() + "  >", px2 + pw / 2, py + ph - 62);
+        const dColor = d === "hard" ? "#ef4444" : d === "normal" ? "#f59e0b" : "#22c55e";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(px2 + 20, py + ph - 88, pw - 40, 26);
+        ctx.strokeStyle = dColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px2 + 20, py + ph - 88, pw - 40, 26);
+        ctx.fillStyle = dColor;
+        ctx.font = "bold 11px monospace";
+        ctx.fillText("\u25C0  DIFFICULTY: " + d.toUpperCase() + "  \u25B6", px2 + pw / 2, py + ph - 71);
       }
-      if (Math.floor(t / 25) % 2 === 0) {
-        ctx.fillStyle = "#fef08a";
-        ctx.font = "bold 12px monospace";
-        ctx.fillText("[ ENTER / CLICK ] TO ENTER", px2 + pw / 2, py + ph - 24);
-      }
+      const btnW = pw - 32;
+      const btnH = 34;
+      const btnX = px2 + 16;
+      const btnY = py + ph - 44;
+      const btnPulse = Math.floor(t / 25) % 2 === 0;
+      ctx.fillStyle = btnPulse ? "rgba(185, 28, 28, 0.9)" : "rgba(153, 27, 27, 0.85)";
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 12px monospace";
+      const actionVerb = cur.id === "shop" ? "ENTER ITEM SHOP" : `START ${cur.title.replace(/^[^A-Za-z0-9]+/, "")}`;
+      ctx.fillText(`\u25B6  ${actionVerb}  [ENTER / CLICK]`, px2 + pw / 2, btnY + 22);
       ctx.fillStyle = "#d6d3d1";
       ctx.font = "bold 9px monospace";
       ctx.fillText("W/S NAVIGATE   A/D DIFFICULTY   ENTER CONFIRM   B/ESC BACK", W / 2, H - 10);
@@ -7331,6 +7378,8 @@
         const tx = G.x0 + col * (G.tileW + G.gap), ty = G.y0 + row * (G.tileH + G.gap);
         if (x >= tx && x <= tx + G.tileW && y >= ty && y <= ty + G.tileH) {
           const char = this.characters[idx];
+          const prevIdx = this.gameMode === "online" && this.localPlayerNum === 2 ? this.p2Index : this.p1Index;
+          const wasAlreadySelected = prevIdx === idx;
           if (this.gameMode === "online" && this.localPlayerNum === 2) {
             this.p2Index = idx;
           } else {
@@ -7346,19 +7395,34 @@
               this.codeFeedbackColor = "#fbbf24";
               this.openAdminPortal();
             }
+            return true;
           } else if (char.id === "endless_dragon" && !this.isDragonUnlocked()) {
             try {
               soundFX.playBlock();
             } catch (e) {
             }
+            return true;
+          }
+          if (wasAlreadySelected && onConfirm && (this.gameMode !== "online" || this.localPlayerNum === 1)) {
+            onConfirm();
           }
           return true;
         }
       }
-      const btnW = 340;
-      const btnH = 28;
+      const px0 = 218, pw = W - 2 * px0, py0 = 62, ph0 = 176;
+      if (x >= px0 && x <= px0 + pw && y >= py0 && y <= py0 + ph0) {
+        if (this.gameMode !== "online" || this.localPlayerNum === 1) {
+          const lockedType = this.isCurrentSelectionLocked(this.gameMode !== "online" || this.localPlayerNum === 1);
+          if (!lockedType && onConfirm) {
+            onConfirm();
+            return true;
+          }
+        }
+      }
+      const btnW = 380;
+      const btnH = 34;
       const btnX = (W - btnW) / 2;
-      const btnY = H - 34;
+      const btnY = H - 38;
       if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
         if (this.gameMode !== "online" || this.localPlayerNum === 1) {
           const lockedType = this.isCurrentSelectionLocked(this.gameMode !== "online" || this.localPlayerNum === 1);
@@ -20253,6 +20317,7 @@
           this.hud.triggerShake(14);
         }
         if (this.screen === GAME_SCREENS.ROUND_OVER) {
+          this.roundOverTimer--;
           if (this.roundOverTimer <= 0) {
             if (this.campaignStageWon) {
               if (isDragonStage) {

@@ -2241,6 +2241,7 @@ export class Game {
       }
 
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
+        this.roundOverTimer--;
         if (this.roundOverTimer <= 0) {
           if (this.campaignStageWon) {
             // Defeating Stage 8 Endless Dragon unlocks the dragon & Dragon Slayer badge!
