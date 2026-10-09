@@ -8,8 +8,8 @@ export class ModeSelect {
         id: 'campaign',
         badge: 'STORY MODE',
         title: '🏆 CAMPAIGN',
-        subtitle: 'THE 7 UNDERGROUND BOSSES',
-        description: 'Battle through 7 scaling crime bosses and face the 2-Phase Primeval Apex & Endless Dragon.',
+        subtitle: 'THE 8 BOSS CHAPTERS & ELDER DRAGON',
+        description: 'Battle through 8 escalating arena masters and face the 2-Phase Primeval Apex & Endless Dragon.',
         color: '#facc15'
       },
       {
@@ -251,7 +251,7 @@ export class ModeSelect {
       ctx.fill();
 
       // Border outline
-      ctx.strokeStyle = sel ? m.color : '#3f1d1d';
+      ctx.strokeStyle = sel ? m.color : '#6b2121';
       ctx.lineWidth = sel ? 2 : 1;
       ctx.stroke();
 
@@ -264,19 +264,19 @@ export class ModeSelect {
       // Main mode title (e.g. CAMPAIGN)
       const label = m.title.replace(/^[^A-Za-z0-9]+/, '');
       ctx.textAlign = 'left';
-      ctx.fillStyle = sel ? '#ffffff' : '#a8a29e';
-      ctx.font = sel ? 'bold 12px monospace' : 'bold 11px monospace';
+      ctx.fillStyle = sel ? '#ffffff' : '#f1f5f9';
+      ctx.font = sel ? 'bold 12.5px Consolas, monospace' : 'bold 11.5px Consolas, monospace';
       ctx.fillText(label, x + 14, y + 14);
 
       // Sub-badge pill (e.g. STORY MODE)
-      ctx.fillStyle = sel ? m.color : '#78716c';
-      ctx.font = 'bold 8px monospace';
+      ctx.fillStyle = sel ? m.color : '#fde68a';
+      ctx.font = sel ? 'bold 8.5px Consolas, monospace' : 'bold 8px Consolas, monospace';
       ctx.fillText(m.badge, x + 14, y + 26);
     });
 
     // 3. Right: Large Information & Action Card
     const px = 286, py = 48, pw = W - 18 - px, ph = 282;
-    ctx.fillStyle = 'rgba(10, 3, 3, 0.92)';
+    ctx.fillStyle = 'rgba(10, 3, 3, 0.94)';
     ctx.fillRect(px, py, pw, ph);
 
     // Dynamic border tinted by selected mode color
@@ -289,8 +289,8 @@ export class ModeSelect {
     ctx.lineWidth = 1;
     ctx.strokeRect(px + 5, py + 5, pw - 10, ph - 10);
 
-    // Faded dragon emblem watermark behind text
-    ctx.globalAlpha = 0.10 + pulse * 0.05;
+    // Faded dragon emblem watermark behind text (low alpha for pristine readability)
+    ctx.globalAlpha = 0.04 + pulse * 0.02;
     ctx.fillStyle = cur.color;
     ctx.font = '900 160px serif';
     ctx.textAlign = 'center';
@@ -299,50 +299,52 @@ export class ModeSelect {
 
     // Mode Tagline & Pill
     ctx.fillStyle = cur.color;
-    ctx.font = 'bold 9px monospace';
+    ctx.font = 'bold 10px Consolas, monospace';
     ctx.fillText('~ ' + cur.badge + ' ~', px + pw / 2, py + 26);
 
     // Big Mode Title
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 20px monospace';
+    ctx.font = '900 21px Consolas, monospace';
     ctx.fillText(cur.title.replace(/^[^A-Za-z0-9]+/, ''), px + pw / 2, py + 50);
 
     // Subtitle in warm amber
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 9.5px monospace';
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 11px Consolas, monospace';
     ctx.fillText(cur.subtitle, px + pw / 2, py + 68);
 
     // Subtle divider line
-    ctx.strokeStyle = 'rgba(250, 204, 21, 0.3)';
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.35)';
     ctx.beginPath();
     ctx.moveTo(px + 24, py + 78);
     ctx.lineTo(px + pw - 24, py + 78);
     ctx.stroke();
 
-    // Mode Description (spaced comfortably)
-    ctx.fillStyle = '#e7e5e4';
-    ctx.font = '11px monospace';
+    // Mode Description (spaced comfortably, crisp white)
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 11.5px Consolas, monospace';
     this.wrapText(ctx, cur.description, pw - 36).forEach((ln, i) => {
       ctx.fillText(ln, px + pw / 2, py + 100 + i * 18);
     });
 
     // Special Section: Campaign Boss Rush Preview
     if (cur.id === 'campaign') {
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.2)';
-      ctx.fillRect(px + 16, py + 148, pw - 32, 60);
-      ctx.strokeStyle = '#dc2626';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(px + 16, py + 148, pw - 32, 60);
+      ctx.fillStyle = 'rgba(220, 38, 38, 0.28)';
+      ctx.fillRect(px + 16, py + 144, pw - 32, 66);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + 16, py + 144, pw - 32, 66);
 
-      ctx.fillStyle = '#f87171';
-      ctx.font = 'bold 8.5px monospace';
-      ctx.fillText('⚔️ CAMPAIGN CHAPTER ROADMAP (8 BOSSES):', px + pw / 2, py + 162);
+      ctx.fillStyle = '#fca5a5';
+      ctx.font = 'bold 10px Consolas, monospace';
+      ctx.fillText('⚔️ CAMPAIGN CHAPTER ROADMAP (8 BOSSES):', px + pw / 2, py + 158);
 
       ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 7.5px monospace';
-      ctx.fillText('1: SGT. VANCE  ➔  2: PROMOTER  ➔  3: BOUNCER TWINS', px + pw / 2, py + 178);
-      ctx.fillText('4: MATRIARCH  ➔  5: STREET LORD  ➔  6: URBAN LEGEND', px + pw / 2, py + 190);
-      ctx.fillText('7: THE CHAMPION  ➔  8: PRIMEVAL ENDLESS DRAGON 🐉', px + pw / 2, py + 201);
+      ctx.font = 'bold 9px Consolas, monospace';
+      ctx.fillText('1: SGT. VANCE   ➔   2: PROMOTER   ➔   3: BOUNCER TWINS', px + pw / 2, py + 174);
+      ctx.fillText('4: MATRIARCH   ➔   5: STREET LORD   ➔   6: URBAN LEGEND', px + pw / 2, py + 188);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('7: THE CHAMPION   ➔   8: PRIMEVAL ENDLESS DRAGON 🐉', px + pw / 2, py + 202);
     }
 
     // Special Section: CPU Difficulty Selector
@@ -355,7 +357,7 @@ export class ModeSelect {
       ctx.lineWidth = 1;
       ctx.strokeRect(px + 20, py + ph - 88, pw - 40, 26);
       ctx.fillStyle = dColor;
-      ctx.font = 'bold 11px monospace';
+      ctx.font = 'bold 11.5px Consolas, monospace';
       ctx.fillText('◀  DIFFICULTY: ' + d.toUpperCase() + '  ▶', px + pw / 2, py + ph - 71);
     }
 
@@ -366,14 +368,14 @@ export class ModeSelect {
     const btnY = py + ph - 44;
 
     const btnPulse = Math.floor(t / 25) % 2 === 0;
-    ctx.fillStyle = btnPulse ? 'rgba(185, 28, 28, 0.9)' : 'rgba(153, 27, 27, 0.85)';
+    ctx.fillStyle = btnPulse ? 'rgba(185, 28, 28, 0.95)' : 'rgba(153, 27, 27, 0.9)';
     ctx.fillRect(btnX, btnY, btnW, btnH);
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(btnX, btnY, btnW, btnH);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px monospace';
+    ctx.font = 'bold 12.5px Consolas, monospace';
     const actionVerb = cur.id === 'shop' ? 'ENTER ITEM SHOP' : `START ${cur.title.replace(/^[^A-Za-z0-9]+/, '')}`;
     ctx.fillText(`▶  ${actionVerb}  [ENTER / CLICK]`, px + pw / 2, btnY + 22);
 

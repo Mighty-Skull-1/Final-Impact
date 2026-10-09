@@ -59,6 +59,11 @@ export const GAME_SCREENS = {
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
+    this.renderScale = 2; // 2x Super-Sampling HD Clarity Engine (1280x720 internal buffer)
+    if (this.canvas) {
+      this.canvas.width = GAME_WIDTH * this.renderScale;
+      this.canvas.height = GAME_HEIGHT * this.renderScale;
+    }
     this.ctx = canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
 
@@ -185,9 +190,9 @@ export class Game {
     // Universal canvas click delegation across screens
     if (this.canvas && typeof this.canvas.addEventListener === 'function') {
       this.canvas.addEventListener('click', (e) => {
-        const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, width: this.canvas.width || 640, height: this.canvas.height || 360 };
-        const scaleX = this.canvas.width / (rect.width || 1);
-        const scaleY = this.canvas.height / (rect.height || 1);
+        const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, width: rect?.width || GAME_WIDTH, height: rect?.height || GAME_HEIGHT };
+        const scaleX = GAME_WIDTH / (rect.width || 1);
+        const scaleY = GAME_HEIGHT / (rect.height || 1);
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
@@ -196,7 +201,7 @@ export class Game {
           this.screen = GAME_SCREENS.TITLE;
         }, () => {
           this.handleConfirmPress();
-        }, this.canvas.width);
+        }, GAME_WIDTH);
       } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
         this.charSelect.handleClick(x, y, () => {
           if (this.isOnline) {
@@ -208,9 +213,9 @@ export class Game {
           }
         }, () => {
           this.handleConfirmPress();
-        }, this.canvas.width, this.canvas.height);
+        }, GAME_WIDTH, GAME_HEIGHT);
       } else if (this.screen === GAME_SCREENS.STAGE_SELECT) {
-        this.stageSelect.handleClick(x, y, this.canvas.width, this.canvas.height, {
+        this.stageSelect.handleClick(x, y, GAME_WIDTH, GAME_HEIGHT, {
           onBack: () => this.handleBackPress(),
           onConfirm: () => this.handleConfirmPress()
         });
@@ -218,7 +223,7 @@ export class Game {
           this.netplay.send({ type: 'STAGE_NAV', index: this.stageSelect.index });
         }
       } else if (this.screen === GAME_SCREENS.SHOP) {
-        const res = this.shopScreen.handleMouseClick(x, y, this.canvas.width, this.canvas.height);
+        const res = this.shopScreen.handleMouseClick(x, y, GAME_WIDTH, GAME_HEIGHT);
         if (res && res.action === 'back') {
           this.handleBackPress();
         }
@@ -2480,20 +2485,28 @@ export class Game {
     const { ctx } = this;
     const W = GAME_WIDTH;
     const H = GAME_HEIGHT;
+    const scale = (this.canvas && this.canvas.width) ? (this.canvas.width / W) : 1;
 
-    if (typeof document !== 'undefined') {
-      const coinEl = document.getElementById('topbarCoinVal');
-      if (coinEl && this.gameSpeedTick % 30 === 0) {
-        coinEl.textContent = EconomyManager.getCoins().toLocaleString();
+    ctx.save();
+    if (scale !== 1) {
+      ctx.scale(scale, scale);
+    }
+    ctx.imageSmoothingEnabled = false;
+
+    try {
+      if (typeof document !== 'undefined') {
+        const coinEl = document.getElementById('topbarCoinVal');
+        if (coinEl && this.gameSpeedTick % 30 === 0) {
+          coinEl.textContent = EconomyManager.getCoins().toLocaleString();
+        }
       }
-    }
 
-    ctx.clearRect(0, 0, W, H);
+      ctx.clearRect(0, 0, W, H);
 
-    if (this.screen === GAME_SCREENS.TITLE) {
-      this.titleScreen.render(ctx, W, H);
-      return;
-    }
+      if (this.screen === GAME_SCREENS.TITLE) {
+        this.titleScreen.render(ctx, W, H);
+        return;
+      }
 
     if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
       this.onlineLobby.render(ctx, W, H);
@@ -2590,6 +2603,9 @@ export class Game {
     }
 
     ctx.restore();
+    } finally {
+      ctx.restore();
+    }
   }
 
   renderOnlineBadge(ctx, W, H) {

@@ -3083,8 +3083,8 @@
           id: "campaign",
           badge: "STORY MODE",
           title: "\u{1F3C6} CAMPAIGN",
-          subtitle: "THE 7 UNDERGROUND BOSSES",
-          description: "Battle through 7 scaling crime bosses and face the 2-Phase Primeval Apex & Endless Dragon.",
+          subtitle: "THE 8 BOSS CHAPTERS & ELDER DRAGON",
+          description: "Battle through 8 escalating arena masters and face the 2-Phase Primeval Apex & Endless Dragon.",
           color: "#facc15"
         },
         {
@@ -3291,7 +3291,7 @@
         ctx.lineTo(x, y + L.h);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = sel ? m.color : "#3f1d1d";
+        ctx.strokeStyle = sel ? m.color : "#6b2121";
         ctx.lineWidth = sel ? 2 : 1;
         ctx.stroke();
         if (sel) {
@@ -3300,15 +3300,15 @@
         }
         const label = m.title.replace(/^[^A-Za-z0-9]+/, "");
         ctx.textAlign = "left";
-        ctx.fillStyle = sel ? "#ffffff" : "#a8a29e";
-        ctx.font = sel ? "bold 12px monospace" : "bold 11px monospace";
+        ctx.fillStyle = sel ? "#ffffff" : "#f1f5f9";
+        ctx.font = sel ? "bold 12.5px Consolas, monospace" : "bold 11.5px Consolas, monospace";
         ctx.fillText(label, x + 14, y + 14);
-        ctx.fillStyle = sel ? m.color : "#78716c";
-        ctx.font = "bold 8px monospace";
+        ctx.fillStyle = sel ? m.color : "#fde68a";
+        ctx.font = sel ? "bold 8.5px Consolas, monospace" : "bold 8px Consolas, monospace";
         ctx.fillText(m.badge, x + 14, y + 26);
       });
       const px2 = 286, py = 48, pw = W - 18 - px2, ph = 282;
-      ctx.fillStyle = "rgba(10, 3, 3, 0.92)";
+      ctx.fillStyle = "rgba(10, 3, 3, 0.94)";
       ctx.fillRect(px2, py, pw, ph);
       ctx.strokeStyle = cur.color;
       ctx.lineWidth = 2;
@@ -3316,45 +3316,46 @@
       ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
       ctx.lineWidth = 1;
       ctx.strokeRect(px2 + 5, py + 5, pw - 10, ph - 10);
-      ctx.globalAlpha = 0.1 + pulse * 0.05;
+      ctx.globalAlpha = 0.04 + pulse * 0.02;
       ctx.fillStyle = cur.color;
       ctx.font = "900 160px serif";
       ctx.textAlign = "center";
       ctx.fillText("\u9F8D", px2 + pw / 2, py + 185);
       ctx.globalAlpha = 1;
       ctx.fillStyle = cur.color;
-      ctx.font = "bold 9px monospace";
+      ctx.font = "bold 10px Consolas, monospace";
       ctx.fillText("~ " + cur.badge + " ~", px2 + pw / 2, py + 26);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "900 20px monospace";
+      ctx.font = "900 21px Consolas, monospace";
       ctx.fillText(cur.title.replace(/^[^A-Za-z0-9]+/, ""), px2 + pw / 2, py + 50);
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 9.5px monospace";
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 11px Consolas, monospace";
       ctx.fillText(cur.subtitle, px2 + pw / 2, py + 68);
-      ctx.strokeStyle = "rgba(250, 204, 21, 0.3)";
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.35)";
       ctx.beginPath();
       ctx.moveTo(px2 + 24, py + 78);
       ctx.lineTo(px2 + pw - 24, py + 78);
       ctx.stroke();
-      ctx.fillStyle = "#e7e5e4";
-      ctx.font = "11px monospace";
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "bold 11.5px Consolas, monospace";
       this.wrapText(ctx, cur.description, pw - 36).forEach((ln, i) => {
         ctx.fillText(ln, px2 + pw / 2, py + 100 + i * 18);
       });
       if (cur.id === "campaign") {
-        ctx.fillStyle = "rgba(220, 38, 38, 0.2)";
-        ctx.fillRect(px2 + 16, py + 148, pw - 32, 60);
-        ctx.strokeStyle = "#dc2626";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px2 + 16, py + 148, pw - 32, 60);
-        ctx.fillStyle = "#f87171";
-        ctx.font = "bold 8.5px monospace";
-        ctx.fillText("\u2694\uFE0F CAMPAIGN CHAPTER ROADMAP (8 BOSSES):", px2 + pw / 2, py + 162);
+        ctx.fillStyle = "rgba(220, 38, 38, 0.28)";
+        ctx.fillRect(px2 + 16, py + 144, pw - 32, 66);
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px2 + 16, py + 144, pw - 32, 66);
+        ctx.fillStyle = "#fca5a5";
+        ctx.font = "bold 10px Consolas, monospace";
+        ctx.fillText("\u2694\uFE0F CAMPAIGN CHAPTER ROADMAP (8 BOSSES):", px2 + pw / 2, py + 158);
         ctx.fillStyle = "#fef08a";
-        ctx.font = "bold 7.5px monospace";
-        ctx.fillText("1: SGT. VANCE  \u2794  2: PROMOTER  \u2794  3: BOUNCER TWINS", px2 + pw / 2, py + 178);
-        ctx.fillText("4: MATRIARCH  \u2794  5: STREET LORD  \u2794  6: URBAN LEGEND", px2 + pw / 2, py + 190);
-        ctx.fillText("7: THE CHAMPION  \u2794  8: PRIMEVAL ENDLESS DRAGON \u{1F409}", px2 + pw / 2, py + 201);
+        ctx.font = "bold 9px Consolas, monospace";
+        ctx.fillText("1: SGT. VANCE   \u2794   2: PROMOTER   \u2794   3: BOUNCER TWINS", px2 + pw / 2, py + 174);
+        ctx.fillText("4: MATRIARCH   \u2794   5: STREET LORD   \u2794   6: URBAN LEGEND", px2 + pw / 2, py + 188);
+        ctx.fillStyle = "#38bdf8";
+        ctx.fillText("7: THE CHAMPION   \u2794   8: PRIMEVAL ENDLESS DRAGON \u{1F409}", px2 + pw / 2, py + 202);
       }
       if (cur.id === "cpu") {
         const d = this.currentDifficulty;
@@ -3365,7 +3366,7 @@
         ctx.lineWidth = 1;
         ctx.strokeRect(px2 + 20, py + ph - 88, pw - 40, 26);
         ctx.fillStyle = dColor;
-        ctx.font = "bold 11px monospace";
+        ctx.font = "bold 11.5px Consolas, monospace";
         ctx.fillText("\u25C0  DIFFICULTY: " + d.toUpperCase() + "  \u25B6", px2 + pw / 2, py + ph - 71);
       }
       const btnW = pw - 32;
@@ -3373,13 +3374,13 @@
       const btnX = px2 + 16;
       const btnY = py + ph - 44;
       const btnPulse = Math.floor(t / 25) % 2 === 0;
-      ctx.fillStyle = btnPulse ? "rgba(185, 28, 28, 0.9)" : "rgba(153, 27, 27, 0.85)";
+      ctx.fillStyle = btnPulse ? "rgba(185, 28, 28, 0.95)" : "rgba(153, 27, 27, 0.9)";
       ctx.fillRect(btnX, btnY, btnW, btnH);
       ctx.strokeStyle = "#facc15";
       ctx.lineWidth = 1.5;
       ctx.strokeRect(btnX, btnY, btnW, btnH);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 12px monospace";
+      ctx.font = "bold 12.5px Consolas, monospace";
       const actionVerb = cur.id === "shop" ? "ENTER ITEM SHOP" : `START ${cur.title.replace(/^[^A-Za-z0-9]+/, "")}`;
       ctx.fillText(`\u25B6  ${actionVerb}  [ENTER / CLICK]`, px2 + pw / 2, btnY + 22);
       ctx.fillStyle = "#d6d3d1";
@@ -18428,6 +18429,11 @@
   var Game = class {
     constructor(canvas) {
       this.canvas = canvas;
+      this.renderScale = 2;
+      if (this.canvas) {
+        this.canvas.width = GAME_WIDTH * this.renderScale;
+        this.canvas.height = GAME_HEIGHT * this.renderScale;
+      }
       this.ctx = canvas.getContext("2d");
       this.ctx.imageSmoothingEnabled = false;
       this.screen = GAME_SCREENS.TITLE;
@@ -18542,9 +18548,9 @@
       });
       if (this.canvas && typeof this.canvas.addEventListener === "function") {
         this.canvas.addEventListener("click", (e) => {
-          const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, width: this.canvas.width || 640, height: this.canvas.height || 360 };
-          const scaleX = this.canvas.width / (rect.width || 1);
-          const scaleY = this.canvas.height / (rect.height || 1);
+          const rect = this.canvas.getBoundingClientRect ? this.canvas.getBoundingClientRect() : { left: 0, top: 0, width: rect?.width || GAME_WIDTH, height: rect?.height || GAME_HEIGHT };
+          const scaleX = GAME_WIDTH / (rect.width || 1);
+          const scaleY = GAME_HEIGHT / (rect.height || 1);
           const x = (e.clientX - rect.left) * scaleX;
           const y = (e.clientY - rect.top) * scaleY;
           if (this.screen === GAME_SCREENS.MODE_SELECT) {
@@ -18552,7 +18558,7 @@
               this.screen = GAME_SCREENS.TITLE;
             }, () => {
               this.handleConfirmPress();
-            }, this.canvas.width);
+            }, GAME_WIDTH);
           } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
             this.charSelect.handleClick(x, y, () => {
               if (this.isOnline) {
@@ -18564,9 +18570,9 @@
               }
             }, () => {
               this.handleConfirmPress();
-            }, this.canvas.width, this.canvas.height);
+            }, GAME_WIDTH, GAME_HEIGHT);
           } else if (this.screen === GAME_SCREENS.STAGE_SELECT) {
-            this.stageSelect.handleClick(x, y, this.canvas.width, this.canvas.height, {
+            this.stageSelect.handleClick(x, y, GAME_WIDTH, GAME_HEIGHT, {
               onBack: () => this.handleBackPress(),
               onConfirm: () => this.handleConfirmPress()
             });
@@ -18574,7 +18580,7 @@
               this.netplay.send({ type: "STAGE_NAV", index: this.stageSelect.index });
             }
           } else if (this.screen === GAME_SCREENS.SHOP) {
-            const res = this.shopScreen.handleMouseClick(x, y, this.canvas.width, this.canvas.height);
+            const res = this.shopScreen.handleMouseClick(x, y, GAME_WIDTH, GAME_HEIGHT);
             if (res && res.action === "back") {
               this.handleBackPress();
             }
@@ -20533,79 +20539,89 @@
       const { ctx } = this;
       const W = GAME_WIDTH;
       const H = GAME_HEIGHT;
-      if (typeof document !== "undefined") {
-        const coinEl = document.getElementById("topbarCoinVal");
-        if (coinEl && this.gameSpeedTick % 30 === 0) {
-          coinEl.textContent = EconomyManager.getCoins().toLocaleString();
+      const scale = this.canvas && this.canvas.width ? this.canvas.width / W : 1;
+      ctx.save();
+      if (scale !== 1) {
+        ctx.scale(scale, scale);
+      }
+      ctx.imageSmoothingEnabled = false;
+      try {
+        if (typeof document !== "undefined") {
+          const coinEl = document.getElementById("topbarCoinVal");
+          if (coinEl && this.gameSpeedTick % 30 === 0) {
+            coinEl.textContent = EconomyManager.getCoins().toLocaleString();
+          }
         }
+        ctx.clearRect(0, 0, W, H);
+        if (this.screen === GAME_SCREENS.TITLE) {
+          this.titleScreen.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
+          this.onlineLobby.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.SHOP) {
+          this.shopScreen.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.MODE_SELECT) {
+          this.modeSelect.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.CHAR_SELECT) {
+          this.charSelect.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.STAGE_SELECT) {
+          this.stageSelect.render(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.VERSUS) {
+          this.versus.render(ctx, W, H, this.stage, this.cameraX);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
+          this.elden.renderSiteOfGrace(ctx, W, H);
+          return;
+        }
+        if (this.screen === GAME_SCREENS.VICTORY) {
+          this.renderVictoryScreen();
+          return;
+        }
+        ctx.save();
+        const shake = this.hud.getShakeOffset();
+        ctx.translate(shake.x, shake.y);
+        this.stage.render(ctx, this.cameraX, W, H);
+        ctx.save();
+        ctx.translate(-this.cameraX, 0);
+        this.pickups.forEach((p) => p.render(ctx));
+        this.allFighters.forEach((f) => f.render(ctx));
+        this.projectiles.forEach((p) => p.render(ctx));
+        if (this.finish && this.finish.active) {
+          this.finish.renderWorld(ctx);
+        }
+        if (this.showHitboxes) {
+          this.renderHitboxDebug(ctx);
+        }
+        ctx.restore();
+        const primaryEnemy = this.f2 && !this.f2.isDead ? this.f2 : this.f4 || this.f2;
+        this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4);
+        if (this.finish && this.finish.active) {
+          this.finish.renderOverlay(ctx, W, H);
+        }
+        if (this.elden) {
+          this.elden.update();
+          this.elden.renderFelledBanner(ctx, W, H);
+          this.elden.renderYouDied(ctx, W, H);
+        }
+        if (this.isOnline && this.netplay) {
+          this.renderOnlineBadge(ctx, W, H);
+        }
+        ctx.restore();
+      } finally {
+        ctx.restore();
       }
-      ctx.clearRect(0, 0, W, H);
-      if (this.screen === GAME_SCREENS.TITLE) {
-        this.titleScreen.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
-        this.onlineLobby.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.SHOP) {
-        this.shopScreen.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.MODE_SELECT) {
-        this.modeSelect.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-        this.charSelect.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.STAGE_SELECT) {
-        this.stageSelect.render(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.VERSUS) {
-        this.versus.render(ctx, W, H, this.stage, this.cameraX);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
-        this.elden.renderSiteOfGrace(ctx, W, H);
-        return;
-      }
-      if (this.screen === GAME_SCREENS.VICTORY) {
-        this.renderVictoryScreen();
-        return;
-      }
-      ctx.save();
-      const shake = this.hud.getShakeOffset();
-      ctx.translate(shake.x, shake.y);
-      this.stage.render(ctx, this.cameraX, W, H);
-      ctx.save();
-      ctx.translate(-this.cameraX, 0);
-      this.pickups.forEach((p) => p.render(ctx));
-      this.allFighters.forEach((f) => f.render(ctx));
-      this.projectiles.forEach((p) => p.render(ctx));
-      if (this.finish && this.finish.active) {
-        this.finish.renderWorld(ctx);
-      }
-      if (this.showHitboxes) {
-        this.renderHitboxDebug(ctx);
-      }
-      ctx.restore();
-      const primaryEnemy = this.f2 && !this.f2.isDead ? this.f2 : this.f4 || this.f2;
-      this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4);
-      if (this.finish && this.finish.active) {
-        this.finish.renderOverlay(ctx, W, H);
-      }
-      if (this.elden) {
-        this.elden.update();
-        this.elden.renderFelledBanner(ctx, W, H);
-        this.elden.renderYouDied(ctx, W, H);
-      }
-      if (this.isOnline && this.netplay) {
-        this.renderOnlineBadge(ctx, W, H);
-      }
-      ctx.restore();
     }
     renderOnlineBadge(ctx, W, H) {
       ctx.save();

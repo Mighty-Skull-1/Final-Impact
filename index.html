@@ -25,7 +25,7 @@
         <button id="topbarShopBtn" class="arcade-btn" style="border-color: #eab308; color: #fde047;">🛍️ SHOP</button>
         <button id="topbarAdminBtn" class="arcade-btn" style="border-color: #ef4444; color: #fca5a5;">⚡ ADMIN [A]</button>
         <button id="settingsBtn" class="arcade-btn highlight-btn">SETTINGS [P]</button>
-        <button id="toggleCrtBtn" class="arcade-btn">CRT: ON</button>
+        <button id="toggleCrtBtn" class="arcade-btn">CRT: OFF</button>
         <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF</button>
         <button id="toggleEasyBtn" class="arcade-btn">EASY: OFF</button>
         <button id="screenSizeBtn" class="arcade-btn" style="border-color: #38bdf8; color: #7dd3fc;" title="Toggle Screen Scale: Large / Theater / Normal">SIZE: LARGE</button>
@@ -39,8 +39,8 @@
     <!-- CRT Bezel & Screen Wrapper -->
     <main class="screen-container">
       <div class="crt-bezel">
-        <canvas id="gameCanvas" width="640" height="360"></canvas>
-        <div id="crtOverlay" class="crt-overlay"></div>
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+        <div id="crtOverlay" class="crt-overlay" style="display: none;"></div>
       </div>
     </main>
 
@@ -254,15 +254,26 @@
   <!-- Final Impact Game Engine: Runs universally on file://, http://, GitHub Pages & Steam -->
   <script src="dist/game.bundle.js?v=2.9.0"></script>
   <script>
-    // CRT toggle
+    // CRT toggle (Default: OFF for ultra-clear HD crisp graphics)
     const crtBtn = document.getElementById('toggleCrtBtn');
     const crtOverlay = document.getElementById('crtOverlay');
-    let crtOn = true;
-    crtBtn.addEventListener('click', () => {
-      crtOn = !crtOn;
-      crtOverlay.style.display = crtOn ? 'block' : 'none';
-      crtBtn.textContent = `CRT: ${crtOn ? 'ON' : 'OFF'}`;
-    });
+    let crtOn = false;
+    try {
+      if (localStorage.getItem('final_impact_crt') === 'true') {
+        crtOn = true;
+      }
+    } catch (e) {}
+    if (crtOverlay) crtOverlay.style.display = crtOn ? 'block' : 'none';
+    if (crtBtn) crtBtn.textContent = `CRT: ${crtOn ? 'ON' : 'OFF'}`;
+
+    if (crtBtn) {
+      crtBtn.addEventListener('click', () => {
+        crtOn = !crtOn;
+        if (crtOverlay) crtOverlay.style.display = crtOn ? 'block' : 'none';
+        crtBtn.textContent = `CRT: ${crtOn ? 'ON' : 'OFF'}`;
+        try { localStorage.setItem('final_impact_crt', crtOn ? 'true' : 'false'); } catch (e) {}
+      });
+    }
 
     // Hitboxes toggle button
     const hitboxBtn = document.getElementById('toggleHitboxBtn');
