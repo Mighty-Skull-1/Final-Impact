@@ -5,6 +5,7 @@ import { soundFX } from '../audio/SoundFX.js';
 import { announcer } from '../audio/Announcer.js';
 import { fatalitySystem, FATALITY_CATALOG } from '../combat/FatalitySystem.js';
 import { FIGHTER_STATE } from '../engine/Constants.js';
+import { achievements } from '../engine/Achievements.js';
 
 export const FINISH_PROMPT_FRAMES = 300; // 5 seconds to execute
 export const FINISH_EXECUTE_FRAMES = 170;
@@ -66,6 +67,7 @@ export class FinishHim {
     this.phase = 'fatality';
     this.t = 0;
     this.executed = true;
+    try { achievements.unlock('FATALITY_EXECUTOR'); } catch (e) {}
     fatalitySystem.start(this.winner, this.loser, this.stageId, type);
   }
 

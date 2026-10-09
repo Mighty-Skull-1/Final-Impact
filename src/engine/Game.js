@@ -41,6 +41,8 @@ import { EconomyManager } from '../shop/SkinCatalog.js';
 import { getAdminCheats, isStealthMode, isAdminAuthenticated, setStealthMode } from '../utils/CryptoAuth.js';
 import { announcer } from '../audio/Announcer.js';
 import { eldenManager } from '../elden/EldenRingMechanics.js';
+import { CampaignDialogue } from '../combat/CampaignDialogue.js';
+import { achievements } from './Achievements.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -49,6 +51,7 @@ export const GAME_SCREENS = {
   CHAR_SELECT: 'CHAR_SELECT',
   STAGE_SELECT: 'STAGE_SELECT',
   VERSUS: 'VERSUS',
+  CAMPAIGN_DIALOGUE: 'CAMPAIGN_DIALOGUE',
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
   VICTORY: 'VICTORY',
@@ -81,9 +84,26 @@ export class Game {
     this.stageSelect = new StageSelect(STAGE_CATALOG);
     this.versus = new VersusScreen();
     this.finish = new FinishHim();
+    this.campaignDialogue = new CampaignDialogue();
+    this.achievements = achievements;
+    this.cameraZoom = 1.0;
+    this.targetCameraZoom = 1.0;
+    this.zoomTimer = 0;
     this.elden = eldenManager;
     this.announcer = announcer;
     this.syncStealthUI();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('ultimate-activated', (e) => {
+        try {
+          this.achievements.unlock('ULTIMATE_JUTSU');
+          if (e.detail && e.detail.fighter === 'mighty') {
+            this.achievements.unlock('VOID_AWAKENING');
+          }
+          this.triggerCameraZoom(1.22, 60);
+        } catch (err) {}
+      });
+    }
 
     // Online Multiplayer Netplay Engine & Lobby UI
     this.netplay = new Netplay();
@@ -830,7 +850,24 @@ export class Game {
     this.screen = GAME_SCREENS.VERSUS;
   }
 
+  triggerCameraZoom(level = 1.2, duration = 40) {
+    this.targetCameraZoom = level;
+    this.zoomTimer = duration;
+  }
+
   finishVersus() {
+    if (this.isCampaign) {
+      const bossKey = this.bossQueue[this.bossIndex] || 'riot_cop';
+      this.screen = GAME_SCREENS.CAMPAIGN_DIALOGUE;
+      this.campaignDialogue.start(bossKey, this.f1, this.f2, () => {
+        this.startFight();
+      });
+    } else {
+      this.startFight();
+    }
+  }
+
+  startFight() {
     this.screen = GAME_SCREENS.FIGHT;
     soundFX.startMusic('fight');
     soundFX.playAnnouncer('ROUND1');
@@ -1144,6 +1181,20 @@ export class Game {
     // 1. Always poll Gamepads at the start of every frame
     input.pollGamepads();
 
+    // Achievements update & notification handling
+    if (this.achievements) {
+      this.achievements.update();
+    }
+
+    // Camera zoom interpolation
+    if (this.zoomTimer > 0) {
+      this.zoomTimer--;
+      if (this.zoomTimer <= 0) {
+        this.targetCameraZoom = 1.0;
+      }
+    }
+    this.cameraZoom += (this.targetCameraZoom - this.cameraZoom) * 0.12;
+
     // 2. Settings Modal handling
     if (this.settingsManager.isOpen) {
       if (typeof this.settingsManager.updateGamepad === 'function') {
@@ -1388,6 +1439,17 @@ export class Game {
       return;
     }
 
+    // 2d. Campaign Story Dialogue Banter
+    if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
+      const p1Actions = input.poll(1);
+      const isAdvance = (menuNav && menuNav.confirm) || p1Actions.lpJust || p1Actions.hpJust || p1Actions.lkJust || p1Actions.hkJust;
+      const isBack = menuNav && menuNav.back;
+      this.campaignDialogue.update({ confirm: isAdvance, back: isBack });
+      if (this.stage) this.stage.update();
+      input.endFrame();
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.VICTORY) {
       this.updateVictoryScreen();
       input.endFrame();
@@ -1499,6 +1561,7 @@ export class Game {
         const opp = this.getNearestOpponent(f);
         f.update(opp, STAGE_WIDTH);
         this.checkCornerCrowdRebound(f);
+        if (this.elden) this.elden.updateStance(f);
       }
     });
 
@@ -2097,6 +2160,7 @@ export class Game {
                 : hitResult.attack;
 
               attacker.addSuper(attackData.damage * 0.08);
+              const wasStanceBroken = defender.isStanceBroken;
               const hitType = defender.takeHit(attackData, attacker.facingRight ? 1 : -1);
 
               if (attacker.state === FIGHTER_STATE.DIRTY_TACTIC || attackData.hitType === HIT_TYPE.DIRTY_STUN) {
@@ -2104,13 +2168,32 @@ export class Game {
               }
 
               const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
-              attacker.hitStop = isHeavy ? 4 : 2;
+              attacker.hitStop = isHeavy ? 5 : 2;
 
               this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
               if (hitType !== 'blocked') {
                 this.hud.recordHit(attacker.playerNum);
                 const shakeMult = this.settingsManager.settings.screenShake === 'off' ? 0 : (this.settingsManager.settings.screenShake === 'low' ? 0.4 : 1.0);
                 this.hud.triggerShake((attackData.damage > 80 ? 7 : 3) * shakeMult);
+
+                if (attacker.playerNum === 1) {
+                  try { this.achievements.unlock('FIRST_BLOOD'); } catch (e) {}
+                }
+
+                if (this.elden) {
+                  const broke = this.elden.checkStanceBreak(defender, attackData.damage);
+                  if (broke) {
+                    try { this.achievements.unlock('STANCE_BREAKER'); } catch (e) {}
+                    attacker.hitStop = 7;
+                    this.triggerCameraZoom(1.22, 50);
+                    this.hud.triggerShake(9 * shakeMult);
+                  } else if (wasStanceBroken && isHeavy) {
+                    try { this.achievements.unlock('CRITICAL_RIPOSTE'); } catch (e) {}
+                    attacker.hitStop = 8;
+                    this.triggerCameraZoom(1.26, 60);
+                    this.hud.triggerShake(12 * shakeMult);
+                  }
+                }
               }
               break;
             }
@@ -2252,6 +2335,7 @@ export class Game {
             // Defeating Stage 8 Endless Dragon unlocks the dragon & Dragon Slayer badge!
             if (isDragonStage) {
               EconomyManager.addCoins(500);
+              try { this.achievements.unlock('DRAGON_SLAYER'); } catch (e) {}
               if (typeof window !== 'undefined' && window.localStorage) {
                 try {
                   window.localStorage.setItem('final_impact_unlocked_dragon', 'true');
@@ -2287,6 +2371,7 @@ export class Game {
               }
             } else {
               // All 8 bosses defeated! Campaign Champion & Dragon Slayer!
+              try { this.achievements.unlock('CAMPAIGN_CHAMPION'); } catch (e) {}
               EconomyManager.addCoins(1000); // Grand champion bounty
               if (this.isCoopCampaign && this.netplay.isHost) {
                 this.netplay.send({
@@ -2357,6 +2442,9 @@ export class Game {
         const w = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
         this.koFlawless = w.health >= w.maxHealth;
         if (w === this.f1) {
+          if (this.koFlawless) {
+            try { this.achievements.unlock('PERFECT_ROUND'); } catch (e) {}
+          }
           EconomyManager.addCoins(150 + (this.koFlawless ? 200 : 0)); // Match win + flawless bonus
         }
       }
@@ -2538,6 +2626,17 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
+      if (this.stage) this.stage.render(ctx, this.cameraX, W, H);
+      ctx.save();
+      ctx.translate(-this.cameraX, 0);
+      if (this.f1) this.f1.render(ctx);
+      if (this.f2) this.f2.render(ctx);
+      ctx.restore();
+      this.campaignDialogue.render(ctx, W, H);
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
       this.elden.renderSiteOfGrace(ctx, W, H);
       return;
@@ -2552,6 +2651,12 @@ export class Game {
     ctx.save();
     const shake = this.hud.getShakeOffset();
     ctx.translate(shake.x, shake.y);
+
+    if (this.cameraZoom && this.cameraZoom !== 1.0) {
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(this.cameraZoom, this.cameraZoom);
+      ctx.translate(-W / 2, -H / 2);
+    }
 
     // 1. Render Parallax Stage
     this.stage.render(ctx, this.cameraX, W, H);
@@ -2603,6 +2708,11 @@ export class Game {
     }
 
     ctx.restore();
+
+    // 6. Sliding Steam Achievements Toast Overlay
+    if (this.achievements) {
+      this.achievements.render(ctx, W, H);
+    }
     } finally {
       ctx.restore();
     }

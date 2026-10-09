@@ -127,6 +127,40 @@ Select from 6 distinct stages featuring animated parallax backgrounds and dynami
 | **Pause / Arcade Settings** | `Start` | `Options` | `+` |
 
 *Hot-plugging is fully supported — connect up to 2 controllers for seamless couch multiplayer.*
+### 🏆 Steam Achievements & In-Game Toasts
+* **11 Core Achievements**: Unlocked dynamically in combat (*First Impact*, *Shattered Poise*, *Tarnished Riposte*, *Secret Ougi*, *Flawless Execution*, *Untouchable*, *Drip Legend*, *High Roller*, *God Slain*, *Void Ascension*, and *Street Grandmaster*).
+* **Sliding Golden Trophy Toasts**: Steam-style carbon and gold toast popups slide smoothly into view upon unlocking an achievement with retro chime fanfare.
+* **Persistent Progress**: Unlocked achievements save permanently to local storage.
+
+### 🎭 Campaign Pre-Fight Dialogue & Story Banter
+* **Retro Arcade Cutscenes**: Authentic comic dialogue boxes with speaker avatars and themed nameplates appear before each of the 8 boss encounters.
+* **Full Cast of 8 Bosses**: Banter against *Sgt. Vance*, *The Promoter*, *Boris & Viktor*, *The Matriarch*, *Street Lord*, *Urban Legend*, *Rex Gannon*, and the primordial *Endless Dragon*.
+* **Combat Juice Overhaul**: Dynamic camera zoom ($1.25\times$) during Poise Breaks and Naruto Ultimates, tuned hit-stops (4–8 frames), and screen shake.
+
+---
+
+## 🖥️ Standalone PC Desktop App (Steam Release)
+
+Final Impact runs natively as a desktop application using the included Electron shell:
+```bash
+npm run electron:start
+```
+* **Hardware Acceleration**: Full 60 FPS performance with zero browser chrome or address bars.
+* **Controller Support**: Native XInput and DirectInput plug-and-play detection.
+* **Fullscreen Hotkey**: Press <kbd>F11</kbd> anytime to toggle seamless borderless fullscreen.
+
+---
+
+## 🛠️ Build Pipeline & Creator Tools
+
+Final Impact features an automated multi-target build pipeline (`scripts/build.mjs`):
+
+* **Public Retail Build** (`npm run build`):
+  * Generates optimized production bundle (`dist/game.bundle.js`).
+  * Completely strips and stubs all developer/admin console code, passwords, and cheat tools for competitive fairness.
+* **Creator Admin Build** (`npm run build:admin`):
+  * Injects the private developer console (`src/admin/private/AdminModal.dev.js`, kept in `.gitignore` and never uploaded to GitHub).
+  * Grants the creator instant god mode, infinite coins, custom skin unlocking, and debug cheats.
 
 ---
 
@@ -138,17 +172,17 @@ node server.js
 ```
 Then open [http://localhost:3000](http://localhost:3000) in your web browser.
 
-### Option 2: Python Web Server
+### Option 2: Standalone Desktop Mode
 ```bash
-python -m http.server 3000
+npm run electron:start
 ```
 
 ### Running Automated Test Suites
-Final Impact includes a comprehensive automated test suite covering all combat, gamepad, shop, and cryptographic authentication systems:
+Final Impact includes 4 automated test suites covering all combat mechanics, gamepad input, item shop, achievements, and dialogue:
 ```bash
 npm test
 ```
-*Executes all 88 test cases (Overhaul Systems, Admin & Shop, and Gamepad API) with 100% pass verification.*
+*Executes all 80+ test cases across 4 test suites with 100% pass verification.*
 
 ---
 

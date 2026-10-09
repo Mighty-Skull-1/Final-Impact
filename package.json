@@ -7,10 +7,23 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "esbuild src/main.js --bundle --outfile=dist/game.bundle.js --format=iife",
-    "test": "node test_overhaul_systems.mjs && node test_admin_and_shop.mjs && node test_gamepad.mjs"
+    "build": "node scripts/build.mjs --release",
+    "build:admin": "node scripts/build.mjs --admin",
+    "electron:start": "npx electron electron-main.cjs",
+    "electron": "npx electron electron-main.cjs",
+    "test": "node test_overhaul_systems.mjs && node test_admin_and_shop.mjs && node test_gamepad.mjs && node test_dialogue_and_achievements.mjs"
   },
-  "keywords": ["fighting-game", "pixel-art", "street-fighter", "retro", "arcade", "canvas"],
+  "keywords": [
+    "fighting-game",
+    "pixel-art",
+    "street-fighter",
+    "retro",
+    "arcade",
+    "canvas"
+  ],
   "author": "Final Impact Team",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }

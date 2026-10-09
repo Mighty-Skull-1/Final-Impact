@@ -5,6 +5,7 @@ import { SKIN_CATALOG, AURA_CATALOG, SPARK_CATALOG, TITLE_CATALOG, EconomyManage
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
 import { isMightyUnlocked } from '../utils/CryptoAuth.js';
+import { achievements } from '../engine/Achievements.js';
 
 export class ShopScreen {
   constructor() {
@@ -166,6 +167,7 @@ export class ShopScreen {
           EconomyManager.equipSkin(fighter.id, skin.id);
           this.showMessage(`🎉 UNLOCKED & EQUIPPED: ${skin.name}!`, '#facc15');
           soundFX.playUltimateActivation();
+          try { achievements.unlock('BIG_SPENDER'); } catch (e) {}
         } else {
           this.showMessage('❌ INSUFFICIENT COINS! WIN MATCHES TO EARN MORE.', '#ef4444');
           soundFX.playBlock();
@@ -190,6 +192,10 @@ export class ShopScreen {
         EconomyManager.equipCosmetic(cosType, item.id);
         this.showMessage(`✨ ${item.name} EQUIPPED! ✨`, '#4ade80');
         soundFX.playUltimateActivation();
+        const curEq = EconomyManager.getEquippedCosmetics();
+        if (curEq.aura && curEq.spark && curEq.title) {
+          try { achievements.unlock('FASHION_ICON'); } catch (e) {}
+        }
       } else {
         if (EconomyManager.spendCoins(item.price)) {
           const owned = EconomyManager.getOwnedSkins();
@@ -202,6 +208,11 @@ export class ShopScreen {
           EconomyManager.equipCosmetic(cosType, item.id);
           this.showMessage(`🎉 UNLOCKED & EQUIPPED: ${item.name}!`, '#facc15');
           soundFX.playUltimateActivation();
+          try { achievements.unlock('BIG_SPENDER'); } catch (e) {}
+          const curEq = EconomyManager.getEquippedCosmetics();
+          if (curEq.aura && curEq.spark && curEq.title) {
+            try { achievements.unlock('FASHION_ICON'); } catch (e) {}
+          }
         } else {
           this.showMessage('❌ INSUFFICIENT COINS! WIN MATCHES TO EARN MORE.', '#ef4444');
           soundFX.playBlock();

@@ -3,3 +3,7 @@ node_modules/
 Thumbs.db
 *.log
 .env
+# Private Admin / Developer Tools (Creator-only, excluded from public repo & releases)
+src/admin/
+*.dev.js
+dist/*.map
