@@ -35,6 +35,10 @@ import { VersusScreen } from '../ui/VersusScreen.js';
 import { FinishHim } from '../ui/FinishHim.js';
 import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 import { ROSTER_CLASSES, ROSTER_QUOTES } from '../fighters/RosterFighters.js';
+import { ShopScreen } from '../ui/ShopScreen.js';
+import { AdminModal } from '../ui/AdminModal.js';
+import { EconomyManager } from '../shop/SkinCatalog.js';
+import { getAdminCheats } from '../utils/CryptoAuth.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -45,7 +49,8 @@ export const GAME_SCREENS = {
   VERSUS: 'VERSUS',
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
-  VICTORY: 'VICTORY'
+  VICTORY: 'VICTORY',
+  SHOP: 'SHOP'
 };
 
 export class Game {
@@ -58,6 +63,12 @@ export class Game {
     this.titleScreen = new TitleScreen();
     this.modeSelect = new ModeSelect();
     this.charSelect = new CharacterSelect();
+    this.shopScreen = new ShopScreen();
+    this.adminModal = new AdminModal(this);
+    this.charSelect.onOpenAdmin = () => this.adminModal.open();
+    if (typeof window !== 'undefined') {
+      window.openAdminPortal = () => this.adminModal.open();
+    }
     this.hud = new HUD();
     this.stageSelect = new StageSelect(STAGE_CATALOG);
     this.versus = new VersusScreen();
@@ -199,6 +210,11 @@ export class Game {
         });
         if (this.isOnline && this.netplay.isHost && this.screen === GAME_SCREENS.STAGE_SELECT) {
           this.netplay.send({ type: 'STAGE_NAV', index: this.stageSelect.index });
+        }
+      } else if (this.screen === GAME_SCREENS.SHOP) {
+        const res = this.shopScreen.handleMouseClick(x, y, this.canvas.width, this.canvas.height);
+        if (res && res.action === 'back') {
+          this.handleBackPress();
         }
       } else if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
         this.onlineLobby.handleClick(x, y);
@@ -344,35 +360,11 @@ export class Game {
         }
       }
 
-      // Character Select Secret Code modal key handling & [C] shortcut
-      if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-        if (this.charSelect.showCodeModal) {
-          if (e.code === 'Escape') {
-            e.preventDefault();
-            this.charSelect.closeCodeModal();
-            return;
-          }
-          if (e.code === 'Enter') {
-            e.preventDefault();
-            this.charSelect.submitCode();
-            return;
-          }
-          if (e.code === 'Backspace') {
-            e.preventDefault();
-            this.charSelect.handleBackspace();
-            return;
-          }
-          if (e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            this.charSelect.handleChar(e.key);
-            return;
-          }
-          return;
-        } else if (e.code === 'KeyC') {
-          e.preventDefault();
-          this.charSelect.openCodeModal();
-          return;
-        }
+      // Admin Portal Shortcut [KeyA] (Shift+A or A on menus/screens)
+      if (e.code === 'KeyA' && (this.screen !== GAME_SCREENS.FIGHT || e.shiftKey)) {
+        e.preventDefault();
+        this.adminModal.toggle();
+        return;
       }
 
       // Screen navigation on enter / space
@@ -393,6 +385,11 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playGong();
+      if (this.modeSelect.selectedMode === 'shop') {
+        this.screen = GAME_SCREENS.SHOP;
+        soundFX.playMenuSelect();
+        return;
+      }
       if (this.modeSelect.selectedMode === 'coop_campaign') {
         this.onlineLobby.reset(true);
         this.onlineLobby.matchMode = 'coop_campaign';
@@ -408,7 +405,13 @@ export class Game {
         return;
       }
       this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
+      this.charSelect.refreshPreviews();
       this.screen = GAME_SCREENS.CHAR_SELECT;
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.SHOP) {
+      this.shopScreen.triggerSkinAction();
       return;
     }
 
@@ -418,16 +421,12 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-      if (this.charSelect.showCodeModal) {
-        this.charSelect.submitCode();
-        return;
-      }
       const isP1 = !this.isOnline || this.netplay.isHost;
       if (this.charSelect.isCurrentSelectionLocked(isP1)) {
         try { soundFX.playBlock(); } catch (e) {}
-        this.charSelect.openCodeModal();
-        this.charSelect.codeFeedback = '🔒 M1GHTY IS LOCKED! ENTER CODE TO UNLOCK.';
+        this.charSelect.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! LOG IN VIA ADMIN PORTAL [A]';
         this.charSelect.codeFeedbackColor = '#fbbf24';
+        this.adminModal.open();
         return;
       }
       if (this.isOnline) {
@@ -506,6 +505,12 @@ export class Game {
       this.settingsManager.close();
       return;
     }
+    if (this.screen === GAME_SCREENS.SHOP) {
+      soundFX.playWhoosh('light');
+      this.screen = GAME_SCREENS.MODE_SELECT;
+      this.charSelect.refreshPreviews();
+      return;
+    }
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playWhoosh('light');
       this.screen = GAME_SCREENS.TITLE;
@@ -518,10 +523,6 @@ export class Game {
       }
     } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
       soundFX.playWhoosh('light');
-      if (this.charSelect && this.charSelect.showCodeModal) {
-        this.charSelect.closeCodeModal();
-        return;
-      }
       if (this.isOnline) {
         this.netplay.disconnect();
         this.isOnline = false;
@@ -973,8 +974,9 @@ export class Game {
     ];
   }
 
-  createFighter(id, x, facingRight, playerNum, isCpu) {
-    const opts = { x, facingRight, playerNum, isCpu };
+  createFighter(id, x, facingRight, playerNum, isCpu, customSkinId = null) {
+    const skinId = customSkinId || (playerNum === 1 ? EconomyManager.getEquippedSkin(id) : null);
+    const opts = { x, facingRight, playerNum, isCpu, skinId };
     let fighter;
 
     if (id === 'kazuki') fighter = new Kazuki(opts);
@@ -1161,6 +1163,38 @@ export class Game {
       return;
     }
 
+    // Shop Screen Navigation
+    if (this.screen === GAME_SCREENS.SHOP) {
+      const up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && menuNav.up);
+      const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && menuNav.down);
+      const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (menuNav && menuNav.left);
+      const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (menuNav && menuNav.right);
+
+      if (up) {
+        input.consumeKey('KeyW'); input.consumeKey('ArrowUp');
+        this.shopScreen.handleInput({ up: true });
+      } else if (down) {
+        input.consumeKey('KeyS'); input.consumeKey('ArrowDown');
+        this.shopScreen.handleInput({ down: true });
+      }
+
+      if (left) {
+        input.consumeKey('KeyA'); input.consumeKey('ArrowLeft');
+        this.shopScreen.handleInput({ left: true });
+      } else if (right) {
+        input.consumeKey('KeyD'); input.consumeKey('ArrowRight');
+        this.shopScreen.handleInput({ right: true });
+      }
+
+      if (menuNav && menuNav.confirm) {
+        this.handleConfirmPress();
+      } else if (menuNav && menuNav.back) {
+        this.handleBackPress();
+      }
+      input.endFrame();
+      return;
+    }
+
     // 2. Character Select Navigation (Discrete single-tap checks)
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
       const isHostOrLocal = !this.isOnline || this.netplay.isHost;
@@ -1287,6 +1321,22 @@ export class Game {
       if (this.f2) {
         this.f2.health = this.f2.maxHealth;
         this.f2.stamina = this.f2.maxStamina;
+      }
+    }
+
+    // Administrator Combat Testing Cheats (Offline / Dev mode)
+    if (!this.isOnline) {
+      const cheats = getAdminCheats();
+      if (cheats.godMode && this.f1) {
+        this.f1.health = this.f1.maxHealth;
+        this.f1.stamina = this.f1.maxStamina;
+      }
+      if (cheats.infiniteSuper && this.f1) {
+        this.f1.superMeter = this.f1.maxSuperMeter;
+      }
+      if (cheats.oneHitKO && this.f1 && this.f1.hasHitThisAttack) {
+        if (this.f2) { this.f2.health = 0; this.f2.isDead = true; }
+        if (this.f4) { this.f4.health = 0; this.f4.isDead = true; }
       }
     }
 
@@ -2107,11 +2157,11 @@ export class Game {
       }
 
       if (this.screen === GAME_SCREENS.ROUND_OVER) {
-        this.roundOverTimer--;
         if (this.roundOverTimer <= 0) {
           if (this.campaignStageWon) {
             // Defeating Stage 8 Endless Dragon unlocks the dragon & Dragon Slayer badge!
             if (isDragonStage) {
+              EconomyManager.addCoins(500);
               if (typeof window !== 'undefined' && window.localStorage) {
                 try {
                   window.localStorage.setItem('final_impact_unlocked_dragon', 'true');
@@ -2121,6 +2171,8 @@ export class Game {
               if (this.charSelect) {
                 this.charSelect.unlockDragon();
               }
+            } else {
+              EconomyManager.addCoins(100);
             }
 
             this.bossIndex++;
@@ -2145,6 +2197,7 @@ export class Game {
               }
             } else {
               // All 8 bosses defeated! Campaign Champion & Dragon Slayer!
+              EconomyManager.addCoins(1000); // Grand champion bounty
               if (this.isCoopCampaign && this.netplay.isHost) {
                 this.netplay.send({
                   type: 'CAMPAIGN_VICTORY'
@@ -2176,6 +2229,7 @@ export class Game {
         this.hud.setAnnouncement('TEAM K.O.', 120);
         this.hud.triggerShake(14);
         this.winner = team2Dead ? this.f1 : this.f2;
+        if (team2Dead) EconomyManager.addCoins(150);
         soundFX.stopMusic();
       }
 
@@ -2202,6 +2256,7 @@ export class Game {
       if (this.f1.health > this.f2.health) {
         this.f1.roundsWon++;
         this.f1.changeState(FIGHTER_STATE.VICTORY);
+        EconomyManager.addCoins(50); // Round win reward
       } else if (this.f2.health > this.f1.health) {
         this.f2.roundsWon++;
         this.f2.changeState(FIGHTER_STATE.VICTORY);
@@ -2211,6 +2266,9 @@ export class Game {
         soundFX.stopMusic();
         const w = this.f1.roundsWon >= 2 ? this.f1 : this.f2;
         this.koFlawless = w.health >= w.maxHealth;
+        if (w === this.f1) {
+          EconomyManager.addCoins(150 + (this.koFlawless ? 200 : 0)); // Match win + flawless bonus
+        }
       }
     }
 
@@ -2338,6 +2396,13 @@ export class Game {
     const W = GAME_WIDTH;
     const H = GAME_HEIGHT;
 
+    if (typeof document !== 'undefined') {
+      const coinEl = document.getElementById('topbarCoinVal');
+      if (coinEl && this.gameSpeedTick % 30 === 0) {
+        coinEl.textContent = EconomyManager.getCoins().toLocaleString();
+      }
+    }
+
     ctx.clearRect(0, 0, W, H);
 
     if (this.screen === GAME_SCREENS.TITLE) {
@@ -2347,6 +2412,11 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.ONLINE_LOBBY) {
       this.onlineLobby.render(ctx, W, H);
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.SHOP) {
+      this.shopScreen.render(ctx, W, H);
       return;
     }
 

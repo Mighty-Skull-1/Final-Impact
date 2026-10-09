@@ -11,9 +11,11 @@ export class Fighter {
     x,
     facingRight = true,
     playerNum = 1,
-    isCpu = false
+    isCpu = false,
+    skinId = null
   }) {
     this.id = id;
+    this.skinId = skinId;
     this.name = name;
     this.x = x;
     this.y = GROUND_Y;
@@ -94,7 +96,7 @@ export class Fighter {
     this.activeProjectileCount = 0;
 
     // Sprites
-    this.sprites = spriteGenerator.generateFighterSprites(this.id);
+    this.sprites = spriteGenerator.generateFighterSprites(this.id, this.skinId);
   }
 
   consumeStamina(amount, canWind = false) {

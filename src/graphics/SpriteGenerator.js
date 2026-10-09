@@ -3,6 +3,7 @@
 
 import { buildRigFrames } from './FighterRig.js';
 import { FIGHTER_DESIGNS } from './FighterDesigns.js';
+import { getSkinDesign } from '../shop/SkinCatalog.js';
 
 export class SpriteGenerator {
   constructor() {
@@ -25,14 +26,15 @@ export class SpriteGenerator {
     ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
   }
 
-  // Pre-generate all sprite frames for a fighter
-  generateFighterSprites(fighterId) {
-    const key = `fighter_${fighterId}`;
+  // Pre-generate all sprite frames for a fighter (with optional custom skin override)
+  generateFighterSprites(fighterId, skinId = null) {
+    const key = `fighter_${fighterId}_${skinId || 'default'}`;
     if (this.cache.has(key)) return this.cache.get(key);
 
     // Redesigned fighters are drawn by the articulated rig from their design sheet
     if (FIGHTER_DESIGNS[fighterId] && !this.legacy) {
-      const rigged = buildRigFrames(FIGHTER_DESIGNS[fighterId], (w, h) => this.createCanvas(w, h), 80, 90);
+      const design = getSkinDesign(FIGHTER_DESIGNS[fighterId], skinId);
+      const rigged = buildRigFrames(design, (w, h) => this.createCanvas(w, h), 80, 90);
       this.cache.set(key, rigged);
       return rigged;
     }

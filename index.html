@@ -21,6 +21,9 @@
         </div>
       </div>
       <nav class="toolbar">
+        <span id="topbarCoinBadge" style="display: inline-flex; align-items: center; padding: 4px 8px; background: rgba(234, 179, 8, 0.15); border: 1px solid #eab308; border-radius: 4px; color: #fde047; font-size: 8px; font-weight: bold; cursor: pointer;" title="Tournament Coins Balance">🪙 <span id="topbarCoinVal">500</span></span>
+        <button id="topbarShopBtn" class="arcade-btn" style="border-color: #eab308; color: #fde047;">🛍️ SHOP</button>
+        <button id="topbarAdminBtn" class="arcade-btn" style="border-color: #ef4444; color: #fca5a5;">⚡ ADMIN [A]</button>
         <button id="settingsBtn" class="arcade-btn highlight-btn">SETTINGS [P]</button>
         <button id="toggleCrtBtn" class="arcade-btn">CRT: ON</button>
         <button id="toggleHitboxBtn" class="arcade-btn">HITBOXES: OFF</button>
@@ -151,16 +154,19 @@
             </div>
           </div>
 
-          <!-- Secret Unlock Code Section -->
-          <div class="setting-group" id="secretCodeGroup" style="border: 1px dashed #eab308; background: rgba(234, 179, 8, 0.05);">
+          <!-- Administrator Clearance & Portal Launcher -->
+          <div class="setting-group" id="adminPortalLauncherGroup" style="border: 1px solid #dc2626; background: rgba(220, 38, 38, 0.08);">
             <div class="setting-row">
-              <label for="secretCodeInput" style="color: #fbbf24; font-weight: bold;">🔑 SECRET CHARACTER UNLOCK CODE:</label>
-              <div style="display: flex; gap: 8px; margin-top: 6px;">
-                <input type="text" id="secretCodeInput" placeholder="ENTER CODE (e.g. M1GHTY)" maxlength="16" style="flex: 1; padding: 6px 10px; background: #0f172a; border: 1px solid #eab308; color: #fde047; font-family: monospace; font-weight: bold; border-radius: 4px; text-transform: uppercase;">
-                <button id="submitSecretCodeBtn" class="arcade-btn" style="background: #eab308; color: #000; font-weight: bold;">UNLOCK</button>
-                <button id="relockSecretCodeBtn" class="arcade-btn" style="background: #475569; color: #cbd5e1; font-size: 10px;" title="Reset lock status">RELOCK</button>
+              <label style="color: #ef4444; font-weight: bold; display: flex; align-items: center; justify-content: space-between;">
+                <span>⚡ ADMINISTRATOR PORTAL</span>
+                <span style="font-size: 8px; color: #fca5a5;">CLASSIFIED SYSTEM</span>
+              </label>
+              <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center; justify-content: space-between;">
+                <span style="font-size: 8px; color: #cbd5e1; line-height: 1.4;">
+                  Encrypted administration terminal for secret character access, treasury coins, and developer overrides.
+                </span>
+                <button id="settingsOpenAdminBtn" class="arcade-btn danger-btn" style="padding: 8px 12px; font-weight: bold; white-space: nowrap;">OPEN PORTAL [A]</button>
               </div>
-              <div id="secretCodeFeedback" style="margin-top: 6px; font-size: 11px; font-family: monospace; font-weight: bold; min-height: 16px;"></div>
             </div>
           </div>
 
@@ -262,10 +268,40 @@
       }, 50);
     });
 
-    // Settings Modal
+    // Settings Modal & Topbar Actions
     const settingsBtn = document.getElementById('settingsBtn');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const closeSettingsX = document.getElementById('closeSettingsX');
+    const topbarShopBtn = document.getElementById('topbarShopBtn');
+    const topbarAdminBtn = document.getElementById('topbarAdminBtn');
+    const topbarCoinBadge = document.getElementById('topbarCoinBadge');
+
+    if (topbarShopBtn) {
+      topbarShopBtn.addEventListener('click', () => {
+        if (window.__GAME_INSTANCE) {
+          window.__GAME_INSTANCE.screen = 'SHOP';
+          if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
+        }
+      });
+    }
+
+    if (topbarAdminBtn) {
+      topbarAdminBtn.addEventListener('click', () => {
+        if (window.__GAME_INSTANCE && window.__GAME_INSTANCE.adminModal) {
+          window.__GAME_INSTANCE.adminModal.open();
+        } else if (typeof window.openAdminPortal === 'function') {
+          window.openAdminPortal();
+        }
+      });
+    }
+
+    if (topbarCoinBadge) {
+      topbarCoinBadge.addEventListener('click', () => {
+        if (window.__GAME_INSTANCE) {
+          window.__GAME_INSTANCE.screen = 'SHOP';
+        }
+      });
+    }
 
     settingsBtn.addEventListener('click', () => {
       if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.toggle();

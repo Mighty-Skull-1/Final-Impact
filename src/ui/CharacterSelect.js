@@ -2,6 +2,8 @@ import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 // Final Impact - Character Select Screen
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
+import { isMightyUnlocked, setMightyUnlocked } from '../utils/CryptoAuth.js';
+import { EconomyManager, SKIN_CATALOG } from '../shop/SkinCatalog.js';
 
 export class CharacterSelect {
   constructor() {
@@ -215,87 +217,42 @@ export class CharacterSelect {
     this.animTimer = 0;
     this.animFrame = 0;
 
-    // Secret code modal state
-    this.showCodeModal = false;
-    this.enteredCode = '';
+    // Admin feedback state
     this.codeFeedback = '';
     this.codeFeedbackColor = '#38bdf8';
+    this.onOpenAdmin = null;
 
-    // Cache sprites for previews
+    // Cache sprites for previews (taking into account equipped skins)
     this.previewSprites = {};
+    this.refreshPreviews();
+  }
+
+  refreshPreviews() {
     this.characters.forEach(c => {
-      this.previewSprites[c.id] = spriteGenerator.generateFighterSprites(c.id);
+      const equippedSkin = EconomyManager.getEquippedSkin(c.id);
+      this.previewSprites[c.id] = spriteGenerator.generateFighterSprites(c.id, equippedSkin);
     });
   }
 
   isMightyUnlocked() {
-    try {
-      return typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_unlocked_mighty') === 'true';
-    } catch (e) {
-      return false;
-    }
+    return isMightyUnlocked();
   }
 
   unlockMighty() {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('final_impact_unlocked_mighty', 'true');
-      }
-      if (!this.previewSprites['mighty']) {
-        this.previewSprites['mighty'] = spriteGenerator.generateFighterSprites('mighty');
-      }
-    } catch (e) {}
+    setMightyUnlocked(true);
+    const equipped = EconomyManager.getEquippedSkin('mighty');
+    this.previewSprites['mighty'] = spriteGenerator.generateFighterSprites('mighty', equipped);
   }
 
   lockMighty() {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('final_impact_unlocked_mighty');
-      }
-    } catch (e) {}
+    setMightyUnlocked(false);
   }
 
-  openCodeModal() {
-    this.showCodeModal = true;
-    this.enteredCode = '';
-    this.codeFeedback = '';
-    try { soundFX.playMenuSelect(); } catch (e) {}
-  }
-
-  closeCodeModal() {
-    this.showCodeModal = false;
-    this.enteredCode = '';
-    this.codeFeedback = '';
-  }
-
-  handleChar(char) {
-    if (this.enteredCode.length < 12 && /^[a-zA-Z0-9_]$/.test(char)) {
-      this.enteredCode = (this.enteredCode + char).toUpperCase();
-      try { soundFX.playWhoosh('light'); } catch (e) {}
-    }
-  }
-
-  handleBackspace() {
-    if (this.enteredCode.length > 0) {
-      this.enteredCode = this.enteredCode.slice(0, -1);
-      try { soundFX.playWhoosh('light'); } catch (e) {}
-    }
-  }
-
-  submitCode() {
-    const code = this.enteredCode.trim().toUpperCase();
-    if (code === 'M1GHTY') {
-      this.unlockMighty();
-      this.codeFeedback = '✨ CODE ACCEPTED! M1GHTY UNLOCKED! ✨';
-      this.codeFeedbackColor = '#4ade80';
-      try { soundFX.playUltimateActivation(); } catch (e) {}
-      setTimeout(() => {
-        this.closeCodeModal();
-      }, 1200);
-    } else {
-      this.codeFeedback = '❌ INVALID CODE. TRY AGAIN.';
-      this.codeFeedbackColor = '#ef4444';
-      try { soundFX.playBlock(); } catch (e) {}
+  openAdminPortal() {
+    if (typeof this.onOpenAdmin === 'function') {
+      this.onOpenAdmin();
+    } else if (typeof window !== 'undefined' && typeof window.openAdminPortal === 'function') {
+      window.openAdminPortal();
     }
   }
 
@@ -388,54 +345,6 @@ export class CharacterSelect {
   }
 
   handleClick(x, y, onBack, onConfirm, W = 640, H = 360) {
-    // If Secret Code Modal is open, handle its clicks
-    if (this.showCodeModal) {
-      const modalX = 140;
-      const modalY = 80;
-      const modalW = 360;
-      const modalH = 200;
-
-      // Close button (X) in top right of modal
-      if (x >= modalX + modalW - 28 && x <= modalX + modalW - 6 && y >= modalY + 6 && y <= modalY + 28) {
-        this.closeCodeModal();
-        try { soundFX.playWhoosh('light'); } catch (e) {}
-        return true;
-      }
-
-      // Input box click (allows browser prompt fallback)
-      if (x >= modalX + 30 && x <= modalX + modalW - 30 && y >= modalY + 70 && y <= modalY + 110) {
-        try {
-          const res = window.prompt('Enter secret unlock code (e.g. M1GHTY):', this.enteredCode);
-          if (res !== null) {
-            this.enteredCode = res.trim().toUpperCase();
-            this.submitCode();
-          }
-        } catch (e) {}
-        return true;
-      }
-
-      // UNLOCK Button
-      if (x >= modalX + 45 && x <= modalX + 165 && y >= modalY + 145 && y <= modalY + 175) {
-        this.submitCode();
-        return true;
-      }
-
-      // CANCEL Button
-      if (x >= modalX + 195 && x <= modalX + 315 && y >= modalY + 145 && y <= modalY + 175) {
-        this.closeCodeModal();
-        try { soundFX.playWhoosh('light'); } catch (e) {}
-        return true;
-      }
-
-      // Click outside modal closes it
-      if (x < modalX || x > modalX + modalW || y < modalY || y > modalY + modalH) {
-        this.closeCodeModal();
-        return true;
-      }
-
-      return true;
-    }
-
     // Top-Left Back button
     if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
       soundFX.playWhoosh('light');
@@ -443,9 +352,9 @@ export class CharacterSelect {
       return true;
     }
 
-    // Top-Right Secret Code Button: [ 🔑 ENTER CODE (C) ]
-    if (x >= W - 150 && x <= W - 12 && y >= 10 && y <= 34) {
-      this.openCodeModal();
+    // Top-Right Admin Portal Button: [ 🔒 ADMIN PORTAL (A) ]
+    if (x >= W - 165 && x <= W - 12 && y >= 10 && y <= 34) {
+      this.openAdminPortal();
       return true;
     }
 
@@ -463,7 +372,9 @@ export class CharacterSelect {
         }
         soundFX.playWhoosh('light');
         if (char.id === 'mighty' && !this.isMightyUnlocked()) {
-          this.openCodeModal();
+          this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
+          this.codeFeedbackColor = '#fbbf24';
+          this.openAdminPortal();
         } else if (char.id === 'endless_dragon' && !this.isDragonUnlocked()) {
           try { soundFX.playBlock(); } catch (e) {}
         }
@@ -482,9 +393,9 @@ export class CharacterSelect {
         if (lockedType) {
           try { soundFX.playBlock(); } catch (e) {}
           if (lockedType === 'mighty') {
-            this.openCodeModal();
-            this.codeFeedback = '🔒 M1GHTY IS LOCKED! ENTER CODE TO UNLOCK.';
+            this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
             this.codeFeedbackColor = '#fbbf24';
+            this.openAdminPortal();
           }
           return true;
         }
@@ -546,16 +457,16 @@ export class CharacterSelect {
     ctx.textAlign = 'center';
     ctx.fillText('< BACK [B]', 61, 25);
 
-    // Secret code button
-    const codeBtnX = W - 148;
-    const codeBtnW = 136;
-    ctx.fillStyle = mightyUnlocked ? 'rgba(22, 101, 52, 0.9)' : 'rgba(120, 53, 15, 0.9)';
+    // Admin Portal button
+    const codeBtnX = W - 158;
+    const codeBtnW = 146;
+    ctx.fillStyle = mightyUnlocked ? 'rgba(22, 101, 52, 0.9)' : 'rgba(69, 10, 10, 0.9)';
     ctx.fillRect(codeBtnX, 10, codeBtnW, 24);
-    ctx.strokeStyle = mightyUnlocked ? '#22c55e' : '#f59e0b';
+    ctx.strokeStyle = mightyUnlocked ? '#22c55e' : '#dc2626';
     ctx.strokeRect(codeBtnX + 0.5, 10.5, codeBtnW - 1, 23);
-    ctx.fillStyle = mightyUnlocked ? '#86efac' : '#fde047';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillText(mightyUnlocked ? 'M1GHTY UNLOCKED' : 'SECRET CODE [C]', codeBtnX + codeBtnW / 2, 25);
+    ctx.fillStyle = mightyUnlocked ? '#86efac' : '#fca5a5';
+    ctx.font = 'bold 8.5px monospace';
+    ctx.fillText(mightyUnlocked ? '⚡ ADMIN ACTIVE [A]' : '🔒 ADMIN PORTAL [A]', codeBtnX + codeBtnW / 2, 25);
 
     // Title
     ctx.fillStyle = '#facc15';
@@ -649,15 +560,23 @@ export class CharacterSelect {
     ctx.fillText('FIGHTER PROFILE', W / 2, py0 + 13);
     if (lockedOf(fc)) {
       ctx.fillStyle = '#fde047'; ctx.font = 'bold 10px monospace';
-      ctx.fillText(fc.id === 'mighty' ? 'SECRET FIGHTER' : 'FINAL BOSS', W / 2, py0 + 60);
-      ctx.fillStyle = '#d6d3d1'; ctx.font = '9px monospace';
-      ctx.fillText(fc.id === 'mighty' ? 'ENTER CODE "M1GHTY" [C]' : 'BEAT THE ENDLESS DRAGON', W / 2, py0 + 80);
-      if (fc.id !== 'mighty') ctx.fillText('IN CAMPAIGN TO UNLOCK', W / 2, py0 + 94);
+      ctx.fillText(fc.id === 'mighty' ? 'CLASSIFIED ADMIN FIGHTER' : 'FINAL BOSS', W / 2, py0 + 55);
+      ctx.fillStyle = '#f87171'; ctx.font = '9px monospace';
+      ctx.fillText(fc.id === 'mighty' ? '🔒 RESTRICTED: ADMIN ACCESS ONLY' : 'BEAT THE ENDLESS DRAGON', W / 2, py0 + 75);
+      ctx.fillStyle = '#94a3b8'; ctx.font = '8px monospace';
+      ctx.fillText(fc.id === 'mighty' ? 'LOG IN VIA ADMIN PORTAL [A]' : 'IN CAMPAIGN TO UNLOCK', W / 2, py0 + 92);
     } else {
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px monospace';
-      ctx.fillText(fc.name, W / 2, py0 + 30);
+      ctx.fillText(fc.name, W / 2, py0 + 28);
+      const equippedSkinId = EconomyManager.getEquippedSkin(fc.id);
+      if (equippedSkinId) {
+        const skinObj = SKIN_CATALOG.find(s => s.id === equippedSkinId);
+        ctx.fillStyle = skinObj ? skinObj.tierColor : '#38bdf8';
+        ctx.font = 'bold 7px monospace';
+        ctx.fillText(`★ SKIN: ${skinObj ? skinObj.name : equippedSkinId}`, W / 2, py0 + 38);
+      }
       ctx.fillStyle = '#a8a29e'; ctx.font = '8px monospace';
-      ctx.fillText(fc.style + ' - ' + fc.origin, W / 2, py0 + 42);
+      ctx.fillText(fc.style + ' - ' + fc.origin, W / 2, py0 + (equippedSkinId ? 48 : 42));
       const stat = (label, val, y) => {
         ctx.textAlign = 'left'; ctx.fillStyle = '#a8a29e'; ctx.font = 'bold 8px monospace';
         ctx.fillText(label, px0 + 14, y);
@@ -738,8 +657,8 @@ export class CharacterSelect {
       ctx.strokeRect(btnX, btnY, btnW, btnH);
 
       ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText('🔒 M1GHTY IS LOCKED! PRESS [C] TO ENTER UNLOCK CODE', W / 2, btnY + 17);
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('🔒 M1GHTY IS LOCKED! PRESS [A] FOR ADMIN PORTAL', W / 2, btnY + 17);
     } else if (currentLocked === 'dragon') {
       ctx.fillStyle = 'rgba(88, 28, 135, 0.9)';
       ctx.fillRect(btnX, btnY, btnW, btnH);
@@ -773,99 +692,21 @@ export class CharacterSelect {
       ctx.fillText((["cpu","2p","2v2","training"].includes(this.gameMode) ? '⚔️ CHOOSE STAGE [ENTER / CLICK]' : '⚔️ START BATTLE [ENTER / CLICK]') + '  |  [B / ESC] BACK', W / 2, btnY + 17);
     }
 
-    // 3. Secret Code In-Canvas Modal Overlay
-    if (this.showCodeModal) {
-      ctx.save();
-      // Dimmed backdrop
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
-      ctx.fillRect(0, 0, W, H);
-
-      const modalX = 140;
-      const modalY = 75;
-      const modalW = 360;
-      const modalH = 205;
-
-      // Outer gold box
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(modalX, modalY, modalW, modalH);
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(modalX, modalY, modalW, modalH);
-
-      // Inner accent frame
-      ctx.strokeStyle = '#78350f';
+    // Floating Feedback Toast (if any)
+    if (this.codeFeedback) {
+      const fbW = 440;
+      const fbH = 24;
+      const fbX = (W - fbW) / 2;
+      const fbY = H - 64;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+      ctx.fillRect(fbX, fbY, fbW, fbH);
+      ctx.strokeStyle = this.codeFeedbackColor || '#fde047';
       ctx.lineWidth = 1;
-      ctx.strokeRect(modalX + 4, modalY + 4, modalW - 8, modalH - 8);
-
-      // Close button (X)
-      ctx.fillStyle = '#ef4444';
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText('✕', modalX + modalW - 18, modalY + 22);
-
-      // Modal Title
+      ctx.strokeRect(fbX, fbY, fbW, fbH);
+      ctx.fillStyle = this.codeFeedbackColor || '#fde047';
+      ctx.font = 'bold 8px monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 15px monospace';
-      ctx.fillText('🔑 SECRET CHARACTER UNLOCK', modalX + modalW / 2, modalY + 30);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '9.5px monospace';
-      ctx.fillText('Enter the divine secret code to unlock M1GHTY', modalX + modalW / 2, modalY + 50);
-
-      // Input Field Box
-      const inputX = modalX + 35;
-      const inputY = modalY + 68;
-      const inputW = modalW - 70;
-      const inputH = 36;
-
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(inputX, inputY, inputW, inputH);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(inputX, inputY, inputW, inputH);
-
-      // Display entered text with blinking cursor
-      const cursor = Math.floor(Date.now() / 400) % 2 === 0 ? '_' : ' ';
-      ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 16px monospace';
-      const displayCode = (this.enteredCode || '') + cursor;
-      ctx.fillText(displayCode, modalX + modalW / 2, inputY + 24);
-
-      // Instruction
-      ctx.fillStyle = '#64748b';
-      ctx.font = '8.5px monospace';
-      ctx.fillText('TYPE ON YOUR KEYBOARD (OR CLICK TO PROMPT)', modalX + modalW / 2, modalY + 120);
-
-      // Feedback Message
-      if (this.codeFeedback) {
-        ctx.fillStyle = this.codeFeedbackColor || '#fde047';
-        ctx.font = 'bold 10.5px monospace';
-        ctx.fillText(this.codeFeedback, modalX + modalW / 2, modalY + 138);
-      }
-
-      // Buttons: UNLOCK and CANCEL
-      const btnYW = modalY + 152;
-
-      // UNLOCK Button
-      ctx.fillStyle = 'rgba(22, 101, 52, 0.95)';
-      ctx.fillRect(modalX + 45, btnYW, 115, 28);
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(modalX + 45, btnYW, 115, 28);
-      ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText('UNLOCK [ENTER]', modalX + 102, btnYW + 18);
-
-      // CANCEL Button
-      ctx.fillStyle = 'rgba(71, 85, 105, 0.85)';
-      ctx.fillRect(modalX + 195, btnYW, 115, 28);
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(modalX + 195, btnYW, 115, 28);
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillText('CANCEL [ESC]', modalX + 252, btnYW + 18);
-
-      ctx.restore();
+      ctx.fillText(this.codeFeedback, W / 2, fbY + 16);
     }
 
     ctx.textAlign = 'left';

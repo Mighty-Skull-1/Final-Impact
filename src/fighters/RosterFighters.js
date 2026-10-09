@@ -15,7 +15,8 @@ function makeRosterFighter(Base, id, name, tune = {}) {
       super(options);
       this.id = id;
       this.name = name;
-      this.sprites = spriteGenerator.generateFighterSprites(id);
+      this.skinId = options.skinId || null;
+      this.sprites = spriteGenerator.generateFighterSprites(id, this.skinId);
       const hp = tune.hp || 1;
       this.maxHealth = Math.round(this.maxHealth * hp);
       this.health = this.maxHealth;

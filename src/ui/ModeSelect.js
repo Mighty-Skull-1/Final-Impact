@@ -59,6 +59,14 @@ export class ModeSelect {
         subtitle: 'TRAINING & COMBO LAB',
         description: 'Unlimited health, infinite EX super gauge, and stamina. Master special moves, frame traps, cancel strings, and corner juggle combos.',
         color: '#4ade80'
+      },
+      {
+        id: 'shop',
+        badge: 'CUSTOM SKINS',
+        title: '🛍️ ITEM SHOP',
+        subtitle: 'PREVIEW & EQUIP SKINS',
+        description: 'Browse, unlock, and equip custom fighter skins with your earned tournament fight coins. Live animated character model preview.',
+        color: '#eab308'
       }
     ];
 
@@ -98,7 +106,7 @@ export class ModeSelect {
   }
 
   // Layout constants (shared by click hit-testing and rendering)
-  static get LIST() { return { x: 26, y: 62, w: 250, h: 34, gap: 3 }; }
+  static get LIST() { return { x: 26, y: 52, w: 250, h: 30, gap: 3 }; }
 
   handleClick(x, y, onBack, onConfirm, W = 640) {
     // Back button (top-left)
