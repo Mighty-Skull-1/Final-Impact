@@ -1,20 +1,104 @@
 # Final Impact - 16-Bit Pixel Art Fighting Game
+### *Mortal Kombat × Elden Ring Arcade Edition*
 
 ![Final Impact Banner](poster.jpg)
 
-**Final Impact** is an authentic 16-bit retro arcade fighting game built completely in pure JavaScript, HTML5 Canvas, and Web Audio API with zero external dependencies.
+**Final Impact** is a high-octane 16-bit retro arcade fighting game built entirely in pure vanilla JavaScript, HTML5 Canvas, and Web Audio API with **zero external dependencies**.
 
-Featuring smooth frame-based animation, responsive attack cancel combos, impact micro-hitstop, double-tap dashing, cinematic Naruto-style Secret Technique (Ougi) Ultimates, an in-game settings suite, and full 2-Player local vs. / CPU support.
+Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the stance-break tension and epic boss atmosphere of **Elden Ring**, and fluid cancel-driven fighting mechanics, Final Impact delivers a full arcade experience directly in the browser or on Steam.
 
 ---
 
-## 🎮 Playable Fighters
+## 🌟 What's New in the Overhaul
 
-| Fighter | Archetype | Signature Specials & Ultimate |
+### 💀 Mortal Kombat Finishers & Arcade Towers
+* **Cinematic Fatalities & Brutalities**: Finish staggered opponents during the iconic **"FINISH HIM / FINISH HER"** sequence. Features dynamic letterbox bars, camera zooms, slow-motion impacts, and blood-red gothic victory banners.
+  * **Kazuki**: *Dragon Cremation* (Incinerating dragon flame pillar).
+  * **Raven**: *Orbital Annihilation* (Tactical laser strike from low-orbit satellite).
+  * **Kagura**: *Shadow Decapitation* (Sub-zero phantom assassination).
+  * **M1GHTY**: *Void Singularity* (Cosmic gravitational tear collapsing foe into oblivion).
+* **Stage Fatalities**: Knock foes into deadly hazards (*Industrial Crusher*, *Abyssal Pit*, etc.).
+* **Digitized Arcade Announcer**: Authentic retro speech synthesis announcing *"Round 1... FIGHT!"*, *"Finish Him!"*, *"FATALITY"*, *"BRUTALITY"*, *"FLAWLESS VICTORY"*, and *"TEST YOUR MIGHT!"*.
+* **Arcade Towers ("Choose Your Destiny")**: Ascend the classic MK stone monolith ladders:
+  * **Novice Tower** (5 Floors)
+  * **Warrior Tower** (8 Floors)
+  * **Master Tower** (12 Floors — concludes with the primeval Endless Dragon boss)
+* **"Test Your Might" Minigame**: Rapidly mash attack buttons to drive your chop gauge past the threshold line and split through **Pine Wood**, **Granite Stone**, **Tempered Steel**, and **Elden Diamond** for massive coin payouts!
+
+### ⚔️ Elden Ring Combat & Progression
+* **Stance / Poise Break & Critical Ripostes**: Every strike chips away at the enemy's hidden Poise bar. Depleting poise triggers a glass-shattering stance break sound, staggered animation, golden rune sparks, and a critical riposte window dealing **2.5× bonus damage**.
+* **"YOU DIED" Sequence**: Cinematic slow-fade desaturation and crimson death calligraphy upon defeat.
+* **Grand Felled Banners**:
+  * **GREAT ENEMY FELLED** (Mid-tier campaign bosses)
+  * **LEGEND FELLED** (Tournament Champions)
+  * **G O D   S L A I N** (Defeating the Primeval Endless Dragon)
+* **Sites of Grace**: Intermission resting checkpoints between tower floors and campaign battles that refill Crimson Flask charges and save tournament progress.
+
+### 🛍️ Item Shop & Cosmetic Customization
+* **18+ Fighter Skins**: Unlock Rare, Epic, and Legendary skins with earned tournament fight coins.
+* **Energy Aura Trails**: Equip custom particle auras (*Dragon Flame*, *Neon Overcharge*, *Void Shadows*, *Super Saiyan Ki*, *Glacial Blizzard*).
+* **Impact Hit Sparks**: Customize strike hitsparks (*Arcade Retro*, *Mortal Bloodburst*, *Volt Jolt*, *Elden Runes*).
+* **Fighter Titles**: Showcase prestigious titles (*The Tarnished*, *Arcade Grandmaster*, *Lord of Frenzied Flame*, *Dragon Slayer*).
+
+### 🔒 Steam Retail Stealth Protection (Admin Security)
+* **100% Invisible to Public / Steam Players**:
+  * In default **Stealth Mode**, all administrator buttons, launcher groups, and admin labels are completely hidden and stripped from public UI.
+  * The secret boss character M1GHTY displays purely as `🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED`.
+* **Secret Developer Shortcut**:
+  * Press **`Ctrl + Shift + Alt + A`** anywhere to summon the cryptographic Admin Portal.
+* **Cryptographic SHA-256 Authentication**:
+  * Zero plaintext passwords stored in the repository. Credential checks are verified against one-way SHA-256 hash digests.
+  * Developer toggles for Steam Stealth mode, combat cheats (God Mode, Infinite Super, 1-Hit KO), and instant character/skin unlockers.
+
+---
+
+## 🎮 Game Modes
+
+| Mode | Type | Description |
 | :--- | :--- | :--- |
-| **Kazuki (龍神 一輝)** | Balanced Karate Rushdown | **Fire Dragon Fist** (Hadouken), **Rising Dragon Uppercut** (Shoryuken), **Hurricane Kick** (Tatsumaki).<br>**Ultimate:** *Ryujin Gotenha (奥義・龍神轟天破)* - Ki-gathering supersonic dash into explosive rising dragon detonation. |
-| **Raven (レイヴン)** | High-Mobility Cyber-Mercenary | **Sonic Blade** (Sonic Boom), **Apex Flash Kick** (Somersault anti-air), **Blitz Knuckle** (Dash punch).<br>**Ultimate:** *Tactical Overdrive: Apex Strike (超戦術・雷光撃)* - Afterimage stealth blitz with multi-hit hyper barrage. |
-| **Kagura (神楽 蓮)** | Swift Kunoichi Infiltrator | **Shadow Warp Teleport**, **Spiral Gale Spin Kick**, **Ki Kunai Shuriken Shot**.<br>**Ultimate:** *Secret Technique: Lotus Clones (秘術・千夜蓮華)* - Shadow clone multi-angle assault leaving opponent airborne. |
+| **🏆 Campaign** | Story / Boss Rush | Battle through 7 scaling underground crime bosses leading to the 2-Phase Elden Ring Primeval Apex & Endless Dragon. |
+| **🏛️ Arcade Towers** | Tower Ladder | "Choose Your Destiny" MK-style stone monolith towers (Novice, Warrior, Master) with Test Your Might checkpoints. |
+| **🪵 Test Your Might** | Minigame | Rapid button-mash chopping challenge across 4 material tiers for coin bounties. |
+| **🤝 Co-Op Campaign** | Online 2P Raid | Team up with a friend online to conquer all 8 campaign bosses together in simultaneous 2v1 and 2v2 boss battles. |
+| **⚔️ 1v1 vs CPU** | Single Match | Quick arcade exhibition against tactical AI with customizable difficulty and reaction speeds. |
+| **🥊 1v1 vs Friend** | Local Couch 2P | Head-to-head local battle sharing one keyboard or dual gamepads. |
+| **🔥 2v2 Team Brawl** | 4-Fighter Tag War | Two teams of two battle simultaneously on-screen with cel-shaded rim lighting and team pushboxes. |
+| **🌐 Online Versus** | WebRTC Netplay | Direct peer-to-peer online multiplayer with room codes and instant invite links. |
+| **🥋 Practice Dojo** | Combo Lab | Unlimited health and super meter with frame data display to lab out cancel strings and juggles. |
+| **🛍️ Item Shop** | Cosmetics | Browse, preview on live animated 3D models, and equip custom skins, auras, hit sparks, and titles. |
+
+---
+
+## 🥋 Playable Fighters
+
+| Fighter | Archetype / Origin | Signature Specials & Ultimate |
+| :--- | :--- | :--- |
+| **Kazuki (龍神 一輝)** | Karate Rushdown (Japan) | **Hadouken** (Ki Fireball), **Shoryuken** (Rising Uppercut), **Tatsumaki** (Spinning Kick).<br>**Ultimate:** *Ryujin Gotenha (奥義・龍神轟天破)*<br>**Fatality:** *Dragon Cremation* |
+| **Raven (レイヴン)** | Tactical Commando (USA) | **Sonic Blade** (Sonic Razor), **Flash Somersault** (Anti-air kick), **Blitz Knuckle** (Dash punch).<br>**Ultimate:** *Tactical Overdrive (超戦術・雷光撃)*<br>**Fatality:** *Orbital Annihilation* |
+| **Kagura (神楽 蓮)** | Cyber Kunoichi (Neo Tokyo) | **Shadow Warp** (Teleport), **Crescent Gale** (Wind kick), **Ki Kunai** (Shuriken volley).<br>**Ultimate:** *Lotus Clones (秘術・千夜蓮華)*<br>**Fatality:** *Shadow Decapitation* |
+| **Fang** | Muay Thai / Lethwei (Thailand) | **Tiger Knee** (Leaping knee), **Cyclone Elbow** (Spinning slash), **Iron Teep** (Pushback kick). |
+| **Zephyr** | Capoeira Acrobat (Brazil) | **Windmill Kick** (Ground sweep), **Handstand Axe** (Heel drop), **Flare Slide** (Low slide). |
+| **Colossus** | Heavyweight Boxer (USA) | **Dempsey Blow** (Armored hook), **Corkscrew** (Spiral uppercut), **Gazelle Punch** (Leaping lead). |
+| **Cinder** | Flame Shinobi (Ash Province) | **Flame Warp**, **Ember Gale**, **Fire Kunai**. |
+| **Glacier** | Frostbound Assassin (Frozen North)| **Ice Shard**, **Frost Rise**, **Blizzard Kick**. |
+| **Oracle** | Astral Sorceress (Ruins) | **Star Step**, **Comet Fall**, **Astral Dart**. |
+| **Bandit** | Road Reaver (Wastelands) | **Razor Toss**, **Back Flip Slash**, **Knuckle Dust**. |
+| **Ronin** | Crimson Blade (Feudal Japan) | **Wave Cutter**, **Rising Katana**, **Whirl Kick**. |
+| **Vagabond** | Wandering Knight (Fallen Kingdom)| **Edge Wave**, **Knight Flip**, **Shield Ram**. |
+| **Warden** | Wall of the Desert (Sand Citadel) | **Citadel Knee**, **Twin Blades**, **Iron Gate**. |
+| **M1GHTY** *(Classified)* | Divine Annihilator (Astral Realm) | **One-Hit Extinction Combat Arts**.<br>**Ultimate:** *Grand Celestial Ruin*<br>**Fatality:** *Void Singularity* |
+
+---
+
+## ⛩️ Battle Arenas
+
+Select from 6 distinct stages featuring animated parallax backgrounds and dynamic lighting:
+1. **Suzaku Rooftop** (Tokyo Sunset cherry blossoms and blood-red skyline)
+2. **Neo Underpass** (Cyberpunk rain, steam vents, and neon bullet train)
+3. **Thunder Dojo** (Ancient storm hall with flashes through shoji screens)
+4. **Dragon Shrine** (Rune-lit pillars under a violet moon)
+5. **Ember Forge** (Volcanic foundry roaring with molten rivers)
+6. **Moonlit Bamboo** (Midnight mist grove with glowing fireflies)
 
 ---
 
@@ -36,12 +120,15 @@ Featuring smooth frame-based animation, responsive attack cancel combos, impact 
 | **Special 2 (Anti-Air Uppercut)** | `E` | NumPad `8` |
 | **Special 3 (Rush / Spin)** | `R` | NumPad `9` |
 | **🔥 ULTIMATE JUTSU (Ougi)** | `SPACE` (Requires 100% Super) | NumPad `0` (Requires 100% Super) |
+| **💀 FATALITY (Finish Him Window)**| `SPACE` or `I + K` | NumPad `0` or `NumPad 5 + 2` |
+| **⚡ STAGE FATALITY** | `C` | NumPad `3` |
+| **🔒 Secret Developer Portal** | `Ctrl + Shift + Alt + A` | — |
 
-*Also supports standard USB/Bluetooth Gamepads (Xbox, PlayStation, etc.) automatically.*
+---
 
-### 🎮 Gamepad / Controller Controls (Xbox / PlayStation / Switch / USB)
+### 🎮 Gamepad / Controller Layout (Xbox / PlayStation / Switch)
 
-| Action | Xbox Controller | PlayStation Controller | Switch Pro Controller |
+| Action | Xbox | PlayStation | Switch Pro |
 | :--- | :--- | :--- | :--- |
 | **Move / Jump / Crouch** | Left Stick / D-Pad | Left Stick / D-Pad | Left Stick / D-Pad |
 | **Dash (Fwd / Back)** | Double-tap Stick / D-Pad | Double-tap Stick / D-Pad | Double-tap Stick / D-Pad |
@@ -50,55 +137,45 @@ Featuring smooth frame-based animation, responsive attack cancel combos, impact 
 | **Light Kick (LK) / Confirm** | `A` | `Cross (✕)` | `B` |
 | **Heavy Kick (HK) / Back** | `B` | `Circle (◯)` | `A` |
 | **Special 1 (Fireball / Warp)** | `RB` | `R1` | `R` |
-| **Special 2 (Uppercut / Spiral)** | `RT` (Right Trigger) | `R2` | `ZR` |
+| **Special 2 (Uppercut / Spiral)** | `RT` | `R2` | `ZR` |
 | **Special 3 (Spin / Hurricane)** | `LB` | `L1` | `L` |
-| **Dirty Tactic (Desperation)** | `LT` (Left Trigger) | `L2` | `ZL` |
-| **🔥 ULTIMATE JUTSU (Ougi)** | `R3` (Stick Click) / `Select` / `LB+RB` | `R3` / `Share` / `L1+R1` | `R3` / `-` / `L+R` |
-| **Pause / Arcade Settings** | `Start / Menu` | `Options` | `+` |
-| **Menu Navigation** | D-Pad / Left Stick | D-Pad / Left Stick | D-Pad / Left Stick |
+| **Dirty Tactic (Desperation)** | `LT` | `L2` | `ZL` |
+| **🔥 ULTIMATE / FATALITY** | `R3` (Stick Click) / `LB+RB` | `R3` / `L1+R1` | `R3` / `L+R` |
+| **Pause / Arcade Settings** | `Start` | `Options` | `+` |
 
-*Hot-plugging is fully supported — connect up to 2 controllers for seamless couch multiplayer!*
-
----
-
-## ✨ Features & Mechanics
-
-- **Fluid Combat System**: Frame-accurate hitboxes, hurtboxes, pushboxes, blockstun, hitstun, and chip damage.
-- **Normal-to-Special Cancels**: Chain light and heavy normals directly into special moves on hit.
-- **Impact Crunch (Hitstop)**: Micro-freeze frame effects upon heavy impacts and knockdown strikes.
-- **Naruto-Style Secret Techniques (奥義)**: Fill your Super Meter to 100% and unleash dramatic cinematic Ultimates with camera zooms, screen tinting, Japanese kanji banners, and sound effects.
-- **Dynamic 16-Bit Sound & Music**: Fully procedural Web Audio retro synthesizer (chiptune synth-bass, kick, snare, hit sounds, voice announcer, and special move audio) - zero external audio assets required.
-- **Settings Modal**: Accessible anytime via the top-right button or pressing `Esc` / `P`. Adjust Master, SFX, and Music volume independently, toggle CRT scanlines, game speed, and combat camera shake.
+*Hot-plugging is fully supported — connect up to 2 controllers for seamless couch multiplayer.*
 
 ---
 
-## 🚀 How to Run Locally
-
-You can run Final Impact with any static web server:
+## 🚀 Running Locally & Testing
 
 ### Option 1: Built-in Node Server (Zero Dependencies)
 ```bash
 node server.js
 ```
-Then open [http://localhost:3000](http://localhost:3000) in your browser.
+Then open [http://localhost:3000](http://localhost:3000) in your web browser.
 
-### Option 2: Python HTTP Server
+### Option 2: Python Web Server
 ```bash
-python3 -m http.server 3000
+python -m http.server 3000
 ```
 
-### Option 3: Direct Browser Access
-Because Final Impact uses standard ES Modules (`import`/`export`), it is recommended to run via a local server (Option 1 or 2) or serve from GitHub Pages.
+### Running Automated Test Suites
+Final Impact includes a comprehensive automated test suite covering all combat, gamepad, shop, and cryptographic authentication systems:
+```bash
+npm test
+```
+*Executes all 88 test cases (Overhaul Systems, Admin & Shop, and Gamepad API) with 100% pass verification.*
 
 ---
 
-## 🌐 Deploy to GitHub Pages
+## 🌐 Deploying to GitHub Pages
 
-1. Go to your repository settings on GitHub.
+1. Navigate to your repository settings on GitHub.
 2. Under **Pages**, select **Deploy from a branch**.
 3. Choose branch `main` and root directory `/`.
-4. Click **Save**. Your game will be live for everyone to play!
+4. Click **Save** — your game is live and playable worldwide!
 
 ---
 
-*Final Impact — Master your timing, chain your combos, and achieve Victory!*
+*Final Impact — Master your spacing, shatter enemy poise, and execute your Destiny!*
