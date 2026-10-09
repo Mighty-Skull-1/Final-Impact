@@ -177,6 +177,13 @@ export class AlleyPickup {
     this.vy = this.type === 'brick' ? -5.5 : -2.5;
   }
 
+  destroy() {
+    this.active = false;
+    this.isAirborne = false;
+    this.vx = 0;
+    this.vy = 0;
+  }
+
   update() {
     if (this.isAirborne) {
       this.x += this.vx;
