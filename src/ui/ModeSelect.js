@@ -13,6 +13,22 @@ export class ModeSelect {
         color: '#facc15'
       },
       {
+        id: 'arcade_towers',
+        badge: 'CHOOSE YOUR DESTINY',
+        title: '🏛️ ARCADE TOWERS',
+        subtitle: 'NOVICE / WARRIOR / MASTER',
+        description: 'Mortal Kombat style stone monolith tower climbing. Ascend the floors, face scaling rivals, and conquer Test Your Might checkpoints.',
+        color: '#ef4444'
+      },
+      {
+        id: 'test_your_might',
+        badge: 'BUTTON MASH',
+        title: '🪵 TEST YOUR MIGHT',
+        subtitle: 'CHOP WOOD, STONE & DIAMOND',
+        description: 'Mash attack buttons to build up power above the chop line and karate chop through dense materials for big tournament coin payouts.',
+        color: '#f59e0b'
+      },
+      {
         id: 'coop_campaign',
         badge: '2P CO-OP RAID',
         title: '🤝 CO-OP CAMPAIGN',
@@ -106,7 +122,7 @@ export class ModeSelect {
   }
 
   // Layout constants (shared by click hit-testing and rendering)
-  static get LIST() { return { x: 26, y: 52, w: 250, h: 30, gap: 3 }; }
+  static get LIST() { return { x: 26, y: 44, w: 250, h: 26, gap: 2.5 }; }
 
   handleClick(x, y, onBack, onConfirm, W = 640) {
     // Back button (top-left)

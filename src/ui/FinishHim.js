@@ -2,6 +2,8 @@
 // After a decisive final-round K.O. the winning human gets a short window to unleash FINAL IMPACT.
 import { input } from '../engine/Input.js';
 import { soundFX } from '../audio/SoundFX.js';
+import { announcer } from '../audio/Announcer.js';
+import { fatalitySystem, FATALITY_CATALOG } from '../combat/FatalitySystem.js';
 import { FIGHTER_STATE } from '../engine/Constants.js';
 
 export const FINISH_PROMPT_FRAMES = 300; // 5 seconds to execute
@@ -28,7 +30,7 @@ export class FinishHim {
   }
 
   // winner/loser: Fighter instances. hud: HUD (for screen shake)
-  start(winner, loser, hud, { flawless = false } = {}) {
+  start(winner, loser, hud, { flawless = false, stageId = 'cyber_city' } = {}) {
     this.reset();
     this.active = true;
     this.phase = 'prompt';
@@ -36,8 +38,9 @@ export class FinishHim {
     this.winner = winner;
     this.loser = loser;
     this.hud = hud;
+    this.stageId = stageId;
     this.flawless = flawless;
-    try { soundFX.playAnnouncer('FINISH_HIM'); } catch (e) {}
+    try { announcer.finishHim(); } catch (e) {}
     if (hud && hud.triggerShake) hud.triggerShake(10);
   }
 
@@ -46,32 +49,28 @@ export class FinishHim {
     return this.active;
   }
 
-  winnerPressedFinisher() {
-    if (!this.winner) return false;
+  checkFinisherInput() {
+    if (!this.winner) return null;
     const num = this.winner.playerNum === 2 ? 2 : 1;
     try {
       const st = input.getState(num, this.winner.facingRight);
-      return !!st.ultimateJust;
-    } catch (e) {
-      return false;
-    }
+      if (st.dirtyJust) return 'stage_fatality';
+      if (st.ultimateJust || (st.hpJust && st.hkJust) || st.special1Just || st.special2Just || st.special3Just) {
+        return 'fatality';
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  beginFatality(type = 'fatality') {
+    this.phase = 'fatality';
+    this.t = 0;
+    this.executed = true;
+    fatalitySystem.start(this.winner, this.loser, this.stageId, type);
   }
 
   beginExecute() {
-    this.phase = 'execute';
-    this.t = 0;
-    this.executed = true;
-    const w = this.winner;
-    const l = this.loser;
-    if (w && l) {
-      const dir = l.x >= w.x ? 1 : -1;
-      w.facingRight = dir === 1;
-      w.x = Math.max(60, Math.min(900, l.x - dir * 70));
-      w.vx = 0;
-      w.changeState(FIGHTER_STATE.VICTORY, true);
-    }
-    try { soundFX.playUltimateActivation(); } catch (e) {}
-    if (this.hud && this.hud.triggerShake) this.hud.triggerShake(8);
+    this.beginFatality('fatality');
   }
 
   spawnRing(x, y, color, speed = 3, life = 40) {
@@ -99,62 +98,21 @@ export class FinishHim {
     this.t++;
     if (this.flash > 0) this.flash -= 0.06;
 
-    // FX physics
-    this.rings = this.rings.filter(r => {
-      r.r += r.vr;
-      r.life--;
-      return r.life > 0 && r.r > 0;
-    });
-    this.sparks = this.sparks.filter(s => {
-      s.x += s.vx;
-      s.y += s.vy;
-      s.vy += 0.25;
-      s.life--;
-      return s.life > 0;
-    });
-
-    const w = this.winner;
-    const l = this.loser;
-
     if (this.phase === 'prompt') {
-      if (this.winnerPressedFinisher()) {
-        this.beginExecute();
+      const finisherType = this.checkFinisherInput();
+      if (finisherType) {
+        this.beginFatality(finisherType);
       } else if (this.t >= FINISH_PROMPT_FRAMES) {
         this.phase = 'end';
         this.t = 0;
-        if (this.flawless) { try { soundFX.playAnnouncer('FLAWLESS'); } catch (e) {} }
+        if (this.flawless) { announcer.flawlessVictory(); }
       }
-    } else if (this.phase === 'execute') {
-      // 0-60: charge - converging aura rings around the winner
-      if (this.t < 60 && w) {
-        if (this.t % 8 === 0) this.spawnRing(w.x, w.y - 50, '#38bdf8', -1.6, 20);
-        if (this.hud && this.t % 12 === 0) this.hud.triggerShake(3);
-      }
-      // 60: impact
-      if (this.t === 60 && l && w) {
-        const dir = w.facingRight ? 1 : -1;
-        this.flash = 1;
-        l.vx = dir * 10;
-        l.vy = -16;
-        l.isGrounded = false;
-        try {
-          soundFX.playUltimateFinisher();
-          soundFX.playHitHeavy();
-        } catch (e) {}
-        this.spawnRing(l.x, l.y - 50, '#ffffff', 7, 34);
-        this.spawnRing(l.x, l.y - 50, '#facc15', 4.5, 44);
-        this.spawnRing(l.x, l.y - 50, '#ef4444', 3, 54);
-        this.spawnSparks(l.x, l.y - 50, 40);
-        if (this.hud && this.hud.triggerShake) this.hud.triggerShake(24);
-      }
-      // Trailing sparks as the opponent tumbles away
-      if (this.t > 62 && this.t < 110 && l && this.t % 3 === 0) {
-        this.spawnSparks(l.x, l.y - 40, 4);
-      }
-      if (this.t >= FINISH_EXECUTE_FRAMES) {
+    } else if (this.phase === 'fatality') {
+      const done = fatalitySystem.update(this.hud);
+      if (done) {
         this.phase = 'end';
         this.t = 0;
-        if (this.flawless) { try { soundFX.playAnnouncer('FLAWLESS'); } catch (e) {} }
+        if (this.flawless) { announcer.flawlessVictory(); }
       }
     } else if (this.phase === 'end') {
       if (this.t >= FINISH_END_FRAMES) {
@@ -175,39 +133,20 @@ export class FinishHim {
   // World-space effects (drawn inside the camera translate)
   renderWorld(ctx) {
     if (!this.active) return;
-    this.rings.forEach(r => {
-      const a = Math.max(0, r.life / r.maxLife);
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = r.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, Math.max(1, r.r), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    });
-    this.sparks.forEach(s => {
-      ctx.fillStyle = s.color;
-      ctx.fillRect(s.x, s.y, s.size, s.size);
-    });
-
-    // Charge aura around the winner
-    if (this.phase === 'execute' && this.t < 60 && this.winner) {
-      const w = this.winner;
-      const k = this.t / 60;
-      ctx.save();
-      ctx.globalAlpha = 0.18 + k * 0.3;
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath();
-      ctx.ellipse(w.x, w.y - 48, 26 + k * 12, 56 + k * 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+    if (this.phase === 'fatality') {
+      fatalitySystem.renderWorld(ctx);
+      return;
     }
   }
 
   // Screen-space overlay (text, letterbox, flash)
   renderOverlay(ctx, W, H) {
     if (!this.active) return;
+    if (this.phase === 'fatality') {
+      fatalitySystem.renderOverlay(ctx, W, H);
+      return;
+    }
+
     const t = this.t;
     const pulse = Math.sin(Date.now() / 90);
 
@@ -253,14 +192,17 @@ export class FinishHim {
       ctx.lineWidth = 1;
       ctx.strokeRect(W / 2 - bw / 2, H / 2 + 2, bw, 8);
 
-      // Hint
-      const isP2 = this.winner && this.winner.playerNum === 2;
-      const key = isP2 ? 'NUMPAD 0' : 'SPACE';
-      if (Math.floor(t / 20) % 2 === 0) {
-        ctx.fillStyle = '#fef08a';
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(`PRESS [${key}] / [HP+HK] / [R3] FOR FINAL IMPACT`, W / 2, H / 2 + 28);
-      }
+      // MK Fatality Hints
+      const charId = this.winner ? this.winner.id : 'kazuki';
+      const fatInfo = FATALITY_CATALOG[charId] || FATALITY_CATALOG.kazuki;
+
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(`[SPACE / HP+HK] FATALITY: ${fatInfo.name}`, W / 2, H / 2 + 24);
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = '8px monospace';
+      ctx.fillText(`[C] STAGE HAZARD FATALITY`, W / 2, H / 2 + 38);
     }
 
     if (this.phase === 'execute') {

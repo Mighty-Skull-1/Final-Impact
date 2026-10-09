@@ -2,7 +2,7 @@
 // Cryptographically secured admin interface for restricted character management,
 // coin treasury adjustments, skin catalog overrides, and combat test cheats.
 
-import { verifyAdminPassword, isAdminAuthenticated, setAdminAuthenticated, isMightyUnlocked, setMightyUnlocked, getAdminCheats, setAdminCheats } from '../utils/CryptoAuth.js';
+import { verifyAdminPassword, isAdminAuthenticated, setAdminAuthenticated, isMightyUnlocked, setMightyUnlocked, getAdminCheats, setAdminCheats, isStealthMode, setStealthMode } from '../utils/CryptoAuth.js';
 import { EconomyManager } from '../shop/SkinCatalog.js';
 import { soundFX } from '../audio/SoundFX.js';
 
@@ -226,6 +226,7 @@ export class AdminModal {
     const isMightyOpen = isMightyUnlocked();
     const coins = EconomyManager.getCoins();
     const cheats = getAdminCheats();
+    const stealth = isStealthMode();
 
     this.domModal.innerHTML = `
       <div class="admin-card" style="
@@ -327,6 +328,34 @@ export class AdminModal {
               <span>💀 1-HIT KO P1 ATTACKS (Instant Elimination)</span>
             </label>
           </div>
+        </div>
+
+        <!-- Section 5: Steam Retail Stealth Protection -->
+        <div style="background: #18181b; border: 1px solid ${stealth ? '#22c55e' : '#f59e0b'}; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 9px; color: ${stealth ? '#4ade80' : '#fbbf24'}; font-weight: bold;">🕵️ STEAM PRODUCTION STEALTH MODE</span>
+            <span id="stealthStatusBadge" style="
+              font-size: 7px;
+              padding: 4px 8px;
+              border-radius: 3px;
+              background: ${stealth ? '#14532d' : '#713f12'};
+              color: ${stealth ? '#86efac' : '#fef08a'};
+              border: 1px solid ${stealth ? '#22c55e' : '#eab308'};
+            ">${stealth ? 'ACTIVE (100% INVISIBLE TO PLAYERS)' : 'DEV MODE (BUTTONS VISIBLE)'}</span>
+          </div>
+          <p style="font-size: 7px; color: #94a3b8; line-height: 1.5; margin-bottom: 10px;">
+            When active, all Admin buttons and mentions are wiped from topbars, settings, and character select. Steam players will never see any admin options. Only developer secret shortcut [Ctrl+Shift+Alt+A] opens this cryptographic gate.
+          </p>
+          <button id="toggleStealthBtn" style="
+            background: ${stealth ? '#27272a' : '#15803d'};
+            border: 1px solid ${stealth ? '#52525b' : '#22c55e'};
+            color: #ffffff;
+            padding: 8px 12px;
+            font-size: 7px;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 3px;
+          ">${stealth ? '👁️ UNHIDE ADMIN BUTTONS (DEV TESTING)' : '🕵️ ENABLE STEALTH MODE (STEAM RETAIL)'}</button>
         </div>
 
         <!-- Status & Logout -->
@@ -472,5 +501,19 @@ export class AdminModal {
     if (cheatGod) cheatGod.onchange = updateCheats;
     if (cheatSuper) cheatSuper.onchange = updateCheats;
     if (cheatKO) cheatKO.onchange = updateCheats;
+
+    const toggleStealthBtn = document.getElementById('toggleStealthBtn');
+    if (toggleStealthBtn) {
+      toggleStealthBtn.onclick = () => {
+        const next = !isStealthMode();
+        setStealthMode(next);
+        if (this.game && typeof this.game.syncStealthUI === 'function') {
+          this.game.syncStealthUI();
+        }
+        try { soundFX.playMenuSelect(); } catch (e) {}
+        showMsg(next ? '🕵️ STEALTH ACTIVATED: ADMIN COMPLETELY HIDDEN ON STEAM' : '👁️ DEV MODE: ADMIN BUTTONS ARE NOW VISIBLE');
+        this.renderDashboardView();
+      };
+    }
   }
 }

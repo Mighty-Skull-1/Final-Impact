@@ -522,7 +522,66 @@ export class EconomyManager {
       }
     } catch (e) {}
   }
+
+  // Cosmetics & Customization Management (Auras, Sparks, Titles)
+  static _inMemoryCosmetics = null;
+
+  static getEquippedCosmetics() {
+    if (this._inMemoryCosmetics) return { ...this._inMemoryCosmetics };
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('final_impact_equipped_cosmetics');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          this._inMemoryCosmetics = parsed;
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    const def = { aura: 'aura_none', spark: 'spark_classic', title: 'title_fighter' };
+    this._inMemoryCosmetics = def;
+    return { ...def };
+  }
+
+  static equipCosmetic(type, itemId) {
+    const current = this.getEquippedCosmetics();
+    current[type] = itemId;
+    this._inMemoryCosmetics = current;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('final_impact_equipped_cosmetics', JSON.stringify(current));
+      }
+    } catch (e) {}
+    return current;
+  }
 }
+
+// ===== AURA TRAILS CATALOG =====
+export const AURA_CATALOG = [
+  { id: 'aura_none', name: 'NONE (STANDARD)', price: 0, tier: 'COMMON', tierColor: '#94a3b8', color: 'transparent', desc: 'Standard combat appearance with no active energy aura.' },
+  { id: 'aura_flame', name: 'DRAGON FLAME', price: 400, tier: 'RARE', tierColor: '#38bdf8', color: '#ef4444', desc: 'Rising burning crimson embers and heat haze.' },
+  { id: 'aura_cyber', name: 'NEON OVERCHARGE', price: 500, tier: 'EPIC', tierColor: '#c084fc', color: '#06b6d4', desc: 'Crackling cyan cybernetic electricity and particle sparks.' },
+  { id: 'aura_void', name: 'VOID SHADOWS', price: 750, tier: 'EPIC', tierColor: '#c084fc', color: '#a855f7', desc: 'Abyssal gravity smoke radiating from the fighter.' },
+  { id: 'aura_golden_ki', name: 'SUPER SAIYAN KI', price: 1000, tier: 'LEGENDARY', tierColor: '#facc15', color: '#fde047', desc: 'Ascended radiant golden ki flame pillar.' },
+  { id: 'aura_frost', name: 'GLACIAL BLIZZARD', price: 600, tier: 'RARE', tierColor: '#38bdf8', color: '#38bdf8', desc: 'Freezing cryogenic mist and floating ice crystals.' }
+];
+
+// ===== HIT SPARK STYLES CATALOG =====
+export const SPARK_CATALOG = [
+  { id: 'spark_classic', name: 'ARCADE RETRO', price: 0, tier: 'COMMON', tierColor: '#94a3b8', color: '#facc15', desc: 'Classic 16-bit arcade golden hit sparks.' },
+  { id: 'spark_blood', name: 'MORTAL BLOODBURST', price: 350, tier: 'RARE', tierColor: '#38bdf8', color: '#dc2626', desc: 'Deep crimson visceral splatter particles on impact.' },
+  { id: 'spark_lightning', name: 'VOLT JOLT', price: 500, tier: 'EPIC', tierColor: '#c084fc', color: '#38bdf8', desc: 'High-voltage electric lightning arcs that burst on hit.' },
+  { id: 'spark_golden_runes', name: 'ELDEN RUNES', price: 800, tier: 'LEGENDARY', tierColor: '#facc15', color: '#fef08a', desc: 'Shattered glowing Golden Order runes on every strike.' }
+];
+
+// ===== PLAYER TITLES CATALOG =====
+export const TITLE_CATALOG = [
+  { id: 'title_fighter', name: 'NOVICE CONTENDER', price: 0, tier: 'COMMON', tierColor: '#94a3b8', desc: 'Arcade contender seeking glory.' },
+  { id: 'title_tarnished', name: 'THE TARNISHED', price: 400, tier: 'RARE', tierColor: '#38bdf8', desc: 'Warrior guided by the blessing of Grace.' },
+  { id: 'title_arcade_god', name: 'ARCADE GRANDMASTER', price: 750, tier: 'EPIC', tierColor: '#c084fc', desc: 'Undefeated master of combo execution and spacing.' },
+  { id: 'title_lord_flame', name: 'LORD OF FRENZIED FLAME', price: 1200, tier: 'LEGENDARY', tierColor: '#facc15', desc: 'Harbinger of molten ruin and relentless pressure.' },
+  { id: 'title_dragon_slayer', name: 'DRAGON SLAYER', price: 1500, tier: 'LEGENDARY', tierColor: '#facc15', desc: 'Vanquisher of the Endless Primeval Dragon.' }
+];
 
 /**
  * Returns the effective fighter design by merging base design with equipped skin overrides.

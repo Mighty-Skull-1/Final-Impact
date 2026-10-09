@@ -295,6 +295,18 @@
       });
     }
 
+    // Steam / Production Retail Stealth Mode on Page Load
+    try {
+      const isStealthStored = localStorage.getItem('final_impact_steam_stealth_mode');
+      const isStealth = isStealthStored !== 'false';
+      const hasDevFlag = window.location.search && (window.location.search.includes('dev=1') || window.location.search.includes('admin=show'));
+      if (isStealth && !hasDevFlag) {
+        if (topbarAdminBtn) topbarAdminBtn.style.display = 'none';
+        const adminGroup = document.getElementById('adminPortalLauncherGroup');
+        if (adminGroup) adminGroup.style.display = 'none';
+      }
+    } catch (e) {}
+
     if (topbarCoinBadge) {
       topbarCoinBadge.addEventListener('click', () => {
         if (window.__GAME_INSTANCE) {

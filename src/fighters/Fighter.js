@@ -3,6 +3,7 @@ import { Box } from '../engine/Hitbox.js';
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
 import { AlleyPickup } from '../engine/Projectiles.js';
+import { EconomyManager, AURA_CATALOG } from '../shop/SkinCatalog.js';
 
 export class Fighter {
   constructor({
@@ -965,6 +966,26 @@ export class Fighter {
         ctx.fillRect(tp.x, tp.y, tp.size, tp.size);
       }
       ctx.restore();
+    }
+
+    // Equipped Cosmetic Aura Trail (Flame, Cyber, Void, Golden Ki, Frost)
+    if (this.playerNum === 1 && !this.isDead && typeof EconomyManager !== 'undefined') {
+      const cos = EconomyManager.getEquippedCosmetics();
+      if (cos && cos.aura && cos.aura !== 'aura_none') {
+        const auraDef = AURA_CATALOG.find(a => a.id === cos.aura);
+        if (auraDef && auraDef.color !== 'transparent') {
+          ctx.save();
+          const t = Date.now() * 0.005;
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = auraDef.color;
+          for (let i = 0; i < 5; i++) {
+            const px = this.x + 36 + Math.sin(t + i * 1.4) * 24;
+            const py = this.y - 12 - ((t * 45 + i * 16) % 65);
+            ctx.fillRect(px, py, 2.5, 3.5);
+          }
+          ctx.restore();
+        }
+      }
     }
 
     // 3. Render Main Sprite with Heavy Panting Heave & Visual Damage

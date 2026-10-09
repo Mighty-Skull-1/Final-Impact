@@ -2,7 +2,7 @@ import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 // Final Impact - Character Select Screen
 import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
-import { isMightyUnlocked, setMightyUnlocked } from '../utils/CryptoAuth.js';
+import { isMightyUnlocked, setMightyUnlocked, isStealthMode, isAdminAuthenticated } from '../utils/CryptoAuth.js';
 import { EconomyManager, SKIN_CATALOG } from '../shop/SkinCatalog.js';
 
 export class CharacterSelect {
@@ -353,7 +353,8 @@ export class CharacterSelect {
     }
 
     // Top-Right Admin Portal Button: [ 🔒 ADMIN PORTAL (A) ]
-    if (x >= W - 165 && x <= W - 12 && y >= 10 && y <= 34) {
+    const isStealth = isStealthMode() && !isAdminAuthenticated();
+    if (!isStealth && x >= W - 165 && x <= W - 12 && y >= 10 && y <= 34) {
       this.openAdminPortal();
       return true;
     }
@@ -372,9 +373,14 @@ export class CharacterSelect {
         }
         soundFX.playWhoosh('light');
         if (char.id === 'mighty' && !this.isMightyUnlocked()) {
-          this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
-          this.codeFeedbackColor = '#fbbf24';
-          this.openAdminPortal();
+          if (isStealth) {
+            this.codeFeedback = '🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED';
+            this.codeFeedbackColor = '#ef4444';
+          } else {
+            this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
+            this.codeFeedbackColor = '#fbbf24';
+            this.openAdminPortal();
+          }
         } else if (char.id === 'endless_dragon' && !this.isDragonUnlocked()) {
           try { soundFX.playBlock(); } catch (e) {}
         }
@@ -393,9 +399,14 @@ export class CharacterSelect {
         if (lockedType) {
           try { soundFX.playBlock(); } catch (e) {}
           if (lockedType === 'mighty') {
-            this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
-            this.codeFeedbackColor = '#fbbf24';
-            this.openAdminPortal();
+            if (isStealth) {
+              this.codeFeedback = '🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED';
+              this.codeFeedbackColor = '#ef4444';
+            } else {
+              this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
+              this.codeFeedbackColor = '#fbbf24';
+              this.openAdminPortal();
+            }
           }
           return true;
         }
@@ -457,16 +468,19 @@ export class CharacterSelect {
     ctx.textAlign = 'center';
     ctx.fillText('< BACK [B]', 61, 25);
 
-    // Admin Portal button
-    const codeBtnX = W - 158;
-    const codeBtnW = 146;
-    ctx.fillStyle = mightyUnlocked ? 'rgba(22, 101, 52, 0.9)' : 'rgba(69, 10, 10, 0.9)';
-    ctx.fillRect(codeBtnX, 10, codeBtnW, 24);
-    ctx.strokeStyle = mightyUnlocked ? '#22c55e' : '#dc2626';
-    ctx.strokeRect(codeBtnX + 0.5, 10.5, codeBtnW - 1, 23);
-    ctx.fillStyle = mightyUnlocked ? '#86efac' : '#fca5a5';
-    ctx.font = 'bold 8.5px monospace';
-    ctx.fillText(mightyUnlocked ? '⚡ ADMIN ACTIVE [A]' : '🔒 ADMIN PORTAL [A]', codeBtnX + codeBtnW / 2, 25);
+    // Admin Portal button (completely hidden in Steam stealth mode unless authenticated)
+    const isStealth = isStealthMode() && !isAdminAuthenticated();
+    if (!isStealth) {
+      const codeBtnX = W - 158;
+      const codeBtnW = 146;
+      ctx.fillStyle = mightyUnlocked ? 'rgba(22, 101, 52, 0.9)' : 'rgba(69, 10, 10, 0.9)';
+      ctx.fillRect(codeBtnX, 10, codeBtnW, 24);
+      ctx.strokeStyle = mightyUnlocked ? '#22c55e' : '#dc2626';
+      ctx.strokeRect(codeBtnX + 0.5, 10.5, codeBtnW - 1, 23);
+      ctx.fillStyle = mightyUnlocked ? '#86efac' : '#fca5a5';
+      ctx.font = 'bold 8.5px monospace';
+      ctx.fillText(mightyUnlocked ? '⚡ ADMIN ACTIVE [A]' : '🔒 ADMIN PORTAL [A]', codeBtnX + codeBtnW / 2, 25);
+    }
 
     // Title
     ctx.fillStyle = '#facc15';

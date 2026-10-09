@@ -134,3 +134,38 @@ export function setAdminCheats(cheats) {
     }
   } catch (e) {}
 }
+
+/**
+ * Steam & Production Retail Stealth Mode:
+ * In stealth mode, all public UI elements for the Admin Portal are completely hidden.
+ * Only the developer knowing the secret combo (Ctrl+Shift+Alt+A or secret title sequence)
+ * can summon the encrypted cryptographic portal.
+ */
+const STEALTH_MODE_STORAGE_KEY = 'final_impact_steam_stealth_mode';
+let _inMemoryStealth = null;
+
+export function isStealthMode() {
+  if (_inMemoryStealth !== null) return _inMemoryStealth;
+  try {
+    if (typeof window !== 'undefined' && window.location && window.location.search) {
+      if (window.location.search.includes('dev=1') || window.location.search.includes('admin=show')) {
+        return false; // Explicitly unhide via URL dev flag
+      }
+    }
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem(STEALTH_MODE_STORAGE_KEY);
+      if (stored !== null) return stored === 'true';
+    }
+  } catch (e) {}
+  // Default to true for Steam / commercial public security
+  return true;
+}
+
+export function setStealthMode(enabled) {
+  _inMemoryStealth = !!enabled;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STEALTH_MODE_STORAGE_KEY, enabled ? 'true' : 'false');
+    }
+  } catch (e) {}
+}

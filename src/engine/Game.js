@@ -38,7 +38,11 @@ import { ROSTER_CLASSES, ROSTER_QUOTES } from '../fighters/RosterFighters.js';
 import { ShopScreen } from '../ui/ShopScreen.js';
 import { AdminModal } from '../ui/AdminModal.js';
 import { EconomyManager } from '../shop/SkinCatalog.js';
-import { getAdminCheats } from '../utils/CryptoAuth.js';
+import { getAdminCheats, isStealthMode, isAdminAuthenticated, setStealthMode } from '../utils/CryptoAuth.js';
+import { announcer } from '../audio/Announcer.js';
+import { eldenManager } from '../elden/EldenRingMechanics.js';
+import { arcadeTowerScreen } from '../ui/ArcadeTower.js';
+import { testYourMight } from '../minigames/TestYourMight.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -50,7 +54,10 @@ export const GAME_SCREENS = {
   FIGHT: 'FIGHT',
   ROUND_OVER: 'ROUND_OVER',
   VICTORY: 'VICTORY',
-  SHOP: 'SHOP'
+  SHOP: 'SHOP',
+  ARCADE_TOWERS: 'ARCADE_TOWERS',
+  TEST_YOUR_MIGHT: 'TEST_YOUR_MIGHT',
+  SITE_OF_GRACE: 'SITE_OF_GRACE'
 };
 
 export class Game {
@@ -73,6 +80,11 @@ export class Game {
     this.stageSelect = new StageSelect(STAGE_CATALOG);
     this.versus = new VersusScreen();
     this.finish = new FinishHim();
+    this.arcadeTowers = arcadeTowerScreen;
+    this.testYourMight = testYourMight;
+    this.elden = eldenManager;
+    this.announcer = announcer;
+    this.syncStealthUI();
 
     // Online Multiplayer Netplay Engine & Lobby UI
     this.netplay = new Netplay();
@@ -220,6 +232,19 @@ export class Game {
         this.onlineLobby.handleClick(x, y);
       } else if (this.screen === GAME_SCREENS.VICTORY) {
         this.handleVictoryClick(x, y);
+      } else if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
+        this.arcadeTowers.handleClick(x, y, () => {
+          this.screen = GAME_SCREENS.MODE_SELECT;
+        }, () => {
+          this.handleConfirmPress();
+        }, this.canvas.width, this.canvas.height);
+      } else if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
+        this.testYourMight.handleInput({ confirm: true, space: true });
+      } else if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
+        const res = this.elden.executeGraceSelection();
+        if (res && res.action === 'proceed') {
+          this.startNextCampaignStage();
+        }
       }
     });
     }
@@ -360,8 +385,15 @@ export class Game {
         }
       }
 
+      // Developer Stealth Shortcut [Ctrl + Shift + Alt + A]
+      if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') {
+        e.preventDefault();
+        this.adminModal.open();
+        return;
+      }
+
       // Admin Portal Shortcut [KeyA] (Shift+A or A on menus/screens)
-      if (e.code === 'KeyA' && (this.screen !== GAME_SCREENS.FIGHT || e.shiftKey)) {
+      if (e.code === 'KeyA' && (!isStealthMode() || isAdminAuthenticated()) && (this.screen !== GAME_SCREENS.FIGHT || e.shiftKey)) {
         e.preventDefault();
         this.adminModal.toggle();
         return;
@@ -390,6 +422,17 @@ export class Game {
         soundFX.playMenuSelect();
         return;
       }
+      if (this.modeSelect.selectedMode === 'arcade_towers') {
+        this.arcadeTowers.subState = 'SELECT';
+        this.screen = GAME_SCREENS.ARCADE_TOWERS;
+        soundFX.playMenuSelect();
+        return;
+      }
+      if (this.modeSelect.selectedMode === 'test_your_might') {
+        this.testYourMight.start(1);
+        this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
+        return;
+      }
       if (this.modeSelect.selectedMode === 'coop_campaign') {
         this.onlineLobby.reset(true);
         this.onlineLobby.matchMode = 'coop_campaign';
@@ -407,6 +450,37 @@ export class Game {
       this.charSelect.setMode(this.modeSelect.selectedMode, this.modeSelect.currentDifficulty);
       this.charSelect.refreshPreviews();
       this.screen = GAME_SCREENS.CHAR_SELECT;
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
+      if (this.arcadeTowers.subState === 'SELECT') {
+        this.arcadeTowers.subState = 'LADDER';
+        soundFX.playMenuSelect();
+      } else {
+        const floor = this.arcadeTowers.getCurrentFloorData();
+        if (floor) {
+          if (floor.type === 'minigame') {
+            this.testYourMight.start(floor.tier || 1);
+            this.screen = GAME_SCREENS.TEST_YOUR_MIGHT;
+          } else {
+            this.startTowerMatch(floor);
+          }
+        }
+      }
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
+      this.testYourMight.handleInput({ confirm: true, space: true });
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
+      const res = this.elden.executeGraceSelection();
+      if (res && res.action === 'proceed') {
+        this.startNextCampaignStage();
+      }
       return;
     }
 
@@ -509,6 +583,20 @@ export class Game {
       soundFX.playWhoosh('light');
       this.screen = GAME_SCREENS.MODE_SELECT;
       this.charSelect.refreshPreviews();
+      return;
+    }
+    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
+      soundFX.playWhoosh('light');
+      if (this.arcadeTowers.subState === 'LADDER') {
+        this.arcadeTowers.subState = 'SELECT';
+      } else {
+        this.screen = GAME_SCREENS.MODE_SELECT;
+      }
+      return;
+    }
+    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
+      soundFX.playWhoosh('light');
+      this.screen = GAME_SCREENS.MODE_SELECT;
       return;
     }
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
@@ -788,6 +876,50 @@ export class Game {
     this.screen = GAME_SCREENS.FIGHT;
     soundFX.startMusic('fight');
     soundFX.playAnnouncer('ROUND1');
+    try { this.announcer.round1(); } catch (e) {}
+  }
+
+  startTowerMatch(floor) {
+    soundFX.stopMusic();
+    const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
+    this.stage = new Stage(floor.stage || 'suzaku');
+    this.round = 1;
+    this.projectiles = [];
+    this.spawnDefaultPickups();
+
+    this.f1 = this.createFighter(p1Id, 220, true, 1, false);
+    this.f2 = this.createFighter(floor.opponent, 700, false, 2, true);
+    this.f3 = null;
+    this.f4 = null;
+    this.allFighters = [this.f1, this.f2];
+    this.elden.applyUpgradesToFighter(this.f1);
+
+    this.ai.setDifficulty(floor.isBoss ? 'hard' : 'normal', 5);
+    this.isArcadeTower = true;
+    this.hud.reset(1);
+    this.hud.p1RedHealth = this.f1.health;
+    this.hud.p2RedHealth = this.f2.health;
+    this.beginVersus();
+  }
+
+  startNextCampaignStage() {
+    this.bossIndex++;
+    if (this.bossIndex < this.bossQueue.length) {
+      this.f1.health = Math.min(this.f1.maxHealth, this.f1.health + 500);
+      this.f1.stamina = this.f1.maxStamina;
+      if (this.f3) {
+        this.f3.health = Math.min(this.f3.maxHealth, this.f3.health + 500);
+        this.f3.stamina = this.f3.maxStamina;
+      }
+      this.setupCampaignStage(this.f1.id, false);
+      this.slowMotion = false;
+      this.beginVersus();
+    } else {
+      EconomyManager.addCoins(1000);
+      this.initVictoryScreen();
+      this.winner = this.f1;
+      soundFX.playAnnouncer('YOU_WIN');
+    }
   }
 
   goToStageSelect() {
@@ -1190,6 +1322,80 @@ export class Game {
         this.handleConfirmPress();
       } else if (menuNav && menuNav.back) {
         this.handleBackPress();
+      }
+      input.endFrame();
+      return;
+    }
+
+    // 1.5 Arcade Towers & Minigames Navigation
+    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
+      const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (menuNav && menuNav.left);
+      const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (menuNav && menuNav.right);
+      if (left) {
+        input.consumeKey('KeyA');
+        input.consumeKey('ArrowLeft');
+        this.arcadeTowers.handleInput({ left: true });
+      } else if (right) {
+        input.consumeKey('KeyD');
+        input.consumeKey('ArrowRight');
+        this.arcadeTowers.handleInput({ right: true });
+      }
+      if (menuNav && menuNav.confirm) {
+        this.handleConfirmPress();
+      } else if (menuNav && menuNav.back) {
+        this.handleBackPress();
+      }
+      input.endFrame();
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
+      const anyMash = input.isJustPressed('KeyU') || input.isJustPressed('KeyI') || input.isJustPressed('KeyJ') || input.isJustPressed('KeyK') ||
+                      input.isJustPressed('KeyQ') || input.isJustPressed('KeyE') || (menuNav && (menuNav.confirm || menuNav.up || menuNav.down));
+      if (anyMash) {
+        this.testYourMight.handleInput({ lp: true });
+      }
+      if (input.isJustPressed('Space') || (menuNav && menuNav.start)) {
+        this.testYourMight.handleInput({ confirm: true });
+      }
+      const done = this.testYourMight.update();
+      if (done) {
+        if (this.isArcadeTower) {
+          const adv = this.arcadeTowers.advanceFloor();
+          if (adv.complete) {
+            EconomyManager.addCoins(1000);
+            this.initVictoryScreen();
+            this.winner = this.f1;
+            soundFX.playAnnouncer('YOU_WIN');
+          } else {
+            this.arcadeTowers.subState = 'LADDER';
+            this.screen = GAME_SCREENS.ARCADE_TOWERS;
+          }
+        } else {
+          this.screen = GAME_SCREENS.MODE_SELECT;
+        }
+      }
+      input.endFrame();
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
+      const up = input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || (menuNav && menuNav.up);
+      const down = input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || (menuNav && menuNav.down);
+      if (up) {
+        input.consumeKey('KeyW');
+        input.consumeKey('ArrowUp');
+        this.elden.handleGraceInput({ up: true });
+      } else if (down) {
+        input.consumeKey('KeyS');
+        input.consumeKey('ArrowDown');
+        this.elden.handleGraceInput({ down: true });
+      }
+      if (input.isJustPressed('Space') || input.isJustPressed('Enter') || (menuNav && menuNav.confirm)) {
+        const res = this.elden.executeGraceSelection();
+        if (res && res.action === 'proceed') {
+          this.startNextCampaignStage();
+        }
       }
       input.endFrame();
       return;
@@ -2440,6 +2646,21 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.ARCADE_TOWERS) {
+      this.arcadeTowers.render(ctx, W, H);
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.TEST_YOUR_MIGHT) {
+      this.testYourMight.render(ctx, W, H);
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.SITE_OF_GRACE) {
+      this.elden.renderSiteOfGrace(ctx, W, H);
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.VICTORY) {
       this.renderVictoryScreen();
       return;
@@ -2485,6 +2706,13 @@ export class Game {
     // 4. FINISH HIM overlay (text, letterbox, impact flash)
     if (this.finish && this.finish.active) {
       this.finish.renderOverlay(ctx, W, H);
+    }
+
+    // 5. Elden Ring Atmospheric Overlays ("YOU DIED", "GREAT ENEMY FELLED", "GOD SLAIN")
+    if (this.elden) {
+      this.elden.update();
+      this.elden.renderFelledBanner(ctx, W, H);
+      this.elden.renderYouDied(ctx, W, H);
     }
 
     // Online Connection & Ping Badge
