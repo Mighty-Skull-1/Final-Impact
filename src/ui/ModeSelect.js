@@ -97,25 +97,22 @@ export class ModeSelect {
     }
   }
 
+  // Layout constants (shared by click hit-testing and rendering)
+  static get LIST() { return { x: 26, y: 62, w: 250, h: 34, gap: 3 }; }
+
   handleClick(x, y, onBack, onConfirm, W = 640) {
-    // Check Top-Left Back button
+    // Back button (top-left)
     if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
       soundFX.playWhoosh('light');
       if (onBack) onBack();
       return true;
     }
 
-    // Check Mode Cards
-    const startY = 44;
-    const cardH = 30;
-    const cardGap = 4;
-    const cardW = 540;
-    const cardX = (W - cardW) / 2;
-
-    if (x >= cardX && x <= cardX + cardW) {
+    const L = ModeSelect.LIST;
+    if (x >= L.x && x <= L.x + L.w) {
       for (let idx = 0; idx < this.modes.length; idx++) {
-        const cy = startY + idx * (cardH + cardGap);
-        if (y >= cy && y <= cy + cardH) {
+        const cy = L.y + idx * (L.h + L.gap);
+        if (y >= cy && y <= cy + L.h) {
           if (this.selectedIndex === idx) {
             if (onConfirm) onConfirm();
           } else {
@@ -126,135 +123,180 @@ export class ModeSelect {
         }
       }
     }
+
+    // Right-hand panel acts as a big confirm button
+    if (x >= 296 && x <= W - 24 && y >= 62 && y <= 318) {
+      if (onConfirm) onConfirm();
+      return true;
+    }
     return false;
+  }
+
+  wrapText(ctx, text, maxW) {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
 
   render(ctx, W, H) {
     this.animTimer++;
+    const t = this.animTimer;
+    const cur = this.modes[this.selectedIndex];
+    const pulse = Math.sin(t * 0.12) * 0.5 + 0.5;
 
-    // 1. Dark Neon Retro Grid Background
-    ctx.fillStyle = '#070512';
+    // 1. Blood-red temple background with a glow tinted by the selected mode
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#1a0505');
+    bg.addColorStop(0.6, '#2a0a0a');
+    bg.addColorStop(1, '#050101');
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = '#1e1338';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 32) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
-    }
-    for (let y = 0; y < H; y += 32) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
+    ctx.globalAlpha = 0.18 + pulse * 0.08;
+    const glow = ctx.createRadialGradient(W * 0.68, H * 0.5, 10, W * 0.68, H * 0.5, 260);
+    glow.addColorStop(0, cur.color);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
 
-    // Top-Left Back Button: [ ⬅️ TITLE (B) ]
-    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
-    ctx.fillRect(12, 10, 95, 22);
-    ctx.strokeStyle = '#6366f1';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(12, 10, 95, 22);
+    // Rising embers
+    for (let i = 0; i < 36; i++) {
+      const ex = (i * 71 + Math.sin(t * 0.02 + i) * 14) % W;
+      const ey = H - ((t * (0.4 + (i % 5) * 0.15) + i * 53) % H);
+      ctx.globalAlpha = 0.25 + (i % 4) * 0.12;
+      ctx.fillStyle = i % 3 === 0 ? '#fde047' : '#f97316';
+      ctx.fillRect(ex, ey, 2, 2);
+    }
+    ctx.globalAlpha = 1;
 
-    ctx.fillStyle = '#fde047';
+    // Top & bottom banner bars
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, 44);
+    ctx.fillRect(0, H - 26, W, 26);
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillRect(0, 44, W, 2);
+    ctx.fillRect(0, H - 28, W, 2);
+
+    // Back button
+    ctx.fillStyle = '#450a0a';
+    ctx.fillRect(12, 10, 98, 24);
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12.5, 10.5, 97, 23);
+    ctx.fillStyle = '#fde68a';
     ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('⬅️ TITLE [B]', 60, 24);
+    ctx.fillText('< TITLE [B]', 61, 25);
 
-    // Header Title
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText('SELECT GAME MODE', W / 2, 24);
+    // Header
+    ctx.fillStyle = '#facc15';
+    ctx.font = '900 20px monospace';
+    ctx.fillText('CHOOSE YOUR DESTINY', W / 2 + 10, 28);
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillText('CHOOSE YOUR DISCIPLINE FOR THE CONCRETE ARENA', W / 2, 37);
-
-    // 2. Mode Cards Layout
-    const startY = 44;
-    const cardH = 30;
-    const cardGap = 4;
-    const cardW = 540;
-    const cardX = (W - cardW) / 2;
-
+    // 2. Left: stone plaque list
+    const L = ModeSelect.LIST;
     this.modes.forEach((m, idx) => {
-      const isSelected = idx === this.selectedIndex;
-      const y = startY + idx * (cardH + cardGap);
+      const sel = idx === this.selectedIndex;
+      const y = L.y + idx * (L.h + L.gap);
+      const x = L.x + (sel ? 10 : 0);
+      const w = L.w - (sel ? 10 : 0);
 
-      // Card Background
-      if (isSelected) {
-        ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
-        ctx.fillRect(cardX, y, cardW, cardH);
+      ctx.fillStyle = sel ? 'rgba(127, 29, 29, 0.92)' : 'rgba(20, 8, 8, 0.8)';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + w - 10, y);
+      ctx.lineTo(x + w, y + L.h / 2);
+      ctx.lineTo(x + w - 10, y + L.h);
+      ctx.lineTo(x, y + L.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = sel ? m.color : '#3f1d1d';
+      ctx.lineWidth = sel ? 2 : 1;
+      ctx.stroke();
 
-        // Animated Neon Glowing Border
-        const pulse = Math.sin(this.animTimer * 0.15) * 0.5 + 0.5;
-        ctx.strokeStyle = m.color;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(cardX, y, cardW, cardH);
-
-        // Neon side indicator bar
+      if (sel) {
         ctx.fillStyle = m.color;
-        ctx.fillRect(cardX, y, 6, cardH);
-
-        // Little arrow cursor
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 13px monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText('▶', cardX - 8, y + cardH / 2 + 4);
-      } else {
-        ctx.fillStyle = 'rgba(15, 12, 30, 0.65)';
-        ctx.fillRect(cardX, y, cardW, cardH);
-        ctx.strokeStyle = '#272044';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(cardX, y, cardW, cardH);
+        ctx.fillRect(x - 8, y + 4, 4, L.h - 8);
       }
 
-      // Badge
+      // plain label: strip emoji lead from the title
+      const label = m.title.replace(/^[^A-Za-z0-9]+/, '');
       ctx.textAlign = 'left';
-      ctx.fillStyle = isSelected ? m.color : '#64748b';
+      ctx.fillStyle = sel ? '#ffffff' : '#a8a29e';
+      ctx.font = sel ? 'bold 12px monospace' : 'bold 11px monospace';
+      ctx.fillText(label, x + 12, y + 15);
+      ctx.fillStyle = sel ? m.color : '#78716c';
       ctx.font = 'bold 8px monospace';
-      ctx.fillText(`[ ${m.badge} ]`, cardX + 16, y + 10);
-
-      // Title
-      ctx.fillStyle = isSelected ? '#ffffff' : '#cbd5e1';
-      ctx.font = isSelected ? 'bold 12px monospace' : '11px monospace';
-      ctx.fillText(m.title, cardX + 16, y + 23);
-
-      // Subtitle / Difficulty on Right
-      if (m.id === 'cpu') {
-        const diffColor = this.currentDifficulty === 'hard' ? '#ef4444' : (this.currentDifficulty === 'normal' ? '#f59e0b' : '#22c55e');
-        ctx.textAlign = 'right';
-        ctx.fillStyle = diffColor;
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText(`DIFFICULTY: ◄ ${this.currentDifficulty.toUpperCase()} ►`, cardX + cardW - 14, y + 19);
-      } else {
-        ctx.textAlign = 'right';
-        ctx.fillStyle = isSelected ? '#38bdf8' : '#475569';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText(m.subtitle, cardX + cardW - 14, y + 19);
-      }
+      ctx.fillText(m.badge, x + 12, y + 27);
     });
 
-    // 3. Selected Mode Description Box
-    const descY = 286;
-    const current = this.modes[this.selectedIndex];
-    ctx.fillStyle = 'rgba(10, 8, 22, 0.9)';
-    ctx.fillRect(cardX, descY, cardW, 36);
-    ctx.strokeStyle = '#332a58';
+    // 3. Right: large info panel
+    const px = 296, py = 62, pw = W - 24 - px, ph = 256;
+    ctx.fillStyle = 'rgba(10, 3, 3, 0.88)';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = cur.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(cardX, descY, cardW, 36);
+    ctx.strokeRect(px + 6, py + 6, pw - 12, ph - 12);
 
+    // Giant faded kanji-style emblem behind the text
+    ctx.globalAlpha = 0.10 + pulse * 0.05;
+    ctx.fillStyle = cur.color;
+    ctx.font = '900 150px serif';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = '10px monospace';
-    ctx.fillText(current.description, W / 2, descY + 22);
+    ctx.fillText('龍', px + pw / 2, py + 175);
+    ctx.globalAlpha = 1;
 
-    // 4. Controls Footer
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = cur.color;
     ctx.font = 'bold 10px monospace';
-    ctx.fillText('▲/▼ [W/S] NAVIGATE    ◄/► [A/D] DIFFICULTY    [ENTER/SPACE] CONFIRM    [B / ESC] BACK', W / 2, H - 10);
+    ctx.fillText('~ ' + cur.badge + ' ~', px + pw / 2, py + 30);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 20px monospace';
+    ctx.fillText(cur.title.replace(/^[^A-Za-z0-9]+/, ''), px + pw / 2, py + 58);
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(cur.subtitle, px + pw / 2, py + 78);
+
+    ctx.fillStyle = '#e7e5e4';
+    ctx.font = '11px monospace';
+    this.wrapText(ctx, cur.description, pw - 48).forEach((ln, i) => {
+      ctx.fillText(ln, px + pw / 2, py + 108 + i * 16);
+    });
+
+    if (cur.id === 'cpu') {
+      const d = this.currentDifficulty;
+      ctx.fillStyle = d === 'hard' ? '#ef4444' : (d === 'normal' ? '#f59e0b' : '#22c55e');
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText('<  DIFFICULTY: ' + d.toUpperCase() + '  >', px + pw / 2, py + ph - 62);
+    }
+
+    // FIGHT call-to-action
+    if (Math.floor(t / 25) % 2 === 0) {
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('[ ENTER / CLICK ] TO ENTER', px + pw / 2, py + ph - 24);
+    }
+
+    // 4. Footer controls
+    ctx.fillStyle = '#d6d3d1';
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText('W/S NAVIGATE   A/D DIFFICULTY   ENTER CONFIRM   B/ESC BACK', W / 2, H - 10);
+    ctx.textAlign = 'left';
   }
 }
