@@ -40,16 +40,6 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 * **Impact Hit Sparks**: Customize strike hitsparks (*Arcade Retro*, *Mortal Bloodburst*, *Volt Jolt*, *Elden Runes*).
 * **Fighter Titles**: Showcase prestigious titles (*The Tarnished*, *Arcade Grandmaster*, *Lord of Frenzied Flame*, *Dragon Slayer*).
 
-### 🔒 Steam Retail Stealth Protection (Admin Security)
-* **100% Invisible to Public / Steam Players**:
-  * In default **Stealth Mode**, all administrator buttons, launcher groups, and admin labels are completely hidden and stripped from public UI.
-  * The secret boss character M1GHTY displays purely as `🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED`.
-* **Secret Developer Shortcut**:
-  * Press **`Ctrl + Shift + Alt + A`** anywhere to summon the cryptographic Admin Portal.
-* **Cryptographic SHA-256 Authentication**:
-  * Zero plaintext passwords stored in the repository. Credential checks are verified against one-way SHA-256 hash digests.
-  * Developer toggles for Steam Stealth mode, combat cheats (God Mode, Infinite Super, 1-Hit KO), and instant character/skin unlockers.
-
 ---
 
 ## 🎮 Game Modes
