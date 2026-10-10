@@ -2,7 +2,7 @@
   "name": "final-impact",
   "version": "1.0.0",
   "description": "16-Bit Retro Pixel Art Street Fighter style fighting game",
-  "main": "server.js",
+  "main": "electron-main.cjs",
   "type": "module",
   "scripts": {
     "start": "node server.js",
@@ -11,6 +11,7 @@
     "build:admin": "node scripts/build.mjs --admin",
     "electron:start": "npx electron electron-main.cjs",
     "electron": "npx electron electron-main.cjs",
+    "package:exe": "npx @electron/packager . \"Final Impact\" --platform=win32 --arch=x64 --out=dist-exe --overwrite --prune=true",
     "test": "node test_overhaul_systems.mjs && node test_admin_and_shop.mjs && node test_gamepad.mjs && node test_dialogue_and_achievements.mjs"
   },
   "keywords": [
@@ -24,6 +25,7 @@
   "author": "Final Impact Team",
   "license": "MIT",
   "devDependencies": {
+    "electron": "^44.7.0",
     "esbuild": "^0.28.2"
   }
 }

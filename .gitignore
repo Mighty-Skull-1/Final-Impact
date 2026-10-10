@@ -7,3 +7,5 @@ Thumbs.db
 src/admin/
 *.dev.js
 dist/*.map
+dist-exe/
+build-exe/
