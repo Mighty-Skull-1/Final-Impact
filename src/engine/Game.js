@@ -1480,10 +1480,13 @@ export class Game {
 
     // 2d. Campaign Story Dialogue Banter
     if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
-      const p1Actions = input.poll(1);
+      const p1Actions = input.getState(1);
       const gpState0 = input.getGamepadState(0);
       const gpState1 = input.getGamepadState(1);
-      const gpSkip = (gpState0 && (gpState0.bJust || gpState0.selectJust)) || (gpState1 && (gpState1.bJust || gpState1.selectJust));
+
+      // Skip Dialogue: B (Button 1 / Circle), Select / Back, HK, Escape, Backspace, or B key
+      const gpSkip = (gpState0 && (gpState0.bJust || gpState0.selectJust || gpState0.hkJust)) ||
+                     (gpState1 && (gpState1.bJust || gpState1.selectJust || gpState1.hkJust));
 
       const isBack = (menuNav && menuNav.back) ||
         input.isJustPressed('Escape') ||
@@ -1491,12 +1494,19 @@ export class Game {
         input.isJustPressed('KeyB') ||
         gpSkip;
 
-      const isAdvance = (menuNav && (menuNav.confirm || menuNav.start)) ||
+      // Advance typewriter / Next line: A (Button 0 / Cross), X (Button 2 / Square / LP), Start, Enter, Space, E, LP, LK
+      const gpAdvance = (gpState0 && (gpState0.aJust || gpState0.xJust || gpState0.lpJust || gpState0.lkJust || gpState0.startJust)) ||
+                        (gpState1 && (gpState1.aJust || gpState1.xJust || gpState1.lpJust || gpState1.lkJust || gpState1.startJust));
+
+      const isAdvance = (menuNav && (menuNav.confirm || menuNav.start || menuNav.extra)) ||
         input.isJustPressed('Enter') ||
         input.isJustPressed('Space') ||
         input.isJustPressed('KeyE') ||
         input.isJustPressed('NumpadEnter') ||
-        p1Actions.lpJust || p1Actions.hpJust || p1Actions.lkJust || p1Actions.hkJust;
+        input.isJustPressed('KeyU') ||
+        input.isJustPressed('KeyJ') ||
+        !!p1Actions?.lpJust || !!p1Actions?.hpJust || !!p1Actions?.lkJust || !!p1Actions?.hkJust ||
+        gpAdvance;
 
       if (isBack) {
         input.consumeKey('Escape');
@@ -1505,9 +1515,11 @@ export class Game {
         this.campaignDialogue.skip();
       } else if (isAdvance) {
         input.consumeKey('Enter');
+        input.consumeKey('NumpadEnter');
         input.consumeKey('Space');
         input.consumeKey('KeyE');
-        input.consumeKey('NumpadEnter');
+        input.consumeKey('KeyU');
+        input.consumeKey('KeyJ');
         this.campaignDialogue.advanceOrComplete();
       } else {
         this.campaignDialogue.update();

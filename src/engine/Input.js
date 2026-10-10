@@ -246,6 +246,11 @@ export class InputManager {
     this.justPressed[code] = false;
   }
 
+  // Alias for polling player input state (safely returns frame state)
+  poll(playerNum = 1, facingRight = true) {
+    return this.getState(playerNum, facingRight);
+  }
+
   // Poll Gamepads every frame (detects hot-plugging, triggers, stick deadzones, and edges)
   pollGamepads() {
     const rawGps = (typeof navigator !== 'undefined' && navigator.getGamepads) ? navigator.getGamepads() : [];

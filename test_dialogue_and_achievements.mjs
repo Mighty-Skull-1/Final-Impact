@@ -86,7 +86,14 @@ dialogue.start('riot_cop', { name: 'Kazuki' }, { name: 'SGT. Vance' }, () => {})
 dialogue.handleClick(100, 200, 960, 540);
 assert.strictEqual(dialogue.charIndex, dialogue.script.lines[0].text.length, 'handleClick on screen body should advance typewriter');
 
-console.log('  ✓ [PASS] Dialogue state transitions, typewriter display, direct skip(), and mouse handleClick confirmed');
+// Test InputManager poll method and Dialogue controller integration
+import { InputManager } from './src/engine/Input.js';
+const testInput = new InputManager();
+assert.strictEqual(typeof testInput.poll, 'function', 'InputManager must provide poll() method');
+const pollState = testInput.poll(1);
+assert.ok(pollState && typeof pollState.lpJust === 'boolean', 'poll(1) returns valid fighter state');
+
+console.log('  ✓ [PASS] Dialogue state transitions, typewriter display, direct skip(), mouse handleClick, and input.poll confirmed');
 
 // Test 3: Steam Achievements Engine Catalog
 console.log('\n[SECTION 3] Steam Achievements Catalog');
