@@ -482,7 +482,7 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.SHOP) {
-      this.shopScreen.triggerSkinAction();
+      this.shopScreen.handleInput({ confirm: true });
       return;
     }
 
@@ -1293,15 +1293,23 @@ export class Game {
       const left = input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || (menuNav && menuNav.left);
       const right = input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || (menuNav && menuNav.right);
 
-      if (up) {
+      const prevTab = input.isJustPressed('KeyQ') || (menuNav && menuNav.prevTab);
+      const nextTab = input.isJustPressed('Tab') || input.isJustPressed('KeyE') || (menuNav && menuNav.nextTab);
+
+      if (prevTab) {
+        input.consumeKey('KeyQ');
+        this.shopScreen.handleInput({ prevTab: true });
+      } else if (nextTab) {
+        input.consumeKey('Tab');
+        input.consumeKey('KeyE');
+        this.shopScreen.handleInput({ nextTab: true });
+      } else if (up) {
         input.consumeKey('KeyW'); input.consumeKey('ArrowUp');
         this.shopScreen.handleInput({ up: true });
       } else if (down) {
         input.consumeKey('KeyS'); input.consumeKey('ArrowDown');
         this.shopScreen.handleInput({ down: true });
-      }
-
-      if (left) {
+      } else if (left) {
         input.consumeKey('KeyA'); input.consumeKey('ArrowLeft');
         this.shopScreen.handleInput({ left: true });
       } else if (right) {
@@ -1309,7 +1317,7 @@ export class Game {
         this.shopScreen.handleInput({ right: true });
       }
 
-      if (menuNav && menuNav.confirm) {
+      if (menuNav && (menuNav.confirm || menuNav.extra)) {
         this.handleConfirmPress();
       } else if (menuNav && menuNav.back) {
         this.handleBackPress();

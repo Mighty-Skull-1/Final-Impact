@@ -463,7 +463,13 @@ export class InputManager {
       confirm: gp.aJust || gp.startJust,
       back: gp.bJust,
       extra: gp.xJust || gp.yJust,
-      start: gp.startJust
+      start: gp.startJust,
+      lb: !!gp.sp3Just,
+      rb: !!gp.sp1Just,
+      lt: !!gp.dirtyJust,
+      rt: !!gp.sp2Just,
+      prevTab: !!gp.sp3Just || !!gp.dirtyJust,
+      nextTab: !!gp.sp1Just || !!gp.sp2Just
     };
   }
 
@@ -482,7 +488,13 @@ export class InputManager {
       confirm: nav0.confirm || nav1.confirm,
       back: nav0.back || nav1.back,
       extra: nav0.extra || nav1.extra,
-      start: nav0.start || nav1.start
+      start: nav0.start || nav1.start,
+      lb: nav0.lb || nav1.lb,
+      rb: nav0.rb || nav1.rb,
+      lt: nav0.lt || nav1.lt,
+      rt: nav0.rt || nav1.rt,
+      prevTab: nav0.prevTab || nav1.prevTab,
+      nextTab: nav0.nextTab || nav1.nextTab
     };
   }
 

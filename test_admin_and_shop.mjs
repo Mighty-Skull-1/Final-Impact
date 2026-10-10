@@ -35,6 +35,7 @@ global.document = {
 import { computeSha256, verifyAdminPassword, isMightyUnlocked, setMightyUnlocked, getAdminCheats, setAdminCheats } from './src/utils/CryptoAuth.js';
 import { SKIN_CATALOG, EconomyManager, getSkinDesign } from './src/shop/SkinCatalog.js';
 import { ModeSelect } from './src/ui/ModeSelect.js';
+import { ShopScreen } from './src/ui/ShopScreen.js';
 import { GAME_SCREENS } from './src/engine/Game.js';
 
 console.log('--- STARTING ADMIN & SKIN SHOP TEST SUITE ---');
@@ -142,8 +143,44 @@ async function runTests() {
   assert.strictEqual(cryptoAuthSrc.includes(testPassword), false, 'Plaintext password must NOT exist in CryptoAuth.js');
   console.log('✓ Security audit passed: No plaintext credentials stored.');
 
+  // Test 9: ShopScreen Controller Navigation & Top Bar Focus
+  console.log('[Test 9] Testing ShopScreen controller navigation & category switching...');
+  const shop = new ShopScreen();
+  assert.strictEqual(shop.focusZone, 'ITEMS', 'Shop initially focuses on ITEMS');
+  assert.strictEqual(shop.currentCategory, 'SKINS', 'Initial category is SKINS');
+  assert.strictEqual(shop.selectedFighterIndex, 0, 'Initial fighter index is 0');
+
+  // Push UP from top of roster -> Moves to CATEGORIES top bar!
+  shop.handleInput({ up: true });
+  assert.strictEqual(shop.focusZone, 'CATEGORIES', 'Pushing UP from item 0 shifts focus to CATEGORIES');
+
+  // On top bar, push RIGHT to switch to AURAS
+  shop.handleInput({ right: true });
+  assert.strictEqual(shop.currentCategory, 'AURAS', 'Pushing RIGHT on top bar switches to AURAS');
+
+  // Push RIGHT again to switch to SPARKS
+  shop.handleInput({ right: true });
+  assert.strictEqual(shop.currentCategory, 'SPARKS', 'Pushing RIGHT again switches to SPARKS');
+
+  // Push LEFT to go back to AURAS
+  shop.handleInput({ left: true });
+  assert.strictEqual(shop.currentCategory, 'AURAS', 'Pushing LEFT switches back to AURAS');
+
+  // Push DOWN to enter item list
+  shop.handleInput({ down: true });
+  assert.strictEqual(shop.focusZone, 'ITEMS', 'Pushing DOWN from CATEGORIES drops focus into ITEMS');
+  assert.strictEqual(shop.selectedItemIndex, 0, 'Item index is 0 upon entering category');
+
+  // Direct bumper / shoulder switching anywhere
+  shop.handleInput({ nextTab: true });
+  assert.strictEqual(shop.currentCategory, 'SPARKS', 'nextTab bumper switches to SPARKS');
+  shop.handleInput({ prevTab: true });
+  assert.strictEqual(shop.currentCategory, 'AURAS', 'prevTab bumper switches back to AURAS');
+
+  console.log('✓ ShopScreen controller navigation & category switching passed.');
+
   console.log('\n========================================');
-  console.log('ALL TESTS PASSED SUCCESSFULLY! (8/8)');
+  console.log('ALL TESTS PASSED SUCCESSFULLY! (9/9)');
   console.log('========================================');
 }
 

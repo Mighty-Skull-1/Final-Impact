@@ -26,6 +26,7 @@ export class ShopScreen {
     this.selectedFighterIndex = 0;
     this.selectedSkinIndex = 0; // for skins
     this.selectedItemIndex = 0; // for auras, sparks, titles
+    this.focusZone = 'ITEMS'; // 'CATEGORIES' | 'ITEMS'
     this.animTimer = 0;
     this.animFrame = 0;
 
@@ -99,23 +100,84 @@ export class ShopScreen {
     const mightyOpen = isMightyUnlocked();
     const availableFighters = this.fighters.filter(f => f.id !== 'mighty' || mightyOpen);
 
-    // Tab key or special switches categories
-    if (inputState.tab || inputState.special3) {
+    // 1. Direct Bumper / Trigger / Tab Category Switching (Available anytime!)
+    if (inputState.prevTab || inputState.special3 || inputState.q) {
+      this.currentCategoryIndex = (this.currentCategoryIndex - 1 + this.categories.length) % this.categories.length;
+      this.selectedItemIndex = 0;
+      this.selectedSkinIndex = 0;
+      soundFX.playWhoosh('light');
+      return;
+    }
+    if (inputState.nextTab || inputState.tab || inputState.special1 || inputState.e) {
       this.currentCategoryIndex = (this.currentCategoryIndex + 1) % this.categories.length;
       this.selectedItemIndex = 0;
+      this.selectedSkinIndex = 0;
       soundFX.playWhoosh('light');
       return;
     }
 
-    if (this.currentCategory === 'SKINS') {
-      if (inputState.up) {
-        this.selectedFighterIndex = (this.selectedFighterIndex - 1 + availableFighters.length) % availableFighters.length;
+    // 2. Action Confirm (A / Enter / Space / X / Y)
+    if (inputState.confirm || inputState.lp || inputState.hp) {
+      if (this.focusZone === 'CATEGORIES') {
+        // Drop focus down into items of selected category
+        this.focusZone = 'ITEMS';
+        if (this.currentCategory === 'SKINS') {
+          this.selectedFighterIndex = 0;
+          this.selectedSkinIndex = 0;
+        } else {
+          this.selectedItemIndex = 0;
+        }
+        soundFX.playMenuSelect();
+      } else {
+        this.triggerSkinAction();
+      }
+      return;
+    }
+
+    // 3. Navigation when focused on Top Category Bar
+    if (this.focusZone === 'CATEGORIES') {
+      if (inputState.left) {
+        this.currentCategoryIndex = (this.currentCategoryIndex - 1 + this.categories.length) % this.categories.length;
+        this.selectedItemIndex = 0;
+        this.selectedSkinIndex = 0;
+        soundFX.playWhoosh('light');
+      } else if (inputState.right) {
+        this.currentCategoryIndex = (this.currentCategoryIndex + 1) % this.categories.length;
+        this.selectedItemIndex = 0;
         this.selectedSkinIndex = 0;
         soundFX.playWhoosh('light');
       } else if (inputState.down) {
-        this.selectedFighterIndex = (this.selectedFighterIndex + 1) % availableFighters.length;
-        this.selectedSkinIndex = 0;
+        // Drop down into items
+        this.focusZone = 'ITEMS';
+        if (this.currentCategory === 'SKINS') {
+          this.selectedFighterIndex = 0;
+          this.selectedSkinIndex = 0;
+        } else {
+          this.selectedItemIndex = 0;
+        }
         soundFX.playWhoosh('light');
+      }
+      return;
+    }
+
+    // 4. Navigation when focused on ITEMS
+    if (this.currentCategory === 'SKINS') {
+      if (inputState.up) {
+        if (this.selectedFighterIndex === 0) {
+          // Go UP to the Category Bar!
+          this.focusZone = 'CATEGORIES';
+          soundFX.playMenuSelect();
+        } else {
+          this.selectedFighterIndex--;
+          this.selectedSkinIndex = 0;
+          soundFX.playWhoosh('light');
+        }
+      } else if (inputState.down) {
+        if (this.selectedFighterIndex < availableFighters.length - 1) {
+          this.selectedFighterIndex++;
+          this.selectedSkinIndex = 0;
+          soundFX.playWhoosh('light');
+        }
       }
 
       const skins = this.availableSkins;
@@ -128,17 +190,31 @@ export class ShopScreen {
       }
     } else {
       const items = this.availableItems;
-      if (inputState.left || inputState.up) {
-        this.selectedItemIndex = (this.selectedItemIndex - 1 + items.length) % items.length;
-        soundFX.playWhoosh('light');
-      } else if (inputState.right || inputState.down) {
-        this.selectedItemIndex = (this.selectedItemIndex + 1) % items.length;
-        soundFX.playWhoosh('light');
+      if (inputState.up) {
+        if (this.selectedItemIndex === 0) {
+          // Go UP to the Category Bar!
+          this.focusZone = 'CATEGORIES';
+          soundFX.playMenuSelect();
+        } else {
+          this.selectedItemIndex--;
+          soundFX.playWhoosh('light');
+        }
+      } else if (inputState.down) {
+        if (this.selectedItemIndex < items.length - 1) {
+          this.selectedItemIndex++;
+          soundFX.playWhoosh('light');
+        }
+      } else if (inputState.left) {
+        if (this.selectedItemIndex > 0) {
+          this.selectedItemIndex--;
+          soundFX.playWhoosh('light');
+        }
+      } else if (inputState.right) {
+        if (this.selectedItemIndex < items.length - 1) {
+          this.selectedItemIndex++;
+          soundFX.playWhoosh('light');
+        }
       }
-    }
-
-    if (inputState.confirm || inputState.lp || inputState.hp) {
-      this.triggerSkinAction();
     }
   }
 
@@ -245,16 +321,40 @@ export class ShopScreen {
     }
 
     // Category Navigation Pills (Center top)
-    const catTabW = 68;
-    const catTabH = 18;
-    const catTabY = 32;
+    const catTabW = 64;
+    const catTabH = 20;
+    const catTabY = 28;
     const catStartX = W / 2 - (this.categories.length * catTabW) / 2;
+
+    // LB button hit test
+    const lbX = catStartX - 36;
+    if (x >= lbX && x <= lbX + 32 && y >= catTabY && y <= catTabY + catTabH) {
+      this.currentCategoryIndex = (this.currentCategoryIndex - 1 + this.categories.length) % this.categories.length;
+      this.selectedItemIndex = 0;
+      this.selectedSkinIndex = 0;
+      this.focusZone = 'CATEGORIES';
+      soundFX.playWhoosh('light');
+      return { action: 'change_category' };
+    }
+
+    // RB button hit test
+    const rbX = catStartX + this.categories.length * catTabW + 4;
+    if (x >= rbX && x <= rbX + 32 && y >= catTabY && y <= catTabY + catTabH) {
+      this.currentCategoryIndex = (this.currentCategoryIndex + 1) % this.categories.length;
+      this.selectedItemIndex = 0;
+      this.selectedSkinIndex = 0;
+      this.focusZone = 'CATEGORIES';
+      soundFX.playWhoosh('light');
+      return { action: 'change_category' };
+    }
 
     for (let c = 0; c < this.categories.length; c++) {
       const cx = catStartX + c * catTabW;
       if (x >= cx + 2 && x <= cx + catTabW - 2 && y >= catTabY && y <= catTabY + catTabH) {
         this.currentCategoryIndex = c;
         this.selectedItemIndex = 0;
+        this.selectedSkinIndex = 0;
+        this.focusZone = 'CATEGORIES';
         soundFX.playWhoosh('light');
         return { action: 'change_category' };
       }
@@ -272,6 +372,7 @@ export class ShopScreen {
         if (x >= 20 && x <= 160 && y >= iy && y <= iy + itemH - 4) {
           this.selectedFighterIndex = i;
           this.selectedSkinIndex = 0;
+          this.focusZone = 'ITEMS';
           soundFX.playWhoosh('light');
           return { action: 'select_fighter' };
         }
@@ -284,30 +385,34 @@ export class ShopScreen {
         const iy = listY0 + i * itemH;
         if (x >= 20 && x <= 160 && y >= iy && y <= iy + itemH - 4) {
           this.selectedItemIndex = i;
+          this.focusZone = 'ITEMS';
           soundFX.playWhoosh('light');
           return { action: 'select_item' };
         }
       }
     }
 
-    // Left arrow for skin carousel (x: 180 to 215, y: 150 to 190)
+    // Left arrow for skin carousel (x: 180 to 220, y: 150 to 200)
     if (x >= 180 && x <= 220 && y >= 150 && y <= 200) {
       const skins = this.availableSkins;
       this.selectedSkinIndex = (this.selectedSkinIndex - 1 + skins.length) % skins.length;
+      this.focusZone = 'ITEMS';
       soundFX.playWhoosh('light');
       return { action: 'prev_skin' };
     }
 
-    // Right arrow for skin carousel (x: 430 to 470, y: 150 to 190)
+    // Right arrow for skin carousel (x: 430 to 470, y: 150 to 200)
     if (x >= 430 && x <= 470 && y >= 150 && y <= 200) {
       const skins = this.availableSkins;
       this.selectedSkinIndex = (this.selectedSkinIndex + 1) % skins.length;
+      this.focusZone = 'ITEMS';
       soundFX.playWhoosh('light');
       return { action: 'next_skin' };
     }
 
-    // Main action button (BUY / EQUIP) at bottom right: x: 480 to 620, y: 280 to 320
+    // Main action button (BUY / EQUIP) at bottom right: x: 470 to 620, y: 280 to 325
     if (x >= 470 && x <= 620 && y >= 280 && y <= 325) {
+      this.focusZone = 'ITEMS';
       this.triggerSkinAction();
       return { action: 'buy_equip' };
     }
@@ -361,51 +466,102 @@ export class ShopScreen {
 
     // Title
     ctx.fillStyle = '#facc15';
-    ctx.font = '12px "Press Start 2P"';
+    ctx.font = '9px "Press Start 2P"';
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(250, 204, 21, 0.6)';
     ctx.shadowBlur = 8;
-    ctx.fillText('🛍️ CUSTOM SKIN ITEM SHOP', W / 2, 22);
+    ctx.fillText('🛍️ FIGHTER\'S VAULT & ITEM SHOP', W / 2, 17);
     ctx.shadowBlur = 0;
-
-    ctx.font = '6px "Press Start 2P"';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('CHOOSE A FIGHTER — PREVIEW, UNLOCK & EQUIP BESPOKE PALETTES', W / 2, 36);
 
     // Wallet / Coin Display (top right)
     const coins = EconomyManager.getCoins();
     ctx.fillStyle = '#18181b';
     ctx.strokeStyle = '#eab308';
     ctx.lineWidth = 1.5;
-    ctx.fillRect(W - 170, 12, 154, 26);
-    ctx.strokeRect(W - 170, 12, 154, 26);
+    ctx.fillRect(W - 165, 12, 148, 26);
+    ctx.strokeRect(W - 165, 12, 148, 26);
 
     ctx.fillStyle = '#fde047';
     ctx.font = '8px "Press Start 2P"';
     ctx.textAlign = 'right';
-    ctx.fillText(`🪙 ${coins.toLocaleString()} COINS`, W - 26, 25);
+    ctx.fillText(`🪙 ${coins.toLocaleString()} COINS`, W - 24, 25);
 
     // Category Navigation Pills (Center top)
-    const catTabW = 68;
-    const catTabH = 18;
-    const catTabY = 32;
+    const catTabW = 64;
+    const catTabH = 20;
+    const catTabY = 28;
     const catStartX = W / 2 - (this.categories.length * catTabW) / 2;
+
+    // LB Bumper Button badge
+    const lbX = catStartX - 36;
+    ctx.fillStyle = '#1e1b4b';
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 1;
+    ctx.fillRect(lbX, catTabY + 1, 30, catTabH - 2);
+    ctx.strokeRect(lbX, catTabY + 1, 30, catTabH - 2);
+    ctx.fillStyle = '#c7d2fe';
+    ctx.font = '6px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('◀ LB', lbX + 15, catTabY + 13);
+
+    // RB Bumper Button badge
+    const rbX = catStartX + this.categories.length * catTabW + 6;
+    ctx.fillStyle = '#1e1b4b';
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 1;
+    ctx.fillRect(rbX, catTabY + 1, 30, catTabH - 2);
+    ctx.strokeRect(rbX, catTabY + 1, 30, catTabH - 2);
+    ctx.fillStyle = '#c7d2fe';
+    ctx.font = '6px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('RB ▶', rbX + 15, catTabY + 13);
 
     for (let c = 0; c < this.categories.length; c++) {
       const catName = this.categories[c];
       const cx = catStartX + c * catTabW;
       const isCur = (c === this.currentCategoryIndex);
+      const isFocused = isCur && (this.focusZone === 'CATEGORIES');
 
-      ctx.fillStyle = isCur ? '#eab308' : '#18181b';
-      ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
-      ctx.strokeStyle = isCur ? '#fde047' : '#3f3f46';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
+      if (isFocused) {
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
 
-      ctx.fillStyle = isCur ? '#000000' : '#cbd5e1';
-      ctx.font = '7px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText(catName, cx + catTabW / 2, catTabY + 12);
+        ctx.fillStyle = '#000000';
+        ctx.font = '7px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
+
+        // Animated cursor arrow pointing down to items
+        const arrowBounce = Math.sin(this.animTimer * 0.2) * 2;
+        ctx.fillStyle = '#fde047';
+        ctx.font = '7px "Press Start 2P"';
+        ctx.fillText('▼', cx + catTabW / 2, catTabY + catTabH + 8 + arrowBounce);
+      } else if (isCur) {
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
+
+        ctx.fillStyle = '#fef08a';
+        ctx.font = '7px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
+      } else {
+        ctx.fillStyle = '#18181b';
+        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
+        ctx.strokeStyle = '#3f3f46';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '7px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
+      }
     }
 
     // 3. Left Panel: Item / Fighter List
@@ -435,13 +591,14 @@ export class ShopScreen {
         const iy = listY + 24 + i * itemH;
 
         if (isSelected) {
-          ctx.fillStyle = 'rgba(234, 179, 8, 0.2)';
+          const isItemActive = (this.focusZone === 'ITEMS');
+          ctx.fillStyle = isItemActive ? 'rgba(234, 179, 8, 0.25)' : 'rgba(234, 179, 8, 0.08)';
           ctx.fillRect(listX + 4, iy, listW - 8, itemH - 4);
-          ctx.strokeStyle = '#eab308';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isItemActive ? '#eab308' : '#52525b';
+          ctx.lineWidth = isItemActive ? 1.5 : 1;
           ctx.strokeRect(listX + 4, iy, listW - 8, itemH - 4);
 
-          ctx.fillStyle = '#fde047';
+          ctx.fillStyle = isItemActive ? '#fde047' : '#e2e8f0';
           ctx.font = '8px "Press Start 2P"';
           ctx.fillText(`▶ ${f.name}`, listX + 12, iy + 14);
         } else {
@@ -469,13 +626,14 @@ export class ShopScreen {
         const iy = listY + 24 + i * itemH;
 
         if (isSelected) {
-          ctx.fillStyle = 'rgba(234, 179, 8, 0.2)';
+          const isItemActive = (this.focusZone === 'ITEMS');
+          ctx.fillStyle = isItemActive ? 'rgba(234, 179, 8, 0.25)' : 'rgba(234, 179, 8, 0.08)';
           ctx.fillRect(listX + 4, iy, listW - 8, itemH - 4);
-          ctx.strokeStyle = '#eab308';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isItemActive ? '#eab308' : '#52525b';
+          ctx.lineWidth = isItemActive ? 1.5 : 1;
           ctx.strokeRect(listX + 4, iy, listW - 8, itemH - 4);
 
-          ctx.fillStyle = '#fde047';
+          ctx.fillStyle = isItemActive ? '#fde047' : '#e2e8f0';
           ctx.font = '7px "Press Start 2P"';
           ctx.fillText(`▶ ${it.name.substring(0, 11)}`, listX + 8, iy + 14);
         } else {
@@ -689,7 +847,7 @@ export class ShopScreen {
       ctx.fillText('EQUIP ITEM', detailX + detailW / 2, actionBoxY + 18);
       ctx.font = '6px "Press Start 2P"';
       ctx.fillStyle = '#bfdbfe';
-      ctx.fillText('[ENTER / SPACE]', detailX + detailW / 2, actionBoxY + 28);
+      ctx.fillText('[A / ENTER TO EQUIP]', detailX + detailW / 2, actionBoxY + 28);
     } else {
       const canAfford = coins >= displayItem.price;
       ctx.fillStyle = canAfford ? '#78350f' : '#3f3f46';
@@ -704,7 +862,7 @@ export class ShopScreen {
       ctx.fillText(`BUY: 🪙 ${displayItem.price}`, detailX + detailW / 2, actionBoxY + 16);
       ctx.font = '6px "Press Start 2P"';
       ctx.fillStyle = canAfford ? '#fef08a' : '#ef4444';
-      ctx.fillText(canAfford ? '[ENTER TO BUY]' : 'NEED MORE COINS', detailX + detailW / 2, actionBoxY + 28);
+      ctx.fillText(canAfford ? '[A / ENTER TO BUY]' : 'NEED MORE COINS', detailX + detailW / 2, actionBoxY + 28);
     }
 
     // 6. Floating Status / Feedback Message
@@ -725,11 +883,15 @@ export class ShopScreen {
       ctx.textAlign = 'center';
       ctx.fillText(this.message, W / 2, msgY + 16);
     } else {
-      // Help Footer
-      ctx.fillStyle = '#64748b';
+      // Help Footer with dynamic controller & keyboard guidance
+      ctx.fillStyle = '#94a3b8';
       ctx.font = '6px "Press Start 2P"';
       ctx.textAlign = 'center';
-      ctx.fillText('[W/S] ROSTER  |  [A/D] SKINS  |  [ENTER] BUY/EQUIP  |  [ESC] MENU', W / 2, H - 12);
+      if (this.focusZone === 'CATEGORIES') {
+        ctx.fillText('[D-PAD ◄/►] SELECT CATEGORY  |  [▼ / A] ENTER ITEMS  |  [LB/RB] SWITCH  |  [B / ESC] BACK', W / 2, H - 12);
+      } else {
+        ctx.fillText('[LB/RB] SWITCH CATEGORY  |  [▲ TO TOP] TABS  |  [◄/►] SKINS  |  [A / ENTER] BUY/EQUIP  |  [B / ESC] BACK', W / 2, H - 12);
+      }
     }
   }
 }
