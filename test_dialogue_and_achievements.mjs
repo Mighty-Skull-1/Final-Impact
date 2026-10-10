@@ -54,18 +54,39 @@ assert.strictEqual(dialogue.active, true, 'Dialogue should be active after start
 assert.strictEqual(dialogue.stageKey, 'champion', 'Dialogue should target champion');
 assert.strictEqual(dialogue.currentLineIndex, 0, 'Should start at line 0');
 
-// Step through dialogue
-dialogue.update({ confirm: true }); // Finishes typing line 0
-assert.strictEqual(dialogue.charIndex, dialogue.script.lines[0].text.length, 'Confirm should complete typewriter text');
+// Step through dialogue using advanceOrComplete
+dialogue.advanceOrComplete(); // Finishes typing line 0
+assert.strictEqual(dialogue.charIndex, dialogue.script.lines[0].text.length, 'advanceOrComplete should complete typewriter text');
 
-dialogue.update({ confirm: true }); // Advances to line 1
-assert.strictEqual(dialogue.currentLineIndex, 1, 'Confirm should advance to line 1');
+dialogue.advanceOrComplete(); // Advances to line 1
+assert.strictEqual(dialogue.currentLineIndex, 1, 'advanceOrComplete should advance to line 1');
 
-// Test skip on back input
-dialogue.update({ back: true });
-assert.strictEqual(dialogue.active, false, 'Back should immediately finish dialogue');
-assert.strictEqual(completed, true, 'onComplete callback should be called on skip');
-console.log('  ✓ [PASS] Dialogue state transitions, typewriter display, and skip confirmed');
+// Test direct skip()
+let skipped = false;
+dialogue.start('riot_cop', { name: 'Kazuki' }, { name: 'SGT. Vance' }, () => {
+  skipped = true;
+});
+dialogue.skip();
+assert.strictEqual(dialogue.active, false, 'skip() should immediately finish dialogue');
+assert.strictEqual(skipped, true, 'onComplete callback should be called on skip()');
+
+// Test handleClick for skip area (bottom-right)
+let mouseSkipped = false;
+dialogue.start('riot_cop', { name: 'Kazuki' }, { name: 'SGT. Vance' }, () => {
+  mouseSkipped = true;
+});
+// Box is located at W=960, H=540: boxX=24, boxY=440, boxW=912, boxH=76
+// Click bottom-right skip area
+dialogue.handleClick(900, 500, 960, 540);
+assert.strictEqual(dialogue.active, false, 'handleClick in skip region should trigger skip()');
+assert.strictEqual(mouseSkipped, true, 'onComplete callback should fire on mouse skip');
+
+// Test handleClick outside skip area (advances text)
+dialogue.start('riot_cop', { name: 'Kazuki' }, { name: 'SGT. Vance' }, () => {});
+dialogue.handleClick(100, 200, 960, 540);
+assert.strictEqual(dialogue.charIndex, dialogue.script.lines[0].text.length, 'handleClick on screen body should advance typewriter');
+
+console.log('  ✓ [PASS] Dialogue state transitions, typewriter display, direct skip(), and mouse handleClick confirmed');
 
 // Test 3: Steam Achievements Engine Catalog
 console.log('\n[SECTION 3] Steam Achievements Catalog');

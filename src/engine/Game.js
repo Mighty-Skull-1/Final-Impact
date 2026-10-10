@@ -256,6 +256,10 @@ export class Game {
         if (res && res.action === 'proceed') {
           this.startNextCampaignStage();
         }
+      } else if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
+        if (this.campaignDialogue) {
+          this.campaignDialogue.handleClick(x, y, GAME_WIDTH, GAME_HEIGHT);
+        }
       }
     });
     }
@@ -544,6 +548,13 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
+      if (this.campaignDialogue && this.campaignDialogue.active) {
+        this.campaignDialogue.advanceOrComplete();
+      }
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.VICTORY) {
       if (this.isOnline) {
         if (this.myRematchVote === null) {
@@ -574,6 +585,12 @@ export class Game {
   handleBackPress() {
     if (this.settingsManager && this.settingsManager.isOpen) {
       this.settingsManager.close();
+      return;
+    }
+    if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
+      if (this.campaignDialogue && this.campaignDialogue.active) {
+        this.campaignDialogue.skip();
+      }
       return;
     }
     if (this.screen === GAME_SCREENS.SHOP) {
@@ -1464,9 +1481,38 @@ export class Game {
     // 2d. Campaign Story Dialogue Banter
     if (this.screen === GAME_SCREENS.CAMPAIGN_DIALOGUE) {
       const p1Actions = input.poll(1);
-      const isAdvance = (menuNav && menuNav.confirm) || p1Actions.lpJust || p1Actions.hpJust || p1Actions.lkJust || p1Actions.hkJust;
-      const isBack = menuNav && menuNav.back;
-      this.campaignDialogue.update({ confirm: isAdvance, back: isBack });
+      const gpState0 = input.getGamepadState(0);
+      const gpState1 = input.getGamepadState(1);
+      const gpSkip = (gpState0 && (gpState0.bJust || gpState0.selectJust)) || (gpState1 && (gpState1.bJust || gpState1.selectJust));
+
+      const isBack = (menuNav && menuNav.back) ||
+        input.isJustPressed('Escape') ||
+        input.isJustPressed('Backspace') ||
+        input.isJustPressed('KeyB') ||
+        gpSkip;
+
+      const isAdvance = (menuNav && (menuNav.confirm || menuNav.start)) ||
+        input.isJustPressed('Enter') ||
+        input.isJustPressed('Space') ||
+        input.isJustPressed('KeyE') ||
+        input.isJustPressed('NumpadEnter') ||
+        p1Actions.lpJust || p1Actions.hpJust || p1Actions.lkJust || p1Actions.hkJust;
+
+      if (isBack) {
+        input.consumeKey('Escape');
+        input.consumeKey('Backspace');
+        input.consumeKey('KeyB');
+        this.campaignDialogue.skip();
+      } else if (isAdvance) {
+        input.consumeKey('Enter');
+        input.consumeKey('Space');
+        input.consumeKey('KeyE');
+        input.consumeKey('NumpadEnter');
+        this.campaignDialogue.advanceOrComplete();
+      } else {
+        this.campaignDialogue.update();
+      }
+
       if (this.stage) this.stage.update();
       input.endFrame();
       return;

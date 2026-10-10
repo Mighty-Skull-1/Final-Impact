@@ -172,6 +172,51 @@ export class CampaignDialogue {
     return false;
   }
 
+  skip() {
+    if (!this.active) return false;
+    try { soundFX.playMenuSelect(); } catch (e) {}
+    this.finish();
+    return true;
+  }
+
+  advanceOrComplete() {
+    if (!this.active || !this.script) return false;
+    const currentLine = this.script.lines[this.currentLineIndex];
+    if (!currentLine) {
+      this.finish();
+      return true;
+    }
+    if (this.charIndex < currentLine.text.length) {
+      // Complete current line typewriter immediately
+      this.charIndex = currentLine.text.length;
+    } else {
+      // Advance to next line
+      this.advance();
+    }
+    return true;
+  }
+
+  handleClick(x, y, W, H) {
+    if (!this.active) return false;
+    const boxX = 24;
+    const boxY = H - 100;
+    const boxW = W - 48;
+    const boxH = 76;
+
+    // Check if clicked in or around the SKIP button / prompt (right portion of dialogue box)
+    const skipAreaLeft = boxX + boxW - 140;
+    const skipAreaTop = boxY + boxH - 28;
+    const skipAreaRight = boxX + boxW;
+    const skipAreaBottom = boxY + boxH;
+
+    if (x >= skipAreaLeft && x <= skipAreaRight && y >= skipAreaTop && y <= skipAreaBottom) {
+      return this.skip();
+    }
+
+    // Clicking anywhere else on the screen or dialogue box advances or completes typewriter
+    return this.advanceOrComplete();
+  }
+
   advance() {
     this.currentLineIndex++;
     this.charIndex = 0;
@@ -270,6 +315,7 @@ export class CampaignDialogue {
     const textW = boxW - portSize - 40;
 
     ctx.font = 'bold 10px "Press Start 2P", monospace';
+    const nameWidth = ctx.measureText(speakerName).width;
     ctx.fillStyle = accentColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -277,7 +323,7 @@ export class CampaignDialogue {
 
     ctx.font = '7px "Press Start 2P", monospace';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(speakerSub, textX + ctx.measureText(speakerName).width + 12, boxY + 14);
+    ctx.fillText(`// ${speakerSub}`, textX + nameWidth + 12, boxY + 14);
 
     // 5. Dialogue Body Text
     if (currentLine) {
@@ -305,12 +351,40 @@ export class CampaignDialogue {
       ctx.fillText(line, textX, curY);
     }
 
-    // 6. Navigation Prompt at bottom right
-    ctx.font = '7px "Press Start 2P", monospace';
-    ctx.fillStyle = 'rgba(253, 224, 71, 0.85)';
+    // 6. Navigation Prompts at bottom right (Next & Skip interactive badges)
+    const promptRight = boxX + boxW - 8;
+    const promptBottom = boxY + boxH - 6;
+
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('[ENTER / A / LP] NEXT   [ESC] SKIP', boxX + boxW - 8, boxY + boxH - 6);
+
+    // Interactive pill badge for SKIP
+    const skipText = '[ESC / B] SKIP';
+    ctx.font = '7px "Press Start 2P", monospace';
+    const skipWidth = ctx.measureText(skipText).width;
+
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+    ctx.fillRect(promptRight - skipWidth - 6, promptBottom - 13, skipWidth + 10, 15);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(promptRight - skipWidth - 6, promptBottom - 13, skipWidth + 10, 15);
+
+    ctx.fillStyle = '#fca5a5';
+    ctx.fillText(skipText, promptRight - 1, promptBottom - 2);
+
+    // Interactive pill badge for NEXT
+    const nextText = '[ENTER / A / LP] NEXT';
+    const nextWidth = ctx.measureText(nextText).width;
+    const nextRight = promptRight - skipWidth - 18;
+
+    ctx.fillStyle = 'rgba(234, 179, 8, 0.18)';
+    ctx.fillRect(nextRight - nextWidth - 6, promptBottom - 13, nextWidth + 10, 15);
+    ctx.strokeStyle = '#eab308';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(nextRight - nextWidth - 6, promptBottom - 13, nextWidth + 10, 15);
+
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText(nextText, nextRight - 1, promptBottom - 2);
 
     ctx.restore();
   }
