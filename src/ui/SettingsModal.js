@@ -401,6 +401,16 @@ export class SettingsManager {
     this.renderKeybinds();
   }
 
+  open() {
+    this.isOpen = true;
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      this.cancelRebinding();
+      this.syncUI();
+    }
+  }
+
   toggle() {
     this.isOpen = !this.isOpen;
     const modal = document.getElementById('settingsModal');
@@ -497,6 +507,23 @@ export class SettingsManager {
       try {
         scaleSelect.value = localStorage.getItem('final_impact_screen_size') || 'large';
       } catch (e) {}
+    }
+
+    const fsBtn = document.getElementById('settingsFullscreenBtn');
+    if (fsBtn && typeof document !== 'undefined') {
+      const isFs = !!document.fullscreenElement;
+      fsBtn.textContent = isFs ? '🖥️ FULLSCREEN: ON [F11]' : '🖥️ FULLSCREEN: OFF [F11]';
+    }
+
+    const crtBtn = document.getElementById('settingsCrtBtn');
+    if (crtBtn && typeof localStorage !== 'undefined') {
+      const isCrt = localStorage.getItem('final_impact_crt') === 'true';
+      crtBtn.textContent = `📺 CRT FILTER: ${isCrt ? 'ON' : 'OFF'}`;
+    }
+
+    const hitBtn = document.getElementById('settingsHitboxBtn');
+    if (hitBtn && typeof window !== 'undefined') {
+      hitBtn.textContent = `🎯 HITBOXES: ${window.__GAME_HITBOXES ? 'ON' : 'OFF'} [H]`;
     }
 
     const masterLabel = document.getElementById('masterVolVal');

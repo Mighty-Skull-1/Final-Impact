@@ -443,6 +443,11 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playGong();
+      if (this.modeSelect.selectedMode === 'settings') {
+        this.settingsManager.open();
+        soundFX.playMenuSelect();
+        return;
+      }
       if (this.modeSelect.selectedMode === 'shop') {
         this.screen = GAME_SCREENS.SHOP;
         soundFX.playMenuSelect();

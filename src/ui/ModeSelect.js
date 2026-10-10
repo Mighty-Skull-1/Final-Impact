@@ -67,6 +67,14 @@ export class ModeSelect {
         subtitle: 'PREVIEW & EQUIP SKINS',
         description: 'Browse, unlock, and equip custom fighter skins, auras, hitsparks, and titles with your earned tournament fight coins.',
         color: '#eab308'
+      },
+      {
+        id: 'settings',
+        badge: 'ARCADE CONFIG',
+        title: '⚙️ SETTINGS',
+        subtitle: 'DISPLAY, AUDIO & CONTROLS',
+        description: 'Configure Fullscreen / Windowed display, CRT scanlines, hitbox viewer, keybindings, audio volumes, and game pacing.',
+        color: '#38bdf8'
       }
     ];
 
@@ -105,8 +113,8 @@ export class ModeSelect {
     }
   }
 
-  // Spacious layout constants across full vertical height (H=360, usable: 48 to 330)
-  static get LIST() { return { x: 18, y: 48, w: 256, h: 32, gap: 3.5 }; }
+  // Spacious layout constants across full vertical height (H=360, usable: 46 to 330)
+  static get LIST() { return { x: 18, y: 46, w: 256, h: 28, gap: 3 }; }
 
   handleClick(x, y, onBack, onConfirm, W = 640) {
     // 1. Back button (top-left)
@@ -265,13 +273,13 @@ export class ModeSelect {
       const label = m.title.replace(/^[^A-Za-z0-9]+/, '');
       ctx.textAlign = 'left';
       ctx.fillStyle = sel ? '#ffffff' : '#f1f5f9';
-      ctx.font = sel ? 'bold 12.5px Consolas, monospace' : 'bold 11.5px Consolas, monospace';
-      ctx.fillText(label, x + 14, y + 14);
+      ctx.font = sel ? 'bold 11.5px Consolas, monospace' : 'bold 10.5px Consolas, monospace';
+      ctx.fillText(label, x + 14, y + 12);
 
       // Sub-badge pill (e.g. STORY MODE)
       ctx.fillStyle = sel ? m.color : '#fde68a';
-      ctx.font = sel ? 'bold 8.5px Consolas, monospace' : 'bold 8px Consolas, monospace';
-      ctx.fillText(m.badge, x + 14, y + 26);
+      ctx.font = sel ? 'bold 7.5px Consolas, monospace' : 'bold 7px Consolas, monospace';
+      ctx.fillText(m.badge, x + 14, y + 22);
     });
 
     // 3. Right: Large Information & Action Card
@@ -376,7 +384,7 @@ export class ModeSelect {
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 12.5px Consolas, monospace';
-    const actionVerb = cur.id === 'shop' ? 'ENTER ITEM SHOP' : `START ${cur.title.replace(/^[^A-Za-z0-9]+/, '')}`;
+    const actionVerb = cur.id === 'shop' ? 'ENTER ITEM SHOP' : (cur.id === 'settings' ? 'OPEN SETTINGS' : `START ${cur.title.replace(/^[^A-Za-z0-9]+/, '')}`);
     ctx.fillText(`▶  ${actionVerb}  [ENTER / CLICK]`, px + pw / 2, btnY + 22);
 
     // 4. Footer controls
