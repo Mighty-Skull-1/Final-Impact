@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FINAL IMPACT - 16-Bit Arcade Fighting Game</title>
-  <link rel="stylesheet" href="style.css?v=3.0.0">
+  <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
@@ -236,10 +236,17 @@
     </div>
   </div>
 
-  <!-- PeerJS WebRTC P2P Library for Online Multiplayer -->
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- PeerJS WebRTC P2P Library for Online Multiplayer (Local offline bundle with CDN fallback) -->
+  <script src="vendor/peerjs.min.js"></script>
+  <script>
+    if (typeof Peer === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
   <!-- Final Impact Game Engine: Runs universally on file://, http://, GitHub Pages & Steam -->
-  <script src="dist/game.bundle.js?v=2.9.0"></script>
+  <script src="dist/game.bundle.js"></script>
   <script>
     // CRT toggle (Default: OFF for ultra-clear HD crisp graphics)
     const crtOverlay = document.getElementById('crtOverlay');
