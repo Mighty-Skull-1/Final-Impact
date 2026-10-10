@@ -235,7 +235,7 @@ export class InputManager {
     }
 
     this.gamepads = active;
-    const DEADZONE = 0.28;
+    const DEADZONE = 0.20;
 
     for (let pIdx = 0; pIdx < active.length; pIdx++) {
       const gp = active[pIdx];
@@ -329,7 +329,7 @@ export class InputManager {
     const idx = gp.index !== undefined ? gp.index : playerIndex;
     const just = this.gamepadJustPressed[idx] || {};
 
-    const DEADZONE = 0.28;
+    const DEADZONE = 0.20;
     const ax0 = gp.axes && gp.axes[0] !== undefined ? gp.axes[0] : 0;
     const ax1 = gp.axes && gp.axes[1] !== undefined ? gp.axes[1] : 0;
 
@@ -429,23 +429,28 @@ export class InputManager {
     const now = performance.now();
     const navKey = `p${playerIndex}`;
     if (!this.menuHoldTimes[navKey]) {
-      this.menuHoldTimes[navKey] = { up: 0, down: 0, left: 0, right: 0, nextRepeat: 0 };
+      this.menuHoldTimes[navKey] = {
+        up: 0, down: 0, left: 0, right: 0,
+        up_next: 0, down_next: 0, left_next: 0, right_next: 0
+      };
     }
     const ht = this.menuHoldTimes[navKey];
 
     const checkRepeat = (dir, isHeld, isJust) => {
+      const nextKey = `${dir}_next`;
       if (isJust) {
         ht[dir] = now;
-        ht.nextRepeat = now + 260; // Initial delay
+        ht[nextKey] = now + 230; // Snappy initial delay before repeat
         return true;
       }
       if (isHeld) {
-        if (now >= ht.nextRepeat) {
-          ht.nextRepeat = now + 140; // Hold repeat interval
+        if (now >= (ht[nextKey] || 0)) {
+          ht[nextKey] = now + 120; // Smooth repeat interval
           return true;
         }
       } else {
         ht[dir] = 0;
+        ht[nextKey] = 0;
       }
       return false;
     };
@@ -789,8 +794,9 @@ export class InputManager {
   checkDownDownPunch(playerNum = 1) {
     const isP1 = playerNum === 1;
     const ctrl = isP1 ? this.controls.P1 : this.controls.P2;
-    const punchJust = this.isJustPressed(ctrl.LP) || this.isJustPressed(ctrl.HP);
-    const rawDown = this.isDown(ctrl.DOWN);
+    const gp = this.getGamepadState(isP1 ? 0 : 1);
+    const punchJust = this.isJustPressed(ctrl.LP) || this.isJustPressed(ctrl.HP) || !!gp?.lpJust || !!gp?.hpJust;
+    const rawDown = this.isDown(ctrl.DOWN) || !!gp?.down;
     if (!punchJust || !rawDown) return false;
 
     const buf = isP1 ? this.p1Buffer : this.p2Buffer;

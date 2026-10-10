@@ -13,6 +13,45 @@ class SoundFX {
     this.tempo = 138;
     this.step = 0;
     this.currentTrack = 'fight';
+
+    // Normalized volume levels (0.0 to 1.0)
+    this.masterVolumeVal = 0.8;
+    this.musicVolumeVal = 0.7;
+    this.sfxVolumeVal = 0.9;
+    this.loadSavedVolumes();
+  }
+
+  loadSavedVolumes() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('final_impact_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.masterVolume === 'number') {
+            this.masterVolumeVal = Math.max(0, Math.min(1, parsed.masterVolume / 100));
+          }
+          if (typeof parsed.musicVolume === 'number') {
+            this.musicVolumeVal = Math.max(0, Math.min(1, parsed.musicVolume / 100));
+          }
+          if (typeof parsed.sfxVolume === 'number') {
+            this.sfxVolumeVal = Math.max(0, Math.min(1, parsed.sfxVolume / 100));
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  saveVolumeSettings() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const existing = localStorage.getItem('final_impact_settings');
+        const parsed = existing ? JSON.parse(existing) : {};
+        parsed.masterVolume = Math.round(this.masterVolumeVal * 100);
+        parsed.musicVolume = Math.round(this.musicVolumeVal * 100);
+        parsed.sfxVolume = Math.round(this.sfxVolumeVal * 100);
+        localStorage.setItem('final_impact_settings', JSON.stringify(parsed));
+      }
+    } catch (e) {}
   }
 
   init() {
@@ -29,17 +68,19 @@ class SoundFX {
       this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
       this.compressor.release.setValueAtTime(0.12, this.ctx.currentTime);
 
+      this.loadSavedVolumes();
+
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.68, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.masterVolumeVal, this.ctx.currentTime);
       this.masterGain.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
 
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.sfxVolumeVal * 0.9, this.ctx.currentTime);
       this.sfxGain.connect(this.masterGain);
 
       this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+      this.musicGain.gain.setValueAtTime(this.musicVolumeVal * 0.45, this.ctx.currentTime);
       this.musicGain.connect(this.masterGain);
 
       // Pre-generate reusable 2-second white noise buffer (eliminates GC pauses & crackling)
@@ -68,21 +109,39 @@ class SoundFX {
   }
 
   setMasterVolume(val) {
+    this.masterVolumeVal = Math.max(0, Math.min(1, Number(val) || 0));
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, val)), this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.masterVolumeVal, this.ctx.currentTime);
     }
+    this.saveVolumeSettings();
   }
 
   setMusicVolume(val) {
+    this.musicVolumeVal = Math.max(0, Math.min(1, Number(val) || 0));
     if (this.musicGain && this.ctx) {
-      this.musicGain.gain.setValueAtTime(Math.max(0, Math.min(1, val * 0.45)), this.ctx.currentTime);
+      this.musicGain.gain.setValueAtTime(this.musicVolumeVal * 0.45, this.ctx.currentTime);
     }
+    this.saveVolumeSettings();
   }
 
   setSFXVolume(val) {
+    this.sfxVolumeVal = Math.max(0, Math.min(1, Number(val) || 0));
     if (this.sfxGain && this.ctx) {
-      this.sfxGain.gain.setValueAtTime(Math.max(0, Math.min(1, val * 0.9)), this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.sfxVolumeVal * 0.9, this.ctx.currentTime);
     }
+    this.saveVolumeSettings();
+  }
+
+  getMasterVolume() {
+    return this.masterVolumeVal;
+  }
+
+  getMusicVolume() {
+    return this.musicVolumeVal;
+  }
+
+  getSFXVolume() {
+    return this.sfxVolumeVal;
   }
 
   // Retro Arcade Menu Confirm / Select Chime
@@ -755,8 +814,9 @@ class SoundFX {
     if (this.musicGain) {
       try {
         const now = this.ctx.currentTime;
+        const targetGain = (this.musicVolumeVal !== undefined ? this.musicVolumeVal : 0.7) * 0.45;
         this.musicGain.gain.cancelScheduledValues(now);
-        this.musicGain.gain.setValueAtTime(0.35, now);
+        this.musicGain.gain.setValueAtTime(targetGain, now);
       } catch (e) {}
     }
     this.musicPlaying = true;

@@ -324,13 +324,19 @@ export class CharacterSelect {
       }
 
       // Move between roster rows with Up / Down
-      if (inputState.up || inputState.down) {
+      if (inputState.up) {
+        this.p1Index = (this.p1Index - this.gridCols() + this.characters.length) % this.characters.length;
+        soundFX.playWhoosh('light');
+      } else if (inputState.down) {
         this.p1Index = (this.p1Index + this.gridCols()) % this.characters.length;
         soundFX.playWhoosh('light');
       }
     } else {
       // Player 2 selection in 2P mode
-      if (inputState.up || inputState.down) {
+      if (inputState.up) {
+        this.p2Index = (this.p2Index - this.gridCols() + this.characters.length) % this.characters.length;
+        soundFX.playWhoosh('light');
+      } else if (inputState.down) {
         this.p2Index = (this.p2Index + this.gridCols()) % this.characters.length;
         soundFX.playWhoosh('light');
       }

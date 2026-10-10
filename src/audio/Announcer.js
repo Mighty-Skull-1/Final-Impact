@@ -34,7 +34,13 @@ export class Announcer {
       if (this.voice) utt.voice = this.voice;
       utt.pitch = pitch; // Deep authoritative tone
       utt.rate = rate;   // Punchy arcade cadence
-      utt.volume = volume;
+
+      const master = (soundFX && typeof soundFX.getMasterVolume === 'function') ? soundFX.getMasterVolume() : 0.8;
+      const sfx = (soundFX && typeof soundFX.getSFXVolume === 'function') ? soundFX.getSFXVolume() : 0.9;
+      const effectiveVol = Math.max(0, Math.min(1, volume * master * sfx));
+      if (effectiveVol <= 0.001) return; // Silent if volume muted
+
+      utt.volume = effectiveVol;
       window.speechSynthesis.speak(utt);
     } catch (e) {}
   }

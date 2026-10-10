@@ -637,6 +637,14 @@ export class SettingsManager {
     if (masterSlider) masterSlider.value = this.settings.masterVolume;
     if (musicSlider) musicSlider.value = this.settings.musicVolume;
     if (sfxSlider) sfxSlider.value = this.settings.sfxVolume;
+
+    const masterValLbl = document.getElementById('masterVolVal');
+    const musicValLbl = document.getElementById('musicVolVal');
+    const sfxValLbl = document.getElementById('sfxVolVal');
+    if (masterValLbl) masterValLbl.textContent = `${this.settings.masterVolume}%`;
+    if (musicValLbl) musicValLbl.textContent = `${this.settings.musicVolume}%`;
+    if (sfxValLbl) sfxValLbl.textContent = `${this.settings.sfxVolume}%`;
+
     if (speedSelect) speedSelect.value = this.settings.gameSpeed;
     if (diffSelect) diffSelect.value = this.settings.difficulty;
     if (shakeSelect) shakeSelect.value = this.settings.screenShake;
