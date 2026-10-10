@@ -1,7 +1,4 @@
-// Final Impact - Advanced Responsive Input Engine
-// Features leading-edge triggers, 8-frame input buffering, double-tap dashing, and Naruto-style Ultimate input
-
-import { DEFAULT_CONTROLS } from './Constants.js';
+import { DEFAULT_CONTROLS, DEFAULT_GAMEPAD_CONTROLS, GAMEPAD_PRESETS } from './Constants.js';
 
 export class InputManager {
   constructor() {
@@ -35,12 +32,19 @@ export class InputManager {
     // Easy input mode toggle
     this.easyInputs = false;
 
-    // Configurable Keybindings
+    // Configurable Keyboard Keybindings
     this.controls = {
       P1: { ...DEFAULT_CONTROLS.P1 },
       P2: { ...DEFAULT_CONTROLS.P2 }
     };
     this.loadCustomControls();
+
+    // Configurable Gamepad Button Bindings
+    this.gamepadControls = {
+      P1: { ...DEFAULT_GAMEPAD_CONTROLS.P1 },
+      P2: { ...DEFAULT_GAMEPAD_CONTROLS.P2 }
+    };
+    this.loadCustomGamepadControls();
 
     // Frame-cached states for consistent leading-edge triggers across the 60fps tick
     this.p1CurrentState = null;
@@ -146,6 +150,62 @@ export class InputManager {
         localStorage.removeItem('final_impact_custom_controls');
       }
     } catch (e) {}
+  }
+
+  loadCustomGamepadControls() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('final_impact_custom_gamepad_controls');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.P1) this.gamepadControls.P1 = { ...this.gamepadControls.P1, ...parsed.P1 };
+          if (parsed.P2) this.gamepadControls.P2 = { ...this.gamepadControls.P2, ...parsed.P2 };
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load custom gamepad controls', e);
+    }
+  }
+
+  saveCustomGamepadControls() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('final_impact_custom_gamepad_controls', JSON.stringify(this.gamepadControls));
+      }
+    } catch (e) {}
+  }
+
+  setGamepadBind(playerNum, action, buttonIndex) {
+    const pKey = playerNum === 1 ? 'P1' : 'P2';
+    if (this.gamepadControls[pKey]) {
+      // Clear button if previously bound to another action on this player
+      for (const [k, v] of Object.entries(this.gamepadControls[pKey])) {
+        if (v === buttonIndex && k !== action) {
+          this.gamepadControls[pKey][k] = null;
+        }
+      }
+      this.gamepadControls[pKey][action] = buttonIndex;
+      this.saveCustomGamepadControls();
+    }
+  }
+
+  applyGamepadPreset(playerNum, presetKey) {
+    const pKey = playerNum === 1 ? 'P1' : 'P2';
+    const preset = GAMEPAD_PRESETS[presetKey];
+    if (preset && this.gamepadControls[pKey]) {
+      this.gamepadControls[pKey] = { ...preset.layout };
+      this.saveCustomGamepadControls();
+    }
+  }
+
+  resetDefaultGamepadControls(playerNum = null) {
+    if (playerNum === 1 || playerNum === null) {
+      this.gamepadControls.P1 = { ...DEFAULT_GAMEPAD_CONTROLS.P1 };
+    }
+    if (playerNum === 2 || playerNum === null) {
+      this.gamepadControls.P2 = { ...DEFAULT_GAMEPAD_CONTROLS.P2 };
+    }
+    this.saveCustomGamepadControls();
   }
 
   endFrame() {
@@ -353,46 +413,56 @@ export class InputManager {
     const leftJust = !!just[14] || !!just['STICK_LEFT'];
     const rightJust = !!just[15] || !!just['STICK_RIGHT'];
 
+    const pKey = playerIndex === 0 ? 'P1' : 'P2';
+    const map = this.gamepadControls?.[pKey] || DEFAULT_GAMEPAD_CONTROLS[pKey];
+
+    const isBtnDown = (btnIdx) => {
+      if (btnIdx === undefined || btnIdx === null) return false;
+      const b = gp.buttons ? gp.buttons[btnIdx] : null;
+      return !!b && (b.pressed || (typeof b.value === 'number' && b.value > 0.25));
+    };
+
+    const isBtnJust = (btnIdx) => {
+      if (btnIdx === undefined || btnIdx === null) return false;
+      return !!just[btnIdx];
+    };
+
     // Standard Fighting Game Action Buttons:
-    // Square / X = Light Punch
-    const lp = !!gp.buttons[2]?.pressed;
-    // Triangle / Y = Heavy Punch
-    const hp = !!gp.buttons[3]?.pressed;
-    // Cross / A = Light Kick
-    const lk = !!gp.buttons[0]?.pressed;
-    // Circle / B = Heavy Kick
-    const hk = !!gp.buttons[1]?.pressed;
+    const lp = isBtnDown(map.LP);
+    const hp = isBtnDown(map.HP);
+    const lk = isBtnDown(map.LK);
+    const hk = isBtnDown(map.HK);
 
     // Bumpers and Triggers:
-    // RB / R1 = Special 1 (Fireball)
-    const sp1 = !!gp.buttons[5]?.pressed;
-    // RT / R2 = Special 2 (Uppercut)
-    const sp2 = !!gp.buttons[7]?.pressed || (gp.buttons[7]?.value > 0.25);
-    // LB / L1 = Special 3 (Spin / Tatsu)
-    const sp3 = !!gp.buttons[4]?.pressed;
-    // LT / L2 = Dirty Tactic (Desperation Move)
-    const dirty = !!gp.buttons[6]?.pressed || (gp.buttons[6]?.value > 0.25);
+    const sp1 = isBtnDown(map.SP1);
+    const sp2 = isBtnDown(map.SP2);
+    const sp3 = isBtnDown(map.SP3);
+    const dirty = isBtnDown(map.DIRTY);
 
-    // Naruto Ultimate Activation: R3 (right stick click), Select, LB+RB, LT+RT, or HP+HK
-    const ultimateHold = !!gp.buttons[11]?.pressed ||
+    // Naruto Ultimate Activation: Configured button, R3, Select, LB+RB, LT+RT, or HP+HK
+    const ultimateHold = isBtnDown(map.ULTIMATE) ||
+                         !!gp.buttons[11]?.pressed ||
                          !!gp.buttons[8]?.pressed ||
-                         (!!gp.buttons[4]?.pressed && !!gp.buttons[5]?.pressed) ||
-                         (sp2 && dirty) ||
+                         (isBtnDown(map.SP1) && isBtnDown(map.SP3)) ||
+                         (isBtnDown(map.SP2) && isBtnDown(map.DIRTY)) ||
                          (hp && hk);
 
-    const lpJust = !!just[2];
-    const hpJust = !!just[3];
-    const lkJust = !!just[0];
-    const hkJust = !!just[1];
-    const sp1Just = !!just[5];
-    const sp2Just = !!just[7];
-    const sp3Just = !!just[4];
-    const dirtyJust = !!just[6];
+    const lpJust = isBtnJust(map.LP);
+    const hpJust = isBtnJust(map.HP);
+    const lkJust = isBtnJust(map.LK);
+    const hkJust = isBtnJust(map.HK);
+    const sp1Just = isBtnJust(map.SP1);
+    const sp2Just = isBtnJust(map.SP2);
+    const sp3Just = isBtnJust(map.SP3);
+    const dirtyJust = isBtnJust(map.DIRTY);
 
-    const ultimateJust = !!just[11] || !!just[8] ||
-      (just[4] && gp.buttons[5]?.pressed) || (just[5] && gp.buttons[4]?.pressed) ||
-      (just[6] && gp.buttons[7]?.pressed) || (just[7] && gp.buttons[6]?.pressed) ||
-      (just[1] && hp) || (just[3] && hk);
+    const ultimateJust = isBtnJust(map.ULTIMATE) ||
+      !!just[11] || !!just[8] ||
+      (isBtnJust(map.SP1) && isBtnDown(map.SP3)) ||
+      (isBtnJust(map.SP3) && isBtnDown(map.SP1)) ||
+      (isBtnJust(map.SP2) && isBtnDown(map.DIRTY)) ||
+      (isBtnJust(map.DIRTY) && isBtnDown(map.SP2)) ||
+      (isBtnJust(map.HK) && hp) || (isBtnJust(map.HP) && hk);
 
     const start = !!gp.buttons[9]?.pressed;
     const startJust = !!just[9];

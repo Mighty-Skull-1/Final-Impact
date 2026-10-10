@@ -151,3 +151,48 @@ export const DEFAULT_CONTROLS = {
     START: 'NumpadEnter'
   }
 };
+
+// Default Gamepad / Controller Button Bindings (Standard Gamepad API mapping)
+export const DEFAULT_GAMEPAD_CONTROLS = {
+  P1: {
+    LP: 2,       // Button 2: X (Xbox) / Square (PlayStation)
+    HP: 3,       // Button 3: Y (Xbox) / Triangle (PlayStation)
+    LK: 0,       // Button 0: A (Xbox) / Cross (PlayStation)
+    HK: 1,       // Button 1: B (Xbox) / Circle (PlayStation)
+    SP1: 5,      // Button 5: RB / R1
+    SP2: 7,      // Button 7: RT / R2
+    SP3: 4,      // Button 4: LB / L1
+    DIRTY: 6,    // Button 6: LT / L2
+    ULTIMATE: 11 // Button 11: R3 / RS Click
+  },
+  P2: {
+    LP: 2,
+    HP: 3,
+    LK: 0,
+    HK: 1,
+    SP1: 5,
+    SP2: 7,
+    SP3: 4,
+    DIRTY: 6,
+    ULTIMATE: 11
+  }
+};
+
+// Controller Layout Presets
+export const GAMEPAD_PRESETS = {
+  arcade: {
+    id: 'arcade',
+    name: 'Arcade Standard (4-Button)',
+    layout: { LP: 2, HP: 3, LK: 0, HK: 1, SP1: 5, SP2: 7, SP3: 4, DIRTY: 6, ULTIMATE: 11 }
+  },
+  brawler: {
+    id: 'brawler',
+    name: 'Classic Brawler (A=Light, B=Heavy)',
+    layout: { LP: 0, HP: 1, LK: 2, HK: 3, SP1: 5, SP2: 7, SP3: 4, DIRTY: 6, ULTIMATE: 11 }
+  },
+  shoulders: {
+    id: 'shoulders',
+    name: 'Shoulder Attacks (Bumpers & Triggers)',
+    layout: { LP: 4, HP: 5, LK: 6, HK: 7, SP1: 2, SP2: 3, SP3: 0, DIRTY: 1, ULTIMATE: 11 }
+  }
+};

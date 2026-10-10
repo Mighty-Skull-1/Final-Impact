@@ -70,14 +70,68 @@ const ACTION_GROUPS = [
   }
 ];
 
+export const GAMEPAD_ACTION_GROUPS = [
+  {
+    title: '— NORMAL ATTACKS —',
+    actions: [
+      { key: 'LP', label: 'Light Punch (LP)' },
+      { key: 'HP', label: 'Heavy Punch (HP)' },
+      { key: 'LK', label: 'Light Kick (LK)' },
+      { key: 'HK', label: 'Heavy Kick (HK)' }
+    ]
+  },
+  {
+    title: '— SPECIAL ATTACKS —',
+    actions: [
+      { key: 'SP1', label: 'Special 1 (QCF / Fireball)' },
+      { key: 'SP2', label: 'Special 2 (DP / Uppercut)' },
+      { key: 'SP3', label: 'Special 3 (Spin / Tatsu)' }
+    ]
+  },
+  {
+    title: '— TACTICAL & ULTIMATE —',
+    actions: [
+      { key: 'DIRTY', label: 'Dirty Tactic (Desperation)' },
+      { key: 'ULTIMATE', label: 'Ultimate Secret Jutsu' }
+    ]
+  }
+];
+
+export function formatGamepadButton(btnIndex) {
+  if (btnIndex === null || btnIndex === undefined) return 'UNBOUND';
+  const num = Number(btnIndex);
+  const names = {
+    0: 'Ⓐ / ✕ (A / Cross - Btn 0)',
+    1: 'Ⓑ / ◯ (B / Circle - Btn 1)',
+    2: 'Ⓧ / ▢ (X / Square - Btn 2)',
+    3: 'Ⓨ / △ (Y / Triangle - Btn 3)',
+    4: 'LB / L1 (Left Bumper)',
+    5: 'RB / R1 (Right Bumper)',
+    6: 'LT / L2 (Left Trigger)',
+    7: 'RT / R2 (Right Trigger)',
+    8: 'BACK / SELECT',
+    9: 'START / MENU',
+    10: 'L3 / LS (Stick Click)',
+    11: 'R3 / RS (Stick Click)',
+    12: 'D-PAD UP',
+    13: 'D-PAD DOWN',
+    14: 'D-PAD LEFT',
+    15: 'D-PAD RIGHT'
+  };
+  return names[num] || `BUTTON ${num}`;
+}
+
 export class SettingsManager {
   constructor(game) {
     this.game = game;
     this.isOpen = false;
-    this.currentTab = 'general'; // 'general' | 'controls'
+    this.currentTab = 'general'; // 'general' | 'keyboard' | 'gamepad'
     this.selectedPlayer = 1;      // 1 (P1) | 2 (P2)
+    this.selectedGamepadPlayer = 1; // 1 (P1) | 2 (P2)
     this.isRebinding = false;
     this.rebindingAction = null;
+    this.isRebindingGamepad = false;
+    this.rebindingGamepadAction = null;
     this.listenersInitialized = false;
     this.focusIndex = 0;
 
@@ -148,19 +202,37 @@ export class SettingsManager {
     if (this.listenersInitialized) return;
     this.listenersInitialized = true;
 
-    // Tab switching
+    // Tab switching (General, Keyboard, Controller)
     const tabGenBtn = document.getElementById('tabGeneralBtn');
     const tabCtrlBtn = document.getElementById('tabControlsBtn');
+    const tabGpBtn = document.getElementById('tabGamepadBtn');
     if (tabGenBtn) tabGenBtn.addEventListener('click', () => this.switchTab('general'));
-    if (tabCtrlBtn) tabCtrlBtn.addEventListener('click', () => this.switchTab('controls'));
+    if (tabCtrlBtn) tabCtrlBtn.addEventListener('click', () => this.switchTab('keyboard'));
+    if (tabGpBtn) tabGpBtn.addEventListener('click', () => this.switchTab('gamepad'));
 
-    // Player subtabs
+    // Keyboard Player subtabs
     const p1Btn = document.getElementById('p1ControlsBtn');
     const p2Btn = document.getElementById('p2ControlsBtn');
     if (p1Btn) p1Btn.addEventListener('click', () => this.switchPlayer(1));
     if (p2Btn) p2Btn.addEventListener('click', () => this.switchPlayer(2));
 
-    // Reset controls button
+    // Gamepad Player subtabs
+    const p1GpBtn = document.getElementById('p1GamepadBtn');
+    const p2GpBtn = document.getElementById('p2GamepadBtn');
+    if (p1GpBtn) p1GpBtn.addEventListener('click', () => this.switchGamepadPlayer(1));
+    if (p2GpBtn) p2GpBtn.addEventListener('click', () => this.switchGamepadPlayer(2));
+
+    // Gamepad Presets and Reset
+    const gpArcadeBtn = document.getElementById('gpPresetArcadeBtn');
+    if (gpArcadeBtn) gpArcadeBtn.addEventListener('click', () => this.applyPreset('arcade'));
+    const gpBrawlerBtn = document.getElementById('gpPresetBrawlerBtn');
+    if (gpBrawlerBtn) gpBrawlerBtn.addEventListener('click', () => this.applyPreset('brawler'));
+    const gpShouldersBtn = document.getElementById('gpPresetShouldersBtn');
+    if (gpShouldersBtn) gpShouldersBtn.addEventListener('click', () => this.applyPreset('shoulders'));
+    const gpResetBtn = document.getElementById('gpResetBindsBtn');
+    if (gpResetBtn) gpResetBtn.addEventListener('click', () => this.resetGamepadBinds());
+
+    // Reset keyboard controls button
     const resetBtn = document.getElementById('resetKeybindsBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => this.resetKeybinds());
@@ -339,22 +411,29 @@ export class SettingsManager {
 
     // Global keydown listener for rebind capture (runs in capture phase)
     window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape') {
+        if (this.isRebindingGamepad) {
+          this.cancelGamepadRebinding();
+          try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (err) {}
+          return;
+        }
+        if (this.isRebinding) {
+          this.cancelRebinding();
+          try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (err) {}
+          return;
+        }
+      }
+
       if (!this.isRebinding || !this.rebindingAction) return;
 
       e.preventDefault();
       e.stopPropagation();
 
-      if (e.code === 'Escape') {
-        this.cancelRebinding();
-        try { if (soundFX && typeof soundFX.playBlock === 'function') soundFX.playBlock(); } catch (err) {}
-        return;
-      }
-
       // Rebind to captured code
       this.finishRebinding(e.code);
     }, true);
 
-    // Click delegation for keybinds list (click row or button to rebind)
+    // Click delegation for keyboard keybinds list (click row or button to rebind)
     const container = document.getElementById('keybindsContainer');
     if (container) {
       container.addEventListener('click', (e) => {
@@ -372,6 +451,27 @@ export class SettingsManager {
         }
 
         this.startRebinding(actionKey);
+      });
+    }
+
+    // Click delegation for controller keybinds list (click row or button to rebind)
+    const gpContainer = document.getElementById('gamepadBindsContainer');
+    if (gpContainer) {
+      gpContainer.addEventListener('click', (e) => {
+        const row = e.target.closest('.gamepad-bind-row');
+        if (!row) return;
+        const actionKey = row.getAttribute('data-action');
+        if (!actionKey) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.isRebindingGamepad && this.rebindingGamepadAction === actionKey) {
+          this.cancelGamepadRebinding();
+          return;
+        }
+
+        this.startGamepadRebinding(actionKey);
       });
     }
   }
@@ -510,22 +610,30 @@ export class SettingsManager {
   }
 
   switchTab(tab) {
+    if (tab === 'controls') tab = 'keyboard';
     this.currentTab = tab;
     this.cancelRebinding();
+    this.cancelGamepadRebinding();
 
     const tabGenBtn = document.getElementById('tabGeneralBtn');
     const tabCtrlBtn = document.getElementById('tabControlsBtn');
+    const tabGpBtn = document.getElementById('tabGamepadBtn');
     const genPane = document.getElementById('tabGeneralContent');
     const ctrlPane = document.getElementById('tabControlsContent');
+    const gpPane = document.getElementById('tabGamepadContent');
 
     if (tabGenBtn) tabGenBtn.classList.toggle('active', tab === 'general');
-    if (tabCtrlBtn) tabCtrlBtn.classList.toggle('active', tab === 'controls');
+    if (tabCtrlBtn) tabCtrlBtn.classList.toggle('active', tab === 'keyboard');
+    if (tabGpBtn) tabGpBtn.classList.toggle('active', tab === 'gamepad');
 
     if (genPane) genPane.style.display = tab === 'general' ? 'flex' : 'none';
-    if (ctrlPane) ctrlPane.style.display = tab === 'controls' ? 'flex' : 'none';
+    if (ctrlPane) ctrlPane.style.display = tab === 'keyboard' ? 'flex' : 'none';
+    if (gpPane) gpPane.style.display = tab === 'gamepad' ? 'flex' : 'none';
 
-    if (tab === 'controls') {
+    if (tab === 'keyboard') {
       this.renderKeybinds();
+    } else if (tab === 'gamepad') {
+      this.renderGamepadBinds();
     }
   }
 
@@ -539,6 +647,176 @@ export class SettingsManager {
     if (p2Btn) p2Btn.classList.toggle('active', playerNum === 2);
 
     this.renderKeybinds();
+  }
+
+  switchGamepadPlayer(playerNum) {
+    this.selectedGamepadPlayer = playerNum;
+    this.cancelGamepadRebinding();
+
+    const p1Btn = document.getElementById('p1GamepadBtn');
+    const p2Btn = document.getElementById('p2GamepadBtn');
+    if (p1Btn) p1Btn.classList.toggle('active', playerNum === 1);
+    if (p2Btn) p2Btn.classList.toggle('active', playerNum === 2);
+
+    this.renderGamepadBinds();
+    try { soundFX.playWhoosh('light'); } catch (e) {}
+  }
+
+  applyPreset(presetKey) {
+    input.applyGamepadPreset(this.selectedGamepadPlayer, presetKey);
+    this.renderGamepadBinds();
+    const hintEl = document.getElementById('gamepadControlsHint');
+    if (hintEl) {
+      hintEl.innerHTML = `<span style="color: #4ade80;">✓ APPLIED PRESET: ${presetKey.toUpperCase()}</span>`;
+    }
+    try { soundFX.playMenuSelect(); } catch (e) {}
+  }
+
+  resetGamepadBinds() {
+    input.resetDefaultGamepadControls(this.selectedGamepadPlayer);
+    this.renderGamepadBinds();
+    const hintEl = document.getElementById('gamepadControlsHint');
+    if (hintEl) {
+      hintEl.innerHTML = `<span style="color: #4ade80;">✓ CONTROLLER BINDS RESET TO DEFAULT ARCADE</span>`;
+    }
+    try { soundFX.playHitHeavy(); } catch (e) {}
+  }
+
+  renderGamepadBinds() {
+    const container = document.getElementById('gamepadBindsContainer');
+    if (!container) return;
+
+    this.cancelGamepadRebinding();
+
+    const hintEl = document.getElementById('gamepadControlsHint');
+    if (hintEl) {
+      hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A CONTROLLER BUTTON TO REBIND. ESCAPE TO CANCEL.`;
+    }
+
+    container.innerHTML = '';
+    const pKey = this.selectedGamepadPlayer === 1 ? 'P1' : 'P2';
+    const activeControls = input.gamepadControls[pKey] || {};
+
+    GAMEPAD_ACTION_GROUPS.forEach(group => {
+      const header = document.createElement('div');
+      header.className = 'keybind-group-header';
+      header.textContent = group.title;
+      container.appendChild(header);
+
+      group.actions.forEach(action => {
+        const row = document.createElement('div');
+        row.className = 'keybind-row gamepad-bind-row';
+        row.setAttribute('data-action', action.key);
+
+        const nameLabel = document.createElement('span');
+        nameLabel.className = 'keybind-action-name';
+        nameLabel.textContent = action.label;
+
+        const keyBtn = document.createElement('button');
+        keyBtn.type = 'button';
+        keyBtn.className = 'keybind-key-btn gp-rebind-btn';
+        keyBtn.setAttribute('data-action', action.key);
+        keyBtn.textContent = formatGamepadButton(activeControls[action.key]);
+
+        row.appendChild(nameLabel);
+        row.appendChild(keyBtn);
+        container.appendChild(row);
+      });
+    });
+  }
+
+  startGamepadRebinding(actionKey) {
+    const container = document.getElementById('gamepadBindsContainer');
+    const pKey = this.selectedGamepadPlayer === 1 ? 'P1' : 'P2';
+    const activeControls = input.gamepadControls[pKey] || {};
+
+    if (container) {
+      const allRows = container.querySelectorAll('.gamepad-bind-row');
+      allRows.forEach(r => {
+        r.classList.remove('rebinding-active');
+        const btn = r.querySelector('.gp-rebind-btn');
+        const act = r.getAttribute('data-action');
+        if (btn && act) {
+          btn.classList.remove('rebinding');
+          btn.textContent = formatGamepadButton(activeControls[act]);
+        }
+      });
+
+      const targetRow = container.querySelector(`.gamepad-bind-row[data-action="${actionKey}"]`);
+      if (targetRow) {
+        targetRow.classList.add('rebinding-active');
+        const targetBtn = targetRow.querySelector('.gp-rebind-btn');
+        if (targetBtn) {
+          targetBtn.classList.add('rebinding');
+          targetBtn.textContent = 'PRESS BTN...';
+        }
+      }
+    }
+
+    this.isRebindingGamepad = true;
+    this.rebindingGamepadAction = actionKey;
+
+    const hintEl = document.getElementById('gamepadControlsHint');
+    if (hintEl) {
+      let label = actionKey;
+      for (const g of GAMEPAD_ACTION_GROUPS) {
+        const f = g.actions.find(a => a.key === actionKey);
+        if (f) { label = f.label; break; }
+      }
+      hintEl.innerHTML = `<span style="color: #facc15; animation: pulse-rebinding 0.8s infinite alternate;">🎯 REBINDING: [ ${label.toUpperCase()} ]<br>PRESS ANY CONTROLLER BUTTON (ESC TO CANCEL)</span>`;
+    }
+
+    try { soundFX.playHitLight(); } catch (e) {}
+  }
+
+  finishGamepadRebinding(buttonIndex) {
+    if (!this.rebindingGamepadAction) return;
+    const actionKey = this.rebindingGamepadAction;
+    const hintEl = document.getElementById('gamepadControlsHint');
+
+    if (buttonIndex === 9) { // Start / Menu
+      if (hintEl) {
+        hintEl.innerHTML = `<span style="color: #ef4444; font-weight: bold;">⚠ [START / MENU] IS RESERVED FOR PAUSE &amp; SETTINGS.</span>`;
+      }
+      try { soundFX.playBlock(); } catch (e) {}
+      return;
+    }
+
+    input.setGamepadBind(this.selectedGamepadPlayer, actionKey, buttonIndex);
+
+    let label = actionKey;
+    for (const g of GAMEPAD_ACTION_GROUPS) {
+      const f = g.actions.find(a => a.key === actionKey);
+      if (f) { label = f.label; break; }
+    }
+
+    if (hintEl) {
+      hintEl.innerHTML = `<span style="color: #4ade80;">✓ BOUND [ ${label.toUpperCase()} ] ➔ ${formatGamepadButton(buttonIndex)}</span>`;
+    }
+
+    this.isRebindingGamepad = false;
+    this.rebindingGamepadAction = null;
+
+    try { soundFX.playHitLight(); } catch (e) {}
+    this.renderGamepadBinds();
+  }
+
+  cancelGamepadRebinding() {
+    if (this.isRebindingGamepad) {
+      this.isRebindingGamepad = false;
+      this.rebindingGamepadAction = null;
+      const hintEl = document.getElementById('gamepadControlsHint');
+      if (hintEl) {
+        hintEl.innerHTML = `CLICK ANY ROW OR BUTTON BELOW, THEN PRESS A CONTROLLER BUTTON TO REBIND. ESCAPE TO CANCEL.`;
+      }
+      const container = document.getElementById('gamepadBindsContainer');
+      if (container) {
+        const allRows = container.querySelectorAll('.gamepad-bind-row');
+        allRows.forEach(r => r.classList.remove('rebinding-active'));
+        const allBtns = container.querySelectorAll('.gp-rebind-btn');
+        allBtns.forEach(b => b.classList.remove('rebinding'));
+      }
+    }
   }
 
   open() {
@@ -682,6 +960,7 @@ export class SettingsManager {
     if (sfxLabel) sfxLabel.textContent = `${this.settings.sfxVolume}%`;
 
     this.renderKeybinds();
+    this.renderGamepadBinds();
 
     // Dynamic Leave Game buttons in modal footer and general tab
     const inFight = this.game && (
@@ -760,21 +1039,19 @@ export class SettingsManager {
     // Sync Gamepad Connection status pill
     const connectedGps = input.getConnectedGamepads();
     const statusEl = document.getElementById('gamepadStatusText');
-    if (statusEl) {
-      if (connectedGps.length > 0) {
-        const p1Gp = connectedGps[0];
-        statusEl.innerHTML = `<span style="color: #4ade80;">● CONNECTED: ${p1Gp.id.slice(0, 24)}</span>`;
-      } else {
-        statusEl.innerHTML = `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
-      }
-    }
+    const tabStatusEl = document.getElementById('gamepadTabStatusText');
+    const statusHtml = connectedGps.length > 0
+      ? `<span style="color: #4ade80;">● CONNECTED: ${connectedGps[0].id.slice(0, 24)}</span>`
+      : `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
+    if (statusEl) statusEl.innerHTML = statusHtml;
+    if (tabStatusEl) tabStatusEl.innerHTML = statusHtml;
   }
 
   getFocusableElements() {
     const list = [];
     if (this.currentTab === 'general') {
       const ids = [
-        'tabGeneralBtn', 'tabControlsBtn',
+        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
         'masterVol', 'musicVol', 'sfxVol',
         'gameSpeedSelect', 'aiDiffSelect', 'shakeSelect', 'screenScaleSelect',
         'easyInputsCheck',
@@ -787,9 +1064,28 @@ export class SettingsManager {
           list.push(el);
         }
       });
+    } else if (this.currentTab === 'gamepad') {
+      const ids = [
+        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
+        'p1GamepadBtn', 'p2GamepadBtn',
+        'gpPresetArcadeBtn', 'gpPresetBrawlerBtn', 'gpPresetShouldersBtn', 'gpResetBindsBtn',
+        'leaveFightBtn', 'closeSettingsBtn'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.offsetParent !== null && el.style.display !== 'none') {
+          list.push(el);
+        }
+      });
+      const container = document.getElementById('gamepadBindsContainer');
+      if (container) {
+        container.querySelectorAll('.gp-rebind-btn').forEach(btn => {
+          if (btn.offsetParent !== null) list.push(btn);
+        });
+      }
     } else {
       const ids = [
-        'tabGeneralBtn', 'tabControlsBtn',
+        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
         'p1ControlsBtn', 'p2ControlsBtn',
         'resetKeybindsBtn',
         'leaveFightBtn', 'closeSettingsBtn'
@@ -800,6 +1096,12 @@ export class SettingsManager {
           list.push(el);
         }
       });
+      const container = document.getElementById('keybindsContainer');
+      if (container) {
+        container.querySelectorAll('.keybind-key-btn').forEach(btn => {
+          if (btn.offsetParent !== null) list.push(btn);
+        });
+      }
     }
     return list;
   }
@@ -822,28 +1124,27 @@ export class SettingsManager {
     // 1. Live Controller Status and Live Tester Text
     const connectedGps = input.getConnectedGamepads();
     const statusEl = document.getElementById('gamepadStatusText');
-    if (statusEl) {
-      if (connectedGps.length > 0) {
-        const p1Gp = connectedGps[0];
-        statusEl.innerHTML = `<span style="color: #4ade80;">● CONNECTED: ${p1Gp.id.slice(0, 24)}</span>`;
-      } else {
-        statusEl.innerHTML = `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
-      }
-    }
+    const tabStatusEl = document.getElementById('gamepadTabStatusText');
+    const statusHtml = connectedGps.length > 0
+      ? `<span style="color: #4ade80;">● CONNECTED: ${connectedGps[0].id.slice(0, 24)}</span>`
+      : `<span style="color: #94a3b8;">○ NO CONTROLLER DETECTED</span>`;
+    if (statusEl) statusEl.innerHTML = statusHtml;
+    if (tabStatusEl) tabStatusEl.innerHTML = statusHtml;
 
     const gp0 = input.getGamepadState(0);
     const lastInputEl = document.getElementById('gamepadLastInput');
-    if (lastInputEl && gp0) {
+    const tabLastInputEl = document.getElementById('gamepadTabLastInput');
+    if (gp0) {
       const activeBtns = [];
-      if (gp0.lp) activeBtns.push('X / LP');
-      if (gp0.hp) activeBtns.push('Y / HP');
-      if (gp0.lk) activeBtns.push('A / LK');
-      if (gp0.hk) activeBtns.push('B / HK');
-      if (gp0.sp1) activeBtns.push('RB / SP1');
-      if (gp0.sp2) activeBtns.push('RT / SP2');
-      if (gp0.sp3) activeBtns.push('LB / SP3');
-      if (gp0.dirty) activeBtns.push('LT / DIRTY');
-      if (gp0.ultimate) activeBtns.push('ULTIMATE');
+      if (gp0.lp) activeBtns.push('LP');
+      if (gp0.hp) activeBtns.push('HP');
+      if (gp0.lk) activeBtns.push('LK');
+      if (gp0.hk) activeBtns.push('HK');
+      if (gp0.sp1) activeBtns.push('SP1');
+      if (gp0.sp2) activeBtns.push('SP2');
+      if (gp0.sp3) activeBtns.push('SP3');
+      if (gp0.dirty) activeBtns.push('DIRTY');
+      if (gp0.ultimate) activeBtns.push('ULT');
       if (gp0.start) activeBtns.push('START');
       if (gp0.select) activeBtns.push('SELECT');
       if (gp0.up) activeBtns.push('UP');
@@ -851,12 +1152,35 @@ export class SettingsManager {
       if (gp0.left) activeBtns.push('LEFT');
       if (gp0.right) activeBtns.push('RIGHT');
       if (activeBtns.length > 0) {
-        lastInputEl.textContent = activeBtns.join(' + ');
-        lastInputEl.style.color = '#fde047';
+        const text = activeBtns.join(' + ');
+        if (lastInputEl) {
+          lastInputEl.textContent = text;
+          lastInputEl.style.color = '#fde047';
+        }
+        if (tabLastInputEl) {
+          tabLastInputEl.textContent = text;
+          tabLastInputEl.style.color = '#fde047';
+        }
       }
     }
 
-    // 2. Navigation through modal controls
+    // 2. Controller Rebinding Capture: intercept any button press
+    if (this.isRebindingGamepad && this.rebindingGamepadAction) {
+      const gpIdx = this.selectedGamepadPlayer === 1 ? 0 : 1;
+      const just = input.gamepadJustPressed[gpIdx];
+      if (just) {
+        for (let b = 0; b <= 15; b++) {
+          if (just[b]) {
+            just[b] = false; // Consume so it doesn't leak into navigation
+            this.finishGamepadRebinding(b);
+            return;
+          }
+        }
+      }
+      return; // Do NOT run navigation while waiting for controller input
+    }
+
+    // 3. Navigation through modal controls
     const nav = input.getAnyMenuNav();
     if (!nav) return;
 
@@ -894,8 +1218,15 @@ export class SettingsManager {
     // Left / Right adjustments
     if (nav.left || nav.right) {
       const delta = nav.right ? 1 : -1;
-      if (curEl.id === 'tabGeneralBtn' || curEl.id === 'tabControlsBtn') {
-        this.switchTab(this.currentTab === 'general' ? 'controls' : 'general');
+      if (curEl.id === 'tabGeneralBtn' || curEl.id === 'tabControlsBtn' || curEl.id === 'tabGamepadBtn') {
+        const tabs = ['general', 'keyboard', 'gamepad'];
+        const currentMapped = (this.currentTab === 'controls' ? 'keyboard' : this.currentTab);
+        const curIdx = Math.max(0, tabs.indexOf(currentMapped));
+        const nextIdx = (curIdx + delta + tabs.length) % tabs.length;
+        this.switchTab(tabs[nextIdx]);
+        try { soundFX.playWhoosh('light'); } catch (e) {}
+      } else if (curEl.id === 'p1GamepadBtn' || curEl.id === 'p2GamepadBtn') {
+        this.switchGamepadPlayer(this.selectedGamepadPlayer === 1 ? 2 : 1);
         try { soundFX.playWhoosh('light'); } catch (e) {}
       } else if (curEl.id === 'p1ControlsBtn' || curEl.id === 'p2ControlsBtn') {
         this.switchPlayer(this.selectedPlayer === 1 ? 2 : 1);

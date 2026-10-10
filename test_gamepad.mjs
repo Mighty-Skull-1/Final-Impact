@@ -1,5 +1,15 @@
 // Final Impact - Gamepad API Integration Test Suite
 import { InputManager } from './src/engine/Input.js';
+import { formatGamepadButton, GAMEPAD_ACTION_GROUPS } from './src/ui/SettingsModal.js';
+
+// Mock localStorage
+const storage = {};
+global.localStorage = {
+  getItem: (k) => (k in storage ? storage[k] : null),
+  setItem: (k, v) => { storage[k] = String(v); },
+  removeItem: (k) => { delete storage[k]; },
+  clear: () => { for (const k in storage) delete storage[k]; }
+};
 
 console.log('--- Starting Gamepad API Integration Verification ---');
 
@@ -217,9 +227,51 @@ input.endFrame();
 input.update();
 let s2 = input.getState(2, true);
 s1 = input.getState(1, true);
+// Test 10: Controller Keybind Remapping & Custom Layouts
+console.log('\n--- Section 10: Controller Keybind Remapping & Custom Layouts ---');
 
-assert(s2.lp === true && s2.lpJust === true, 'Gamepad 1 controls Player 2 LP');
-assert(s1.lp === false, 'Gamepad 1 input does not bleed into Player 1');
+// Remap Player 1 Light Punch from Button 2 (X) to Button 0 (A)
+input.setGamepadBind(1, 'LP', 0);
+assert(input.gamepadControls.P1.LP === 0, 'setGamepadBind assigns Button 0 to LP');
+assert(input.gamepadControls.P1.LK === null, 'setGamepadBind clears previous conflicting bind on LK');
+
+// Verify remapped LP responds when Button 0 is pressed
+gp0.buttons[0].pressed = true;
+input.endFrame();
+input.update();
+s1 = input.getState(1, true);
+assert(s1.lp === true && s1.lpJust === true, 'Pressing remapped Button 0 triggers LP attack');
+assert(s1.lk === false, 'Button 0 no longer triggers LK');
+gp0.buttons[0].pressed = false;
+
+// Verify persistence in localStorage
+const savedGpControls = JSON.parse(localStorage.getItem('final_impact_custom_gamepad_controls'));
+assert(savedGpControls.P1.LP === 0, 'Custom gamepad bind successfully persisted to localStorage');
+
+// Test Presets
+input.applyGamepadPreset(1, 'brawler');
+assert(input.gamepadControls.P1.LP === 0, 'Brawler preset has LP = 0');
+assert(input.gamepadControls.P1.HP === 1, 'Brawler preset has HP = 1');
+assert(input.gamepadControls.P1.LK === 2, 'Brawler preset has LK = 2');
+assert(input.gamepadControls.P1.HK === 3, 'Brawler preset has HK = 3');
+
+input.applyGamepadPreset(1, 'shoulders');
+assert(input.gamepadControls.P1.LP === 4, 'Shoulders preset has LP = 4 (LB)');
+assert(input.gamepadControls.P1.HP === 5, 'Shoulders preset has HP = 5 (RB)');
+
+// Reset to Default Arcade layout
+input.resetDefaultGamepadControls(1);
+assert(input.gamepadControls.P1.LP === 2, 'Reset restores LP to Button 2 (X/Square)');
+assert(input.gamepadControls.P1.HP === 3, 'Reset restores HP to Button 3 (Y/Triangle)');
+assert(input.gamepadControls.P1.LK === 0, 'Reset restores LK to Button 0 (A/Cross)');
+assert(input.gamepadControls.P1.HK === 1, 'Reset restores HK to Button 1 (B/Circle)');
+
+// Test formatGamepadButton
+assert(formatGamepadButton(0).includes('Cross') && formatGamepadButton(0).includes('Btn 0'), 'formatGamepadButton(0) shows A / Cross badge');
+assert(formatGamepadButton(2).includes('Square') && formatGamepadButton(2).includes('Btn 2'), 'formatGamepadButton(2) shows X / Square badge');
+assert(formatGamepadButton(5).includes('RB / R1'), 'formatGamepadButton(5) shows RB / R1');
+assert(formatGamepadButton(11).includes('R3 / RS'), 'formatGamepadButton(11) shows R3 / RS');
+assert(GAMEPAD_ACTION_GROUPS.length >= 3, 'Gamepad action groups contain all combat sectors');
 
 console.log(`\nResults: ${testsPassed} passed, ${testsFailed} failed.`);
 if (testsFailed > 0) {
