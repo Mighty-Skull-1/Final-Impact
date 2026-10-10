@@ -273,14 +273,16 @@
       });
     }
 
-    // Easy specials button
+    // Easy specials button (if present)
     const easyBtn = document.getElementById('toggleEasyBtn');
-    easyBtn.addEventListener('click', () => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
-      setTimeout(() => {
-        easyBtn.textContent = `EASY: ${window.__GAME_EASY ? 'ON' : 'OFF'}`;
-      }, 50);
-    });
+    if (easyBtn) {
+      easyBtn.addEventListener('click', () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
+        setTimeout(() => {
+          easyBtn.textContent = `EASY: ${window.__GAME_EASY ? 'ON' : 'OFF'}`;
+        }, 50);
+      });
+    }
 
     // Settings Modal & Topbar Actions
     const settingsBtn = document.getElementById('settingsBtn');
@@ -329,15 +331,21 @@
       });
     }
 
-    settingsBtn.addEventListener('click', () => {
-      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.toggle();
-    });
-    closeSettingsBtn.addEventListener('click', () => {
-      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
-    });
-    closeSettingsX.addEventListener('click', () => {
-      if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
-    });
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.toggle();
+      });
+    }
+    if (closeSettingsBtn) {
+      closeSettingsBtn.addEventListener('click', () => {
+        if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
+      });
+    }
+    if (closeSettingsX) {
+      closeSettingsX.addEventListener('click', () => {
+        if (window.__GAME_SETTINGS) window.__GAME_SETTINGS.close();
+      });
+    }
 
     const triggerLeaveGame = (target) => {
       if (window.__GAME_INSTANCE && typeof window.__GAME_INSTANCE.leaveGame === 'function') {
@@ -368,62 +376,79 @@
     const shakeSelect = document.getElementById('shakeSelect');
     const easyCheck = document.getElementById('easyInputsCheck');
 
-    masterVol.addEventListener('input', (e) => {
-      document.getElementById('masterVolVal').textContent = `${e.target.value}%`;
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.masterVolume = Number(e.target.value);
-        window.__GAME_SETTINGS.applySettings();
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (masterVol) {
+      masterVol.addEventListener('input', (e) => {
+        const lbl = document.getElementById('masterVolVal');
+        if (lbl) lbl.textContent = `${e.target.value}%`;
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.masterVolume = Number(e.target.value);
+          window.__GAME_SETTINGS.applySettings();
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    musicVol.addEventListener('input', (e) => {
-      document.getElementById('musicVolVal').textContent = `${e.target.value}%`;
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.musicVolume = Number(e.target.value);
-        window.__GAME_SETTINGS.applySettings();
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (musicVol) {
+      musicVol.addEventListener('input', (e) => {
+        const lbl = document.getElementById('musicVolVal');
+        if (lbl) lbl.textContent = `${e.target.value}%`;
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.musicVolume = Number(e.target.value);
+          window.__GAME_SETTINGS.applySettings();
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    sfxVol.addEventListener('input', (e) => {
-      document.getElementById('sfxVolVal').textContent = `${e.target.value}%`;
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.sfxVolume = Number(e.target.value);
-        window.__GAME_SETTINGS.applySettings();
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (sfxVol) {
+      sfxVol.addEventListener('input', (e) => {
+        const lbl = document.getElementById('sfxVolVal');
+        if (lbl) lbl.textContent = `${e.target.value}%`;
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.sfxVolume = Number(e.target.value);
+          window.__GAME_SETTINGS.applySettings();
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    gameSpeedSelect.addEventListener('change', (e) => {
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.gameSpeed = Number(e.target.value);
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (gameSpeedSelect) {
+      gameSpeedSelect.addEventListener('change', (e) => {
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.gameSpeed = Number(e.target.value);
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    aiDiffSelect.addEventListener('change', (e) => {
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.difficulty = e.target.value;
-        window.__GAME_SETTINGS.applySettings();
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (aiDiffSelect) {
+      aiDiffSelect.addEventListener('change', (e) => {
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.difficulty = e.target.value;
+          window.__GAME_SETTINGS.applySettings();
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    shakeSelect.addEventListener('change', (e) => {
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.screenShake = e.target.value;
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (shakeSelect) {
+      shakeSelect.addEventListener('change', (e) => {
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.screenShake = e.target.value;
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
-    easyCheck.addEventListener('change', (e) => {
-      if (window.__GAME_SETTINGS) {
-        window.__GAME_SETTINGS.settings.easyInputs = e.target.checked;
-        window.__GAME_SETTINGS.applySettings();
-        window.__GAME_SETTINGS.save();
-      }
-    });
+    if (easyCheck) {
+      easyCheck.addEventListener('change', (e) => {
+        if (window.__GAME_SETTINGS) {
+          window.__GAME_SETTINGS.settings.easyInputs = e.target.checked;
+          window.__GAME_SETTINGS.applySettings();
+          window.__GAME_SETTINGS.save();
+        }
+      });
+    }
 
     // Screen Scale Mode Management (Large / Max / Normal)
     const SCREEN_MODES = [
@@ -474,6 +499,11 @@
       });
     }
 
+    window.applyScreenModeById = (id) => {
+      const idx = SCREEN_MODES.findIndex(m => m.id === id);
+      if (idx !== -1) applyScreenMode(idx);
+    };
+
     // Initialize screen scale on load
     applyScreenMode(currentScreenModeIdx);
 
@@ -495,6 +525,7 @@
         console.warn('Fullscreen toggle:', err);
       }
     }
+    window.toggleGameFullscreen = toggleFullscreen;
 
     const settingsFsBtn = document.getElementById('settingsFullscreenBtn');
     if (settingsFsBtn) {

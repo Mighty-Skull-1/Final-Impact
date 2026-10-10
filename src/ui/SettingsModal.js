@@ -131,6 +131,9 @@ export class SettingsManager {
     } catch (e) {}
 
     input.easyInputs = this.settings.easyInputs;
+    if (typeof window !== 'undefined') {
+      window.__GAME_EASY = this.settings.easyInputs;
+    }
     if (this.game && this.game.ai) {
       this.game.ai.setDifficulty(this.settings.difficulty);
     }
@@ -183,6 +186,143 @@ export class SettingsManager {
 
     const genCharBtn = document.getElementById('generalCharSelectBtn');
     if (genCharBtn) genCharBtn.addEventListener('click', () => handleLeave('CHAR_SELECT'));
+
+    // Close buttons
+    const closeBtn = document.getElementById('closeSettingsBtn');
+    if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+    const closeX = document.getElementById('closeSettingsX');
+    if (closeX) closeX.addEventListener('click', () => this.close());
+
+    // Volume sliders
+    const masterVol = document.getElementById('masterVol');
+    if (masterVol) {
+      masterVol.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.settings.masterVolume = val;
+        this.applySettings();
+        this.save();
+        const lbl = document.getElementById('masterVolVal');
+        if (lbl) lbl.textContent = `${val}%`;
+      });
+    }
+
+    const musicVol = document.getElementById('musicVol');
+    if (musicVol) {
+      musicVol.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.settings.musicVolume = val;
+        this.applySettings();
+        this.save();
+        const lbl = document.getElementById('musicVolVal');
+        if (lbl) lbl.textContent = `${val}%`;
+      });
+    }
+
+    const sfxVol = document.getElementById('sfxVol');
+    if (sfxVol) {
+      sfxVol.addEventListener('input', (e) => {
+        const val = Number(e.target.value);
+        this.settings.sfxVolume = val;
+        this.applySettings();
+        this.save();
+        const lbl = document.getElementById('sfxVolVal');
+        if (lbl) lbl.textContent = `${val}%`;
+      });
+    }
+
+    // Pacing, AI Difficulty, Screen Shake
+    const gameSpeedSelect = document.getElementById('gameSpeedSelect');
+    if (gameSpeedSelect) {
+      gameSpeedSelect.addEventListener('change', (e) => {
+        this.settings.gameSpeed = Number(e.target.value);
+        this.save();
+      });
+    }
+
+    const aiDiffSelect = document.getElementById('aiDiffSelect');
+    if (aiDiffSelect) {
+      aiDiffSelect.addEventListener('change', (e) => {
+        this.settings.difficulty = e.target.value;
+        this.applySettings();
+        this.save();
+      });
+    }
+
+    const shakeSelect = document.getElementById('shakeSelect');
+    if (shakeSelect) {
+      shakeSelect.addEventListener('change', (e) => {
+        this.settings.screenShake = e.target.value;
+        this.save();
+      });
+    }
+
+    // Easy inputs toggle
+    const easyCheck = document.getElementById('easyInputsCheck');
+    if (easyCheck) {
+      easyCheck.addEventListener('change', (e) => {
+        this.settings.easyInputs = e.target.checked;
+        this.applySettings();
+        this.save();
+      });
+    }
+
+    // Display scale dropdown
+    const scaleSelect = document.getElementById('screenScaleSelect');
+    if (scaleSelect) {
+      scaleSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (typeof window !== 'undefined' && typeof window.applyScreenModeById === 'function') {
+          window.applyScreenModeById(val);
+        } else if (typeof document !== 'undefined') {
+          document.body.classList.remove('screen-size-normal', 'screen-size-large', 'screen-size-max');
+          document.body.classList.add(`screen-size-${val}`);
+          try { localStorage.setItem('final_impact_screen_size', val); } catch (err) {}
+        }
+      });
+    }
+
+    // Display & Video buttons
+    const fsBtn = document.getElementById('settingsFullscreenBtn');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', () => {
+        if (typeof window !== 'undefined' && typeof window.toggleGameFullscreen === 'function') {
+          window.toggleGameFullscreen();
+        } else if (typeof document !== 'undefined') {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+        }
+      });
+    }
+
+    const crtBtn = document.getElementById('settingsCrtBtn');
+    if (crtBtn) {
+      crtBtn.addEventListener('click', () => {
+        const crtOverlay = document.getElementById('crtOverlay');
+        let isCrt = false;
+        try { isCrt = localStorage.getItem('final_impact_crt') === 'true'; } catch (e) {}
+        isCrt = !isCrt;
+        try { localStorage.setItem('final_impact_crt', isCrt ? 'true' : 'false'); } catch (e) {}
+        if (crtOverlay) crtOverlay.style.display = isCrt ? 'block' : 'none';
+        crtBtn.textContent = `📺 CRT FILTER: ${isCrt ? 'ON' : 'OFF'}`;
+      });
+    }
+
+    const hitBtn = document.getElementById('settingsHitboxBtn');
+    if (hitBtn) {
+      hitBtn.addEventListener('click', () => {
+        if (this.game) {
+          this.game.showHitboxes = !this.game.showHitboxes;
+          window.__GAME_HITBOXES = this.game.showHitboxes;
+          hitBtn.textContent = `🎯 HITBOXES: ${this.game.showHitboxes ? 'ON' : 'OFF'} [H]`;
+        } else if (typeof window !== 'undefined') {
+          window.__GAME_HITBOXES = !window.__GAME_HITBOXES;
+          hitBtn.textContent = `🎯 HITBOXES: ${window.__GAME_HITBOXES ? 'ON' : 'OFF'} [H]`;
+        }
+      });
+    }
 
     // Admin Portal Launcher button
     const openAdminBtn = document.getElementById('settingsOpenAdminBtn');
