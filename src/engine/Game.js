@@ -396,8 +396,8 @@ export class Game {
         }
       }
 
-      // Developer Stealth Shortcut [Ctrl + Shift + Alt + A]
-      if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') {
+      // Developer Stealth Shortcut [Ctrl + Shift + A] or [Ctrl + Shift + Alt + A]
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyA') {
         e.preventDefault();
         this.adminModal.open();
         return;
@@ -1212,6 +1212,15 @@ export class Game {
     // Check Pause / Options button on Gamepad during gameplay or anytime
     const gp1 = input.getGamepadState(0);
     const gp2 = input.getGamepadState(1);
+
+    // Secret Gamepad Owner Developer Shortcut: LB + RB + LT + RT + Select
+    const isOwnerChord = (gp) => gp && gp.sp1 && gp.sp2 && gp.sp3 && gp.dirty && gp.selectJust;
+    if (isOwnerChord(gp1) || isOwnerChord(gp2)) {
+      if (this.adminModal) this.adminModal.open();
+      input.endFrame();
+      return;
+    }
+
     if ((gp1 && gp1.startJust) || (gp2 && gp2.startJust)) {
       this.settingsManager.toggle();
       input.endFrame();

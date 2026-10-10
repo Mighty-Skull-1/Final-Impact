@@ -597,11 +597,19 @@ export class CharacterSelect {
     ctx.fillText('FIGHTER PROFILE', W / 2, py0 + 13);
     if (lockedOf(fc)) {
       ctx.fillStyle = '#fde047'; ctx.font = 'bold 10px monospace';
-      ctx.fillText(fc.id === 'mighty' ? 'CLASSIFIED ADMIN FIGHTER' : 'FINAL BOSS', W / 2, py0 + 55);
-      ctx.fillStyle = '#f87171'; ctx.font = '9px monospace';
-      ctx.fillText(fc.id === 'mighty' ? '🔒 RESTRICTED: ADMIN ACCESS ONLY' : 'BEAT THE ENDLESS DRAGON', W / 2, py0 + 75);
-      ctx.fillStyle = '#94a3b8'; ctx.font = '8px monospace';
-      ctx.fillText(fc.id === 'mighty' ? 'LOG IN VIA ADMIN PORTAL [A]' : 'IN CAMPAIGN TO UNLOCK', W / 2, py0 + 92);
+      if (fc.id === 'mighty') {
+        ctx.fillText(isStealth ? 'ANCIENT PRIMORDIAL ENTITY' : 'CLASSIFIED ADMIN FIGHTER', W / 2, py0 + 55);
+        ctx.fillStyle = '#f87171'; ctx.font = '9px monospace';
+        ctx.fillText(isStealth ? '🔒 PRIMORDIAL POWER SEALED' : '🔒 RESTRICTED: ADMIN ACCESS ONLY', W / 2, py0 + 75);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '8px monospace';
+        ctx.fillText(isStealth ? 'SEALED IN RETRO VAULT' : 'LOG IN VIA ADMIN PORTAL [A]', W / 2, py0 + 92);
+      } else {
+        ctx.fillText('FINAL BOSS', W / 2, py0 + 55);
+        ctx.fillStyle = '#f87171'; ctx.font = '9px monospace';
+        ctx.fillText('BEAT THE ENDLESS DRAGON', W / 2, py0 + 75);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '8px monospace';
+        ctx.fillText('IN CAMPAIGN TO UNLOCK', W / 2, py0 + 92);
+      }
     } else {
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px monospace';
       ctx.fillText(fc.name, W / 2, py0 + 28);
@@ -687,15 +695,15 @@ export class CharacterSelect {
     const currentLocked = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
 
     if (currentLocked === 'mighty') {
-      ctx.fillStyle = 'rgba(120, 53, 15, 0.9)';
+      ctx.fillStyle = isStealth ? 'rgba(76, 29, 149, 0.9)' : 'rgba(120, 53, 15, 0.9)';
       ctx.fillRect(btnX, btnY, btnW, btnH);
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = isStealth ? '#a855f7' : '#f59e0b';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(btnX, btnY, btnW, btnH);
 
-      ctx.fillStyle = '#fde047';
+      ctx.fillStyle = isStealth ? '#e9d5ff' : '#fde047';
       ctx.font = 'bold 10px monospace';
-      ctx.fillText('🔒 M1GHTY IS LOCKED! PRESS [A] FOR ADMIN PORTAL', W / 2, btnY + 17);
+      ctx.fillText(isStealth ? '🔒 THIS FIGHTER IS CURRENTLY LOCKED' : '🔒 M1GHTY IS LOCKED! PRESS [A] FOR ADMIN PORTAL', W / 2, btnY + 17);
     } else if (currentLocked === 'dragon') {
       ctx.fillStyle = 'rgba(88, 28, 135, 0.9)';
       ctx.fillRect(btnX, btnY, btnW, btnH);
