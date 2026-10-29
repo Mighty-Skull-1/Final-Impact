@@ -265,6 +265,25 @@ export class Fighter {
     if (this.armorFlash > 0) this.armorFlash--;
     if (this.projectileCooldown > 0) this.projectileCooldown--;
 
+    // Rising specials (uppercuts / flash kicks) stay grounded for their first 3 frames so they
+    // connect on grounded opponents and can be comboed into from light attacks; then they launch.
+    if (this.ultimateStyle && this.state === FIGHTER_STATE.SPECIAL_2) {
+      if (this.stateTimer === 1 && !this.isGrounded && this.vy < -8) {
+        this._riseVy = this.vy;
+        this._riseVx = this.vx;
+        this.vy = 0;
+        this.vx = this.vx * 0.5;
+        this.isGrounded = true;
+      } else if (this.stateTimer === 4 && this._riseVy) {
+        this.vy = this._riseVy;
+        this.vx = this._riseVx;
+        this.isGrounded = false;
+        this._riseVy = 0;
+      }
+    } else if (this._riseVy) {
+      this._riseVy = 0;
+    }
+
     // Throw sequences are driven by the CombatDirector; fighters just hold the pose
     if (this.state === FIGHTER_STATE.THROW || this.state === FIGHTER_STATE.THROWN) {
       this.vx *= 0.7;
@@ -317,13 +336,17 @@ export class Fighter {
           });
         }
       }
+      if (se.effect === 'BURN' && se.duration % 20 === 0 && !this.isDead) {
+        this.health = Math.max(1, this.health - 5);
+        vfx.motes(this.x + 20, this.y - 80, 40, 70, { color: '#ff8a3d', count: 4, rise: 2.2, size: 2.4 });
+      }
       if (se.duration <= 0) {
         this.statusEffects.splice(i, 1);
       }
     }
 
     // 2. Adrenaline & Rage Threshold Check (HP <= 30%)
-    if (!this.isRageMode && this.health <= this.maxHealth * 0.30 && !this.isDead) {
+    if (!this.isRageMode && this.health <= this.maxHealth * (this.rageThreshold || 0.30) && !this.isDead) {
       this.isRageMode = true;
       soundFX.playRageIgnite();
       window.dispatchEvent(new CustomEvent('rage-ignited', { detail: { fighter: this } }));
@@ -587,6 +610,7 @@ export class Fighter {
           damage: 38, hitStun: 30, blockStun: 0, pushback: 0,
           height: ATTACK_HEIGHT.UNBLOCKABLE, hitType: HIT_TYPE.LIGHT, isUltimate: true
         }, { x: tx + (Math.random() - 0.5) * 18, y: ty + (Math.random() - 0.5) * 30 });
+        try { soundFX.playUltimateLock(); } catch (e) {}
         const ang = (u.hits % 3) - 1;
         vfx.slash(tx, ty, { r: 30 + u.hits * 2, dir: this.facingRight ? 1 : -1, color: glow, a0: -1.3 + ang * 0.6, a1: 1.1 + ang * 0.6, life: 10, w: 5 });
         if (style === 'dragon') vfx.burst(tx, ty, { color: '#ffb347', count: 6, speed: 4 });
@@ -1041,6 +1065,55 @@ export class Fighter {
 
   renderBattleDamage(ctx) {
     if (this.isDead) return;
+    if (this.health > this.maxHealth * 0.65) return;
+
+    // Rig sprites carry joint anchors per frame, so wounds follow the head / chest / knee through every
+    // pose (crouches, lunges, knock-down tumbles) instead of floating at fixed coordinates.
+    const shown = this.__animator && this.__animator.lastImg;
+    const A = shown && shown.__a;
+    if (A) {
+      const heavy = this.health <= this.maxHealth * 0.35;
+      const at = (p, fn) => {
+        ctx.save();
+        ctx.translate(Math.round(p[0]), Math.round(p[1]));
+        if (A.rot) ctx.rotate(A.rot);
+        fn();
+        ctx.restore();
+      };
+      const line = (x1, y1, x2, y2, w, c) => {
+        ctx.strokeStyle = c; ctx.lineWidth = w;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      };
+      // Level 1 (HP <= 65%): cheek scrape, bruise, torn fabric, knee scrape
+      at(A.head, () => {
+        ctx.fillStyle = 'rgba(180, 40, 60, 0.75)';
+        ctx.fillRect(2, 2, 4, 1);
+        ctx.fillStyle = 'rgba(100, 30, 90, 0.6)';
+        ctx.fillRect(-3, -4, 4, 2);
+        if (heavy) {
+          // Level 2 (HP <= 35%): swollen eye + split lip
+          ctx.fillStyle = 'rgba(50, 15, 70, 0.8)';
+          ctx.fillRect(4, -3, 5, 4);
+          ctx.fillStyle = '#b71c1c';
+          ctx.fillRect(3, 5, 2, 4);
+          ctx.fillStyle = '#e53935';
+          ctx.fillRect(4, 7, 1, 3);
+        }
+      });
+      at(A.chest, () => {
+        line(-6, -4, 5, 2, 1.5, 'rgba(220, 50, 50, 0.7)');
+        if (heavy) {
+          line(-8, -8, 8, 0, 2, '#c62828');
+          line(-4, -10, 3, 6, 2, '#c62828');
+        }
+      });
+      at(A.knee, () => {
+        ctx.fillStyle = 'rgba(120, 50, 40, 0.7)';
+        ctx.fillRect(-3, -1, 6, 2);
+        if (heavy) line(-8, -6, 3, -2, 2, '#b71c1c');
+      });
+      return;
+    }
 
     // Level 1 Visual Damage (HP <= 65%)
     if (this.health <= this.maxHealth * 0.65) {
@@ -1104,6 +1177,11 @@ export class Fighter {
   render(ctx) {
     // 1. Render Dash / Ultimate Afterimages
     this.afterImages.forEach(ghost => {
+      // Afterimages are recorded from the key pose; swap in the motion frame that was actually on screen
+      if (!ghost.__mv && this.__animator && this.__animator.lastImg) {
+        ghost.img = this.__animator.lastImg;
+        ghost.__mv = true;
+      }
       ctx.save();
       ctx.globalAlpha = ghost.alpha;
       if (!ghost.facingRight) {
@@ -1184,6 +1262,18 @@ export class Fighter {
 
     if (!currentImg) return;
 
+    // Motion layer (render-only): animFrame still selects the key pose; the animator picks the matching
+    // pre-rendered in-between (anticipation / smear / overshoot / follow-through / reactions) and returns
+    // procedural offsets. It never writes gameplay state.
+    let vis = null;
+    if (spriteGenerator.createAnimator) {
+      if (!this.__animator) {
+        Object.defineProperty(this, '__animator', { value: spriteGenerator.createAnimator(), writable: true, configurable: true, enumerable: false });
+      }
+      try { vis = this.__animator.update(this, frames, currentImg); } catch (e) { vis = null; }
+    }
+    const bodyImg = (vis && vis.img) || currentImg;
+
     // Soft contact shadow (shrinks as the fighter leaves the ground)
     {
       const lift = Math.max(0, 300 - this.y);
@@ -1210,6 +1300,26 @@ export class Fighter {
       ctx.translate(this.x, drawY);
     }
 
+    // Procedural motion in sprite space (+x = the way the fighter faces), so mirroring stays correct
+    if (vis) {
+      if (vis.ox || vis.oy) ctx.translate(vis.ox, vis.oy);
+      if (vis.sx !== 1 || vis.sy !== 1) {
+        // squash & stretch anchored at the feet so the fighter never leaves its ground line
+        ctx.translate(40, 89);
+        ctx.scale(vis.sx, vis.sy);
+        ctx.translate(-40, -89);
+      }
+      // motion-blur ghosts of the previous pose on fast strikes
+      if (vis.ghosts) {
+        for (const g of vis.ghosts) {
+          if (!g.img) continue;
+          ctx.globalAlpha = g.alpha;
+          ctx.drawImage(g.img, g.dx || 0, 0);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
     if (this.armorFlash > 0) {
       ctx.filter = 'brightness(2.5)';
     } else if (this.hitFlash > 0) {
@@ -1219,7 +1329,7 @@ export class Fighter {
       ctx.filter = 'brightness(1.6) sepia(1) saturate(4) hue-rotate(5deg)';
     }
 
-    ctx.drawImage(currentImg, 0, 0);
+    ctx.drawImage(bodyImg, 0, 0);
 
     ctx.filter = 'none';
 

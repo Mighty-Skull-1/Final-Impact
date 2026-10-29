@@ -150,8 +150,7 @@ export class Zephyr extends Fighter {
   startWindmillKick() {
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playWhoosh('heavy');
-    this.isInvincible = true;
-    setTimeout(() => { this.isInvincible = false; }, 66);
+    this.isInvincible = true; // brief start-up invincibility, ended on frame 4 (frame-based, not wall-clock)
     this.vx = (this.facingRight ? 1 : -1) * 3;
   }
 
@@ -293,6 +292,7 @@ export class Zephyr extends Fighter {
 
       // SPECIAL 1: WINDMILL KICK
       case FIGHTER_STATE.SPECIAL_1:
+        if (this.stateTimer === 4) this.isInvincible = false;
         if (this.stateTimer <= 4) { this.animFrame = 0; }
         else if (this.stateTimer <= 15) {
           this.animFrame = 1 + (this.stateTimer % 3);

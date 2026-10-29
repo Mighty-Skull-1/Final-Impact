@@ -9,3 +9,4 @@ src/admin/
 dist/*.map
 dist-exe/
 build-exe/
+builds/

@@ -45,6 +45,9 @@ import { eldenManager } from '../elden/EldenRingMechanics.js';
 import { CampaignDialogue } from '../combat/CampaignDialogue.js';
 import { achievements } from './Achievements.js';
 import { CombatDirector } from '../combat/CombatSystem.js';
+import { TrainingController } from '../modes/TrainingMode.js';
+import { dailyChallenges } from '../modes/Challenges.js';
+import { EndingScreen } from '../modes/Endings.js';
 import { vfx } from '../graphics/VFX.js';
 import { COLORS as THEME_COLORS, FONTS, ease, drawBackdrop, drawSlantPanel, drawText, drawTitleText, drawKeyCap, drawPromptBar, hexToRgba } from '../ui/Theme.js';
 
@@ -60,7 +63,9 @@ export const GAME_SCREENS = {
   ROUND_OVER: 'ROUND_OVER',
   VICTORY: 'VICTORY',
   SHOP: 'SHOP',
-  SITE_OF_GRACE: 'SITE_OF_GRACE'
+  SITE_OF_GRACE: 'SITE_OF_GRACE',
+  CHALLENGES: 'CHALLENGES',
+  ENDING: 'ENDING'
 };
 
 export class Game {
@@ -96,6 +101,10 @@ export class Game {
     this.elden = eldenManager;
     this.announcer = announcer;
     this.combat = new CombatDirector(this);
+    this.training = new TrainingController(this);
+    this.challenges = dailyChallenges;
+    this.ending = new EndingScreen();
+    this.isTutorial = false;
     this.vfx = vfx;
     this.camZoom = 1.0;
     this.camTop = 0;
@@ -120,7 +129,7 @@ export class Game {
           if (cat && cat.ultimate) {
             detail.ultimateName = String(cat.ultimate.name || '').toUpperCase();
             detail.kanji = cat.ultimate.kanji || detail.kanji;
-            detail.subtitle = detail.subtitle || (cat.title ? `${cat.title} // SECRET ART` : 'SECRET ART');
+            detail.subtitle = cat.title ? `${cat.title} // SECRET ART` : (detail.subtitle || 'SECRET ART');
           }
           if (this.hud && typeof this.hud.triggerUltimateCinematic === 'function') this.hud.triggerUltimateCinematic(detail);
           if (this.screen === GAME_SCREENS.FIGHT) this.combat.onUltimate(f);
@@ -408,6 +417,11 @@ export class Game {
         return;
       }
 
+      if (e.code === 'KeyF' && this.isTraining && (this.screen === GAME_SCREENS.FIGHT) && this.training) {
+        e.preventDefault();
+        this.training.toggleMenu();
+        return;
+      }
       if (e.code === 'KeyH') {
         this.showHitboxes = !this.showHitboxes;
         window.__GAME_HITBOXES = this.showHitboxes;
@@ -493,6 +507,11 @@ export class Game {
   handleConfirmPress() {
     soundFX.ensureContext();
 
+    if (this.screen === GAME_SCREENS.ENDING) {
+      this.ending.advance();
+      return;
+    }
+
     if (this.screen === GAME_SCREENS.TITLE) {
       soundFX.playGong();
       this.screen = GAME_SCREENS.MODE_SELECT;
@@ -509,6 +528,15 @@ export class Game {
       if (this.modeSelect.selectedMode === 'settings') {
         this.settingsManager.open();
         soundFX.playMenuSelect();
+        return;
+      }
+      if (this.modeSelect.selectedMode === 'challenges') {
+        this.screen = GAME_SCREENS.CHALLENGES;
+        soundFX.playMenuSelect();
+        return;
+      }
+      if (this.modeSelect.selectedMode === 'tutorial') {
+        this.startTutorial();
         return;
       }
       if (this.modeSelect.selectedMode === 'shop') {
@@ -652,6 +680,15 @@ export class Game {
       }
       return;
     }
+    if (this.screen === GAME_SCREENS.CHALLENGES) {
+      soundFX.playWhoosh('light');
+      this.screen = GAME_SCREENS.MODE_SELECT;
+      return;
+    }
+    if (this.screen === GAME_SCREENS.ENDING) {
+      this.ending.advance();
+      return;
+    }
     if (this.screen === GAME_SCREENS.SHOP) {
       soundFX.playWhoosh('light');
       this.screen = GAME_SCREENS.MODE_SELECT;
@@ -697,6 +734,7 @@ export class Game {
   initVictoryScreen() {
     if (this.finish) this.finish.reset();
     soundFX.stopMusic();
+    try { soundFX.startMusic('victory'); } catch (e) {}
     this.screen = GAME_SCREENS.VICTORY;
     this.victoryAnim = 0;
     this.victoryMenuIndex = 0;
@@ -828,6 +866,7 @@ export class Game {
 
   startMatch(isRematch = false) {
     soundFX.stopMusic();
+    if (this.charSelect.gameMode !== 'training') this.isTutorial = false;
     if (this.combat) this.combat.resetMatchStats();
     const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
     const stageId = this.charSelect.stages[this.charSelect.stageIndex].id;
@@ -879,7 +918,7 @@ export class Game {
       this.allFighters = [this.f1, this.f2];
 
       if (this.isTraining) {
-        this.ai.setDifficulty('dummy');
+        this.ai.setDifficulty('normal'); // used when the dummy is set to "CPU fights back"
       } else if (!this.isOnline) {
         this.ai.setDifficulty(this.charSelect.cpuDifficulty || 'normal');
       }
@@ -932,11 +971,12 @@ export class Game {
 
   startFight() {
     this.screen = GAME_SCREENS.FIGHT;
+    if (this.isTraining && this.training) this.training.startSession({ tutorial: !!this.isTutorial });
     this.combat.resetRound();
     this.cameraZoom = 1.0;
     this.targetCameraZoom = 1.0;
     this.updateCamera(true);
-    soundFX.startMusic('fight');
+    soundFX.startMusic(this.isCampaign ? 'boss' : 'fight');
     soundFX.playAnnouncer('ROUND1');
     try { this.announcer.round1(); } catch (e) {}
   }
@@ -1244,6 +1284,24 @@ export class Game {
     soundFX.playAnnouncer(this.round === 2 ? 'ROUND2' : 'FINALROUND');
   }
 
+  // Daily challenge progress (never counts in Training / Tutorial)
+  recordChallenge(event, info = {}) {
+    if (this.isTraining || !this.challenges) return;
+    try { this.challenges.record(event, info); } catch (e) {}
+  }
+
+  // Guided tutorial: Kazuki vs a training dummy in the Thunder Dojo
+  startTutorial() {
+    const cs = this.charSelect;
+    cs.setMode('training', 'normal');
+    cs.p1Index = Math.max(0, cs.characters.findIndex(c => c.id === 'kazuki'));
+    cs.p2Index = Math.max(0, cs.characters.findIndex(c => c.id === 'raven'));
+    const dojo = (cs.stages || []).findIndex(st => st.id === 'thunder_dojo');
+    cs.stageIndex = dojo >= 0 ? dojo : 0;
+    this.isTutorial = true;
+    this.startMatch();
+  }
+
   getAIFor(fighter) {
     if (!fighter) return null;
     if (fighter === this.f2) return this.ai;
@@ -1267,9 +1325,20 @@ export class Game {
     return nearest || (fighter.team === 1 ? this.f2 : this.f1);
   }
 
+  // Menu music on front-end screens (fight/boss/victory tracks are started by their screens)
+  syncMusic() {
+    const menuScreens = [GAME_SCREENS.MODE_SELECT, GAME_SCREENS.CHAR_SELECT, GAME_SCREENS.STAGE_SELECT, GAME_SCREENS.SHOP,
+      GAME_SCREENS.CHALLENGES, GAME_SCREENS.ONLINE_LOBBY];
+    if (!menuScreens.includes(this.screen) || !soundFX.ctx) return;
+    if (!soundFX.musicPlaying || soundFX.currentTrack !== 'menu') {
+      try { soundFX.startMusic('menu'); } catch (e) {}
+    }
+  }
+
   update() {
     // 1. Always poll Gamepads at the start of every frame
     input.pollGamepads();
+    if ((this._musicTick = (this._musicTick || 0) + 1) % 30 === 0) this.syncMusic();
 
     // Achievements update & notification handling
     if (this.achievements) {
@@ -1604,23 +1673,54 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.CHALLENGES) {
+      if (menuNav && menuNav.back) this.handleBackPress();
+      input.endFrame();
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.ENDING) {
+      if (menuNav && (menuNav.confirm || menuNav.start)) this.ending.advance();
+      input.endFrame();
+      return;
+    }
+
     // Game Speed scaling ("Turn down the game" - 50% slow-mo, 75% relaxed)
     this.gameSpeedTick++;
     const speed = this.settingsManager.settings.gameSpeed;
     if (speed === 50 && this.gameSpeedTick % 2 !== 0) return;
     if (speed === 75 && this.gameSpeedTick % 4 === 0) return;
 
-    // Training Mode Infinite Resources
-    if (this.isTraining) {
-      if (this.f1) {
-        this.f1.health = this.f1.maxHealth;
-        this.f1.stamina = this.f1.maxStamina;
-        this.f1.superMeter = this.f1.maxSuperMeter;
+    // Training lab: settings menu pauses the fight; resources follow the lab settings
+    if (this.isTraining && this.training) {
+      if (this.training.isPaused()) {
+        const nav = input.getAnyMenuNav() || {};
+        const kb = {
+          up: input.isJustPressed('KeyW') || input.isJustPressed('ArrowUp') || nav.up,
+          down: input.isJustPressed('KeyS') || input.isJustPressed('ArrowDown') || nav.down,
+          left: input.isJustPressed('KeyA') || input.isJustPressed('ArrowLeft') || nav.left,
+          right: input.isJustPressed('KeyD') || input.isJustPressed('ArrowRight') || nav.right,
+          confirm: input.isJustPressed('Enter') || input.isJustPressed('Space') || nav.confirm,
+          back: input.isJustPressed('Escape') || nav.back
+        };
+        this.training.updateMenu(kb);
+        input.endFrame();
+        return;
       }
-      if (this.f2) {
-        this.f2.health = this.f2.maxHealth;
-        this.f2.stamina = this.f2.maxStamina;
+      if (gp1 && gp1.selectJust) this.training.toggleMenu();
+      if (this.isTutorial && this.training.tutorial) {
+        const skip = input.isJustPressed('Enter') || (gp1 && gp1.selectJust);
+        if (this.training.tutorial.finished) {
+          if (input.isJustPressed('Enter') || input.isJustPressed('Space') || (menuNav && menuNav.confirm)) {
+            input.endFrame();
+            this.leaveGame('MODE_SELECT');
+            return;
+          }
+        } else if (skip) {
+          this.training.skipLesson();
+        }
       }
+      this.training.applyResources();
     }
 
     // Administrator Combat Testing Cheats (Offline / Dev mode)
@@ -1675,7 +1775,8 @@ export class Game {
       this.updateOnlineMatch();
     } else {
       // 2. Process Player 1 Inputs
-      const p1Input = input.getState(1, this.f1.facingRight);
+      const p1Raw = input.getState(1, this.f1.facingRight);
+      const p1Input = (this.isTraining && this.training) ? this.training.playerInput(p1Raw) : p1Raw;
       const targetForP1 = this.getNearestOpponent(this.f1);
       this.f1.handleInput(p1Input, input, targetForP1);
 
@@ -1692,7 +1793,7 @@ export class Game {
         let p2Input;
         const targetForF2 = this.getNearestOpponent(this.f2);
         if (this.f2.isCpu) {
-          p2Input = this.ai.update(this.f2, targetForF2);
+          p2Input = (this.isTraining && this.training) ? this.training.dummyInput(this.f2, targetForF2, this.ai) : this.ai.update(this.f2, targetForF2);
           if (this.f2.state === FIGHTER_STATE.SUBMISSION_LOCK) {
             this.f2.submissionStruggle = Math.min(100, (this.f2.submissionStruggle || 0) + 1.2);
           }
@@ -1767,6 +1868,7 @@ export class Game {
 
     // 9b. Throws, cooldowns, ability FX
     this.combat.postUpdate();
+    if (this.isTraining && this.training) this.training.update();
 
     // 10. Update Projectiles & Pickups
     this.updateProjectiles();
@@ -2314,6 +2416,7 @@ export class Game {
         this.hud.triggerShake(8 * this.combat.shakeMult());
         vfx.hitSpark(isLeftWall ? fighter.x + 20 : fighter.x + 60, fighter.y - 45, { dir: isLeftWall ? 1 : -1, heavy: true, color: '#ffffff' });
         vfx.popup(fighter.x + 40, fighter.y - 105, 'WALL BOUNCE', { color: '#4ade80', size: 12 });
+        try { soundFX.playWallBounce(); } catch (e) {}
         this.combat.addFreeze(8);
         soundFX.playCrowdCheer();
       }
@@ -2350,6 +2453,7 @@ export class Game {
                     this.combat.addFreeze(14);
                     this.triggerCameraZoom(1.16, 50);
                     this.hud.triggerShake(9 * this.combat.shakeMult());
+                    try { soundFX.playStanceBreak(); } catch (e) {}
                     vfx.popup(defender.x + 40, defender.y - 104, 'STANCE BREAK', { color: '#ffe066', size: 13, life: 45, rise: 0.35 });
                     vfx.burst(defender.x + 40, defender.y - 50, { color: '#ffe066', count: 22, speed: 6 });
                   }
@@ -2377,12 +2481,19 @@ export class Game {
 
       for (const target of this.allFighters) {
         if (target !== p.owner && target.team !== p.owner?.team && !target.isDead) {
+          if (typeof target.isProjectileInvulnerable === 'function' && target.isProjectileInvulnerable()) continue;
+          if (p.hitTargets && p.hitTargets.has(target)) continue;
           const targetHurtboxes = target.getGlobalHurtboxes();
           let hitTarget = false;
           for (const hurt of targetHurtboxes) {
             if (HitboxSystem.testOverlap(pHit, hurt)) {
               hitTarget = true;
-              p.destroy();
+              if (p.pierce) {
+                p.hitTargets = p.hitTargets || new Set();
+                p.hitTargets.add(target);
+              } else {
+                p.destroy();
+              }
 
               this.combat.resolveProjectile(p, target);
               break;
@@ -2397,8 +2508,11 @@ export class Game {
         const other = this.projectiles[j];
         if (p !== other && p.owner?.team !== other.owner?.team && p.active && other.active) {
           if (HitboxSystem.testOverlap(pHit, other.getHitbox())) {
-            p.destroy();
-            other.destroy();
+            // Heavier projectiles (durability > 1) survive a clash
+            const pd = p.durability || 1, od = other.durability || 1;
+            if (pd > od) { p.durability = pd - od; other.destroy(); }
+            else if (od > pd) { other.durability = od - pd; p.destroy(); }
+            else { p.destroy(); other.destroy(); }
             const cx = (p.x + p.width / 2 + other.x + other.width / 2) / 2;
             const cy = (p.y + p.height / 2 + other.y + other.height / 2) / 2;
             vfx.hitSpark(cx, cy, { dir: 1, heavy: true, color: '#ffffff' });
@@ -2529,6 +2643,7 @@ export class Game {
             } else {
               EconomyManager.addCoins(100);
             }
+            this.recordChallenge('campaignStage');
 
             this.bossIndex++;
             if (this.bossIndex < this.bossQueue.length) {
@@ -2559,9 +2674,28 @@ export class Game {
                   type: 'CAMPAIGN_VICTORY'
                 });
               }
-              this.initVictoryScreen();
+              this.recordChallenge('matchWin', { fighter: this.f1.id });
+              const champSkin = `${this.f1.id}_champion`;
+              const newSkin = EconomyManager.grantSkin(champSkin);
+              try {
+                const clears = JSON.parse(localStorage.getItem('final_impact_campaign_clears') || '{}');
+                clears[this.f1.id] = true;
+                localStorage.setItem('final_impact_campaign_clears', JSON.stringify(clears));
+              } catch (e) {}
+              if (newSkin) {
+                try { this.achievements.toast({ icon: '👑', header: 'NEW SKIN EARNED', title: 'CHAMPION REGALIA', desc: `Equip it on ${this.f1.name} in the Item Shop.` }); } catch (e) {}
+              }
               this.winner = this.f1;
               soundFX.playAnnouncer('YOU_WIN');
+              if (!this.isCoopCampaign) {
+                this.ending.start(this.f1, () => {
+                  this.initVictoryScreen();
+                  this.winner = this.f1;
+                });
+                this.screen = GAME_SCREENS.ENDING;
+              } else {
+                this.initVictoryScreen();
+              }
             }
           } else {
             // Player lost campaign
@@ -2585,7 +2719,7 @@ export class Game {
         this.hud.setAnnouncement('TEAM K.O.', 120);
         this.hud.triggerShake(14);
         this.winner = team2Dead ? this.f1 : this.f2;
-        if (team2Dead) EconomyManager.addCoins(150);
+        if (team2Dead) { EconomyManager.addCoins(150); this.recordChallenge('matchWin', { fighter: this.f1.id }); }
         soundFX.stopMusic();
       }
 
@@ -2615,6 +2749,12 @@ export class Game {
         this.f1.roundsWon++;
         this.f1.changeState(FIGHTER_STATE.VICTORY);
         EconomyManager.addCoins(50); // Round win reward
+        if (this.f1.health >= this.f1.maxHealth) this.recordChallenge('flawlessRound');
+        if (this.f1.roundsWon >= 2) {
+          this.recordChallenge('matchWin', { fighter: this.f1.id });
+          const diff = this.charSelect.cpuDifficulty;
+          if (this.f2.isCpu && (diff === 'hard' || diff === 'nightmare')) this.recordChallenge('hardWin');
+        }
       } else if (this.f2.health > this.f1.health) {
         this.f2.roundsWon++;
         this.f2.changeState(FIGHTER_STATE.VICTORY);
@@ -2830,6 +2970,17 @@ export class Game {
       return;
     }
 
+    if (this.screen === GAME_SCREENS.CHALLENGES) {
+      this.challenges.render(ctx, W, H, input.hasGamepadConnected && input.hasGamepadConnected());
+      return;
+    }
+
+    if (this.screen === GAME_SCREENS.ENDING) {
+      this.ending.render(ctx, W, H, input.hasGamepadConnected && input.hasGamepadConnected());
+      if (this.achievements) this.achievements.render(ctx, W, H);
+      return;
+    }
+
     // FIGHT & ROUND_OVER
     ctx.save();
     const shake = this.hud.getShakeOffset();
@@ -2887,6 +3038,7 @@ export class Game {
     // 3. Render HUD (Health, Stamina, Timer, Super, Announcements)
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
     this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4, this);
+    if (this.isTraining && this.training) this.training.render(ctx, W, H);
 
     // 4. FINISH HIM overlay (text, letterbox, impact flash)
     if (this.finish && this.finish.active) {

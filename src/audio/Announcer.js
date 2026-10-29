@@ -1,12 +1,14 @@
-// Final Impact - Arcade Announcer Voice & Sound Synthesizer
-// Provides punchy digitized vocal announcements for Mortal Kombat style events,
-// round intros, fatalities, and Elden Ring victory/defeat banners.
+// Final Impact - Arcade Announcer
+// Deep, slow, dramatic speech-synthesis voice (best deep English voice available)
+// layered over synthetic reverb "stingers" from SoundFX. Fails silently wherever
+// speechSynthesis is missing (Node tests / some Electron builds) — the stingers still play.
 
 import { soundFX } from './SoundFX.js';
+import { pickDeepVoice, speakLine, recentlySpoken } from './AnnouncerVoice.js';
 
 export class Announcer {
   constructor() {
-    this.speechAvailable = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    this.speechAvailable = typeof window !== 'undefined' && !!window && 'speechSynthesis' in window;
     this.voice = null;
     this.initVoice();
   }
@@ -14,93 +16,110 @@ export class Announcer {
   initVoice() {
     if (!this.speechAvailable) return;
     const findVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      // Look for a deep English voice
-      this.voice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Male') || v.name.includes('David') || v.name.includes('Google US English') || v.name.includes('Natural'))) ||
-                   voices.find(v => v.lang.startsWith('en')) ||
-                   voices[0] || null;
+      try {
+        this.voice = pickDeepVoice(window.speechSynthesis.getVoices());
+      } catch (e) {}
     };
     findVoice();
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = findVoice;
-    }
+    try {
+      if (typeof window.speechSynthesis.addEventListener === 'function') {
+        window.speechSynthesis.addEventListener('voiceschanged', findVoice);
+      } else {
+        window.speechSynthesis.onvoiceschanged = findVoice;
+      }
+    } catch (e) {}
   }
 
-  speak(text, { pitch = 0.55, rate = 0.95, volume = 1.0 } = {}) {
+  speak(text, { pitch = 0.45, rate = 0.82, volume = 1.0 } = {}) {
     if (!this.speechAvailable) return;
     try {
-      window.speechSynthesis.cancel(); // Stop overlapping speech
-      const utt = new SpeechSynthesisUtterance(text);
-      if (this.voice) utt.voice = this.voice;
-      utt.pitch = pitch; // Deep authoritative tone
-      utt.rate = rate;   // Punchy arcade cadence
-
+      // The same line was just triggered via soundFX.playAnnouncer() — don't restart it
+      if (recentlySpoken(text, 400)) return;
       const master = (soundFX && typeof soundFX.getMasterVolume === 'function') ? soundFX.getMasterVolume() : 0.8;
       const sfx = (soundFX && typeof soundFX.getSFXVolume === 'function') ? soundFX.getSFXVolume() : 0.9;
       const effectiveVol = Math.max(0, Math.min(1, volume * master * sfx));
       if (effectiveVol <= 0.001) return; // Silent if volume muted
+      if (!this.voice) {
+        try { this.voice = pickDeepVoice(window.speechSynthesis.getVoices()); } catch (e) {}
+      }
+      speakLine(text, { pitch, rate, volume: effectiveVol, voice: this.voice || null });
+    } catch (e) {}
+  }
 
-      utt.volume = effectiveVol;
-      window.speechSynthesis.speak(utt);
+  stinger(kind, delay = 0) {
+    try {
+      if (soundFX && typeof soundFX.playAnnouncerStinger === 'function') soundFX.playAnnouncerStinger(kind, delay);
     } catch (e) {}
   }
 
   // --- MORTAL KOMBAT STYLE CALLS ---
   round1() {
-    this.speak('Round 1... Fight!', { pitch: 0.5, rate: 0.9 });
-    try { soundFX.playAnnouncer('FIGHT'); } catch (e) {}
+    this.speak('Round one... Fight!', { pitch: 0.45, rate: 0.8 });
+    this.stinger('ROUND');
+    this.stinger('FIGHT', 1.35);
   }
 
   round2() {
-    this.speak('Round 2... Fight!', { pitch: 0.5, rate: 0.9 });
-    try { soundFX.playAnnouncer('FIGHT'); } catch (e) {}
+    this.speak('Round two... Fight!', { pitch: 0.45, rate: 0.8 });
+    this.stinger('ROUND');
+    this.stinger('FIGHT', 1.35);
   }
 
   finalRound() {
-    this.speak('Final Round... Fight!', { pitch: 0.45, rate: 0.85 });
-    try { soundFX.playAnnouncer('FIGHT'); } catch (e) {}
+    this.speak('Final round... Fight!', { pitch: 0.4, rate: 0.78 });
+    this.stinger('FINAL');
+    this.stinger('FIGHT', 1.5);
   }
 
   finishHim() {
-    this.speak('Finish Him!', { pitch: 0.42, rate: 0.85 });
-    try { soundFX.playAnnouncer('FINISH_HIM'); } catch (e) {}
+    this.speak('Finish him!', { pitch: 0.38, rate: 0.8 });
+    this.stinger('FINISH');
   }
 
   fatality() {
-    this.speak('Fatality!', { pitch: 0.38, rate: 0.8 });
+    this.speak('Fatality!', { pitch: 0.34, rate: 0.75 });
+    this.stinger('FATALITY');
   }
 
   stageFatality() {
-    this.speak('Stage Fatality!', { pitch: 0.38, rate: 0.8 });
+    this.speak('Stage Fatality!', { pitch: 0.34, rate: 0.75 });
+    this.stinger('FATALITY');
   }
 
   brutality() {
-    this.speak('Brutality!', { pitch: 0.38, rate: 0.85 });
+    this.speak('Brutality!', { pitch: 0.36, rate: 0.8 });
+    this.stinger('FATALITY');
   }
 
   flawlessVictory() {
-    this.speak('Flawless Victory!', { pitch: 0.45, rate: 0.85 });
+    this.speak('Flawless Victory!', { pitch: 0.42, rate: 0.8 });
+    this.stinger('WIN');
   }
 
   testYourMight() {
-    this.speak('Test Your Might!', { pitch: 0.48, rate: 0.85 });
+    this.speak('Test Your Might!', { pitch: 0.44, rate: 0.8 });
+    this.stinger('ROUND');
   }
 
   // --- ELDEN RING ATMOSPHERIC CALLS ---
   youDied() {
-    this.speak('You Died', { pitch: 0.3, rate: 0.65 });
+    this.speak('You Died', { pitch: 0.28, rate: 0.62 });
+    this.stinger('DIED');
   }
 
   greatEnemyFelled() {
-    this.speak('Great Enemy Felled', { pitch: 0.42, rate: 0.8 });
+    this.speak('Great Enemy Felled', { pitch: 0.4, rate: 0.75 });
+    this.stinger('FELLED');
   }
 
   legendFelled() {
-    this.speak('Legend Felled', { pitch: 0.38, rate: 0.75 });
+    this.speak('Legend Felled', { pitch: 0.36, rate: 0.72 });
+    this.stinger('FELLED');
   }
 
   godSlain() {
-    this.speak('God Slain', { pitch: 0.35, rate: 0.7 });
+    this.speak('God Slain', { pitch: 0.32, rate: 0.66 });
+    this.stinger('GOD');
   }
 }
 

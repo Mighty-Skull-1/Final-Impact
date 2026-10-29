@@ -852,57 +852,45 @@ export class InputManager {
     }
   }
 
-  // Lenient Special Motion Checkers (QCF, DP, QCB)
+  // Special motion checkers (QCF, DP, QCB).
+  // They require a real down → forward/back roll, so simply holding down-forward or
+  // down-back (crouch blocking) and pressing a button gives a normal attack, not a special.
+  findInBuffer(buf, from, maxLen, test) {
+    for (let i = from; i < Math.min(maxLen, buf.length); i++) {
+      if (test(buf[i].dir)) return i;
+    }
+    return -1;
+  }
+
   checkQCF(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 2) return false;
-
-    let foundFwd = false;
-    for (let i = 0; i < Math.min(18, buf.length); i++) {
-      const d = buf[i].dir;
-      if (!foundFwd && (d === 6 || d === 3)) {
-        foundFwd = true;
-      } else if (foundFwd && (d === 2 || d === 1 || d === 3)) {
-        return true;
-      }
-    }
-    return false;
+    if (buf.length < 3) return false;
+    // newest: forward (6) within the last few frames, earlier: pure down (2)
+    const fwd = this.findInBuffer(buf, 0, 6, d => d === 6);
+    if (fwd < 0) return false;
+    const down = this.findInBuffer(buf, fwd + 1, fwd + 16, d => d === 2);
+    return down >= 0;
   }
 
   checkDP(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 3) return false;
-
-    // DP: Forward -> Down -> Down-Forward (or Forward -> Down -> Forward on keyboard)
-    // Checking backwards in time from newest frame:
-    let step = 0; // 0: looking for final 6 or 3; 1: looking for 2, 1, or 3; 2: looking for initial 6 or 3
-    for (let i = 0; i < Math.min(22, buf.length); i++) {
-      const d = buf[i].dir;
-      if (step === 0) {
-        if (d === 6 || d === 3) step = 1;
-      } else if (step === 1) {
-        if (d === 2 || d === 1 || d === 3) step = 2;
-      } else if (step === 2) {
-        if (d === 6 || d === 3) return true;
-      }
-    }
-    return false;
+    if (buf.length < 4) return false;
+    // forward (6) → down (2) → down-forward (3) / forward; newest first
+    const last = this.findInBuffer(buf, 0, 6, d => d === 3 || d === 6);
+    if (last < 0) return false;
+    const down = this.findInBuffer(buf, last + 1, last + 14, d => d === 2 || d === 1);
+    if (down < 0) return false;
+    const first = this.findInBuffer(buf, down + 1, down + 14, d => d === 6);
+    return first >= 0;
   }
 
   checkQCB(playerNum = 1) {
     const buf = playerNum === 1 ? this.p1Buffer : this.p2Buffer;
-    if (buf.length < 2) return false;
-
-    let foundBack = false;
-    for (let i = 0; i < Math.min(18, buf.length); i++) {
-      const d = buf[i].dir;
-      if (!foundBack && (d === 4 || d === 1)) {
-        foundBack = true;
-      } else if (foundBack && (d === 2 || d === 3 || d === 1)) {
-        return true;
-      }
-    }
-    return false;
+    if (buf.length < 3) return false;
+    const back = this.findInBuffer(buf, 0, 6, d => d === 4);
+    if (back < 0) return false;
+    const down = this.findInBuffer(buf, back + 1, back + 16, d => d === 2);
+    return down >= 0;
   }
 
   checkDownDownPunch(playerNum = 1) {

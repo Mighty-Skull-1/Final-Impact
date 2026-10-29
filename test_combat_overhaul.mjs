@@ -218,4 +218,41 @@ console.log('\n[SECTION 8] CPU AI');
   ok(typeof s2 === 'object' && 'throwJust' in s2 && 'ultimateJust' in s2, 'AI emits a complete input state');
 }
 
+// 9. Roster kits
+console.log('\n[SECTION 9] Unique roster kits');
+{
+  const { ROSTER_CLASSES, ROSTER_KITS } = await import('./src/fighters/RosterFighters.js');
+  ok(Object.keys(ROSTER_KITS).length === 12, 'All 12 roster fighters have a unique kit');
+  const game = makeGame();
+  const glacier = new ROSTER_CLASSES.glacier({ x: 300, facingRight: true, playerNum: 1 });
+  const b = new Raven({ x: 360, facingRight: false, playerNum: 2, isCpu: true });
+  game.allFighters = [glacier, b]; game.combat.resetRound();
+  game.combat.applyHit(glacier, b, { damage: 60, hitStun: 20, height: ATTACK_HEIGHT.HIGH, hitType: HIT_TYPE.HEAVY, effect: 'chill' }, { x: 0, y: 0 });
+  game.combat.postUpdate();
+  ok(b.chillTimer > 0 && b.walkSpeed < b._baseWalk, 'Chill slows the victim');
+  const warden = new ROSTER_CLASSES.warden({ x: 300, facingRight: true, playerNum: 2 });
+  ok(warden.damageTakenMult === 0.9 && warden.chipTakenMult === 0, 'Warden passive: damage reduction & no chip');
+  const convict = new ROSTER_CLASSES.convict({ x: 300, facingRight: true, playerNum: 1 });
+  convict.changeState(FIGHTER_STATE.SPECIAL_3, true);
+  convict.stateTimer = 2;
+  ok(convict.takeHit(jab(), 1) === 'armored', 'Convict Cell Rush absorbs a hit with armour');
+}
+
+// 10. Daily challenges
+console.log('\n[SECTION 10] Daily challenges');
+{
+  const { DailyChallenges, CHALLENGE_TEMPLATES } = await import('./src/modes/Challenges.js');
+  const { EconomyManager } = await import('./src/shop/SkinCatalog.js');
+  const dc = new DailyChallenges();
+  const list = dc.getList();
+  ok(list.length === 3 && new Set(list.map(c => c.id)).size === 3, 'Three distinct challenges are rolled for today');
+  const again = new DailyChallenges().getList().map(c => c.id).join();
+  ok(again === list.map(c => c.id).join(), 'Same challenges for the whole day (seeded by date)');
+  const c = list[0];
+  const coins0 = EconomyManager.getCoins();
+  for (let i = 0; i < c.target; i++) dc.record(c.event, { fighter: c.fighter });
+  ok(dc.getList()[0].done && EconomyManager.getCoins() === coins0 + c.reward, `Completing "${c.text}" pays ${c.reward} coins`);
+  ok(CHALLENGE_TEMPLATES.length >= 10, 'Challenge pool has 10+ templates');
+}
+
 console.log(`\n==============================================\nALL COMBAT OVERHAUL TESTS PASSED! (${passed})\n==============================================`);

@@ -74,12 +74,28 @@ export class ModeSelect {
         color: '#c084fc'
       },
       {
+        id: 'tutorial',
+        badge: 'LEARN TO FIGHT',
+        title: '🎓 TUTORIAL',
+        subtitle: 'GUIDED LESSONS · ABOUT 3 MINUTES',
+        description: 'Step-by-step lessons: movement, attacks, specials, blocking, combos, throws, throw techs, Combo Breaker and your Ultimate.',
+        color: '#f472b6'
+      },
+      {
         id: 'training',
         badge: 'DOJO LAB',
         title: '🥋 PRACTICE MODE',
         subtitle: 'TRAINING & COMBO LAB',
-        description: 'Unlimited health, infinite EX super gauge, and stamina. Master special moves, frame traps, and cancel strings.',
+        description: 'Training lab: record the dummy, set it to block, see input display, damage and frame advantage. Press F for settings.',
         color: '#4ade80'
+      },
+      {
+        id: 'challenges',
+        badge: 'NEW EVERY DAY',
+        title: '🎯 DAILY CHALLENGES',
+        subtitle: 'THREE GOALS · COIN REWARDS',
+        description: 'Fresh goals every day — land combos, win with a set fighter, beat Hard CPU — and earn coins for the Item Shop.',
+        color: '#c084fc'
       },
       {
         id: 'shop',
@@ -162,7 +178,7 @@ export class ModeSelect {
   }
 
   // Menu column geometry (shared by rendering and hit-testing)
-  static get LIST() { return { x: 20, y: 58, w: 228, h: 22, gap: 5.2 }; }
+  static get LIST() { return { x: 20, y: 56, w: 228, h: 18, gap: 4.2 }; }
   // Info card + its interactive parts
   static get CARD() { return { x: 266, y: 58, w: 356, h: 270 }; }
   static get BACK() { return { x: 640 - 92, y: 14, w: 74, h: 18 }; }
@@ -470,6 +486,7 @@ export class ModeSelect {
     if (m.id === 'shop') return 'ENTER ITEM SHOP';
     if (m.id === 'settings') return 'OPEN SETTINGS';
     if (m.id === 'movelist') return 'VIEW MOVE LIST';
+    if (m.id === 'challenges') return 'VIEW CHALLENGES';
     if (m.id === 'online' || m.id === 'coop_campaign') return 'OPEN LOBBY';
     return 'START ' + cleanLabel(m.title).replace(/^1V1 /, '');
   }

@@ -220,13 +220,20 @@ export class Kagura extends Fighter {
     this.changeState(FIGHTER_STATE.SPECIAL_1);
     soundFX.playShadowWarp();
     this.isInvincible = true;
-    setTimeout(() => {
-      if (opponent) {
-        this.x = opponent.facingRight ? opponent.x - 70 : opponent.x + 70;
-        this.facingRight = this.x < opponent.x;
-      }
-      this.isInvincible = false;
-    }, 160);
+    // Frame-based (was a 160ms wall-clock timer, which broke under hit-stop / pause / netplay)
+    this.warpTarget = opponent || null;
+  }
+
+  performWarp() {
+    const opponent = this.warpTarget;
+    this.warpTarget = null;
+    if (opponent) {
+      this.x = opponent.facingRight ? opponent.x - 70 : opponent.x + 70;
+      this.x = Math.max(30, Math.min(850, this.x));
+      this.facingRight = this.x < opponent.x;
+    }
+    this.isInvincible = false;
+    if (typeof this.onWarpArrive === 'function') this.onWarpArrive(opponent);
   }
 
   startCrescentGale() {
@@ -497,6 +504,7 @@ export class Kagura extends Fighter {
         break;
 
       case FIGHTER_STATE.SPECIAL_1:
+        if (this.stateTimer === 10 && this.warpTarget !== undefined && this.warpTarget !== null) this.performWarp();
         if (this.stateTimer <= 5) this.animFrame = 0;
         else if (this.stateTimer <= 10) this.animFrame = 1;
         else if (this.stateTimer <= 15) this.animFrame = 2;

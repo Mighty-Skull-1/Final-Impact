@@ -66,6 +66,7 @@ export function getGlow(f) {
 }
 
 const center = f => f.x + 40;
+const COLOR_EFFECT = { burn: '#ff8a3d', bleed: '#ff4d4d', chill: '#9be7ff', crush: '#fbbf24' };
 
 export class CombatDirector {
   constructor(game) {
@@ -111,6 +112,8 @@ export class CombatDirector {
     f.invulnTimer = 0;
     f.throwProtect = 0;
     f.hitFlash = 0;
+    if (f._baseWalk !== undefined) { f.walkSpeed = f._baseWalk; f.dashSpeed = f._baseDash; f._baseWalk = undefined; }
+    f.chillTimer = 0;
     f._prevState = f.state;
     f._prevGrounded = f.isGrounded;
   }
@@ -162,7 +165,9 @@ export class CombatDirector {
 
     // Combo Breaker: Dirty button while being comboed, needs 50% meter
     const inStun = f.hitStun > 0 || f.state === FIGHTER_STATE.BLIND_STUN;
-    if (inStun && state.dirtyJust && (f.comboHits || 0) >= 1 && f.superMeter >= COMBAT_TUNING.breakerCost) {
+    // (accepts a buffered press too, so mashing the button during hit-stop still counts)
+    const breakerPressed = state.dirtyJust || (inputManager && f.playerNum <= 2 && !f.isCpu && inputManager.peekAction(f.playerNum) === 'DIRTY');
+    if (inStun && breakerPressed && (f.comboHits || 0) >= 1 && f.superMeter >= COMBAT_TUNING.breakerCost) {
       this.performBreaker(f, opponent);
       if (inputManager && f.playerNum <= 2) inputManager.consumeAction(f.playerNum);
       return { consumed: true, input: state };
@@ -233,9 +238,10 @@ export class CombatDirector {
     const mx = (center(att) + center(def)) / 2;
     vfx.blockSpark(mx, att.y - 55, { dir });
     vfx.popup(mx, att.y - 100, 'TECH!', { color: '#7dd3fc', size: 14 });
-    soundFX.playBlock();
+    try { soundFX.playTech(); } catch (e) { soundFX.playBlock(); }
     this.addFreeze(6);
     this.throws = this.throws.filter(t => t !== th);
+    this.notifyTraining('tech', def);
   }
 
   updateThrows() {
@@ -252,7 +258,8 @@ export class CombatDirector {
       // CPU tech attempt (based on its difficulty profile)
       if (def.isCpu && !th.teched && th.t === 6) {
         const ai = this.game.getAIFor ? this.game.getAIFor(def) : null;
-        const techChance = ai && ai.profile ? ai.profile.techChance : 0.25;
+        let techChance = ai && ai.profile ? ai.profile.techChance : 0.25;
+        if (this.game.isTraining && this.game.training) techChance = this.game.training.dummyTechs() ? 1 : 0;
         if (Math.random() < techChance) { this.techThrow(th); continue; }
       }
       const dir = att.facingRight ? 1 : -1;
@@ -282,6 +289,8 @@ export class CombatDirector {
           isThrow: true
         };
         this.applyHit(att, def, data, { x: center(def), y: def.y - 40 }, { throw: true });
+        try { soundFX.playThrow(); } catch (e) {}
+        this.notifyTraining('throw', att);
         vfx.dust(center(def), 300, { amount: 10, scale: 1.3 });
         vfx.shockwave(center(def), 300, { color: getGlow(att), size: 1.2 });
       }
@@ -294,6 +303,7 @@ export class CombatDirector {
 
   performBreaker(f, opponent) {
     f.superMeter = Math.max(0, f.superMeter - COMBAT_TUNING.breakerCost);
+    this.notifyTraining('breaker', f);
     f.hitStun = 0;
     f.blindTimer = 0;
     f.blockStun = 0;
@@ -320,7 +330,7 @@ export class CombatDirector {
     vfx.burst(cx, f.y - 46, { color: '#ffe066', count: 26, speed: 8 });
     vfx.popup(cx, f.y - 108, 'BREAKER!', { color: '#ffe066', size: 16, life: 50 });
     vfx.flashScreen('#fff3c4', 0.45, 0.06);
-    soundFX.playRageIgnite();
+    try { soundFX.playBreaker(); } catch (e) { soundFX.playRageIgnite(); }
     this.hud.triggerShake(10 * this.shakeMult());
     this.addFreeze(14);
     this.game.triggerCameraZoom(1.12, 30);
@@ -358,7 +368,8 @@ export class CombatDirector {
     // Damage modifiers
     let dmg = data.damage || 0;
     if (attacker && attacker.damageMult && !opts.throw) dmg *= attacker.damageMult;
-    if (attacker && attacker.isRageMode) dmg *= T.rageDamageMult;
+    if (attacker && attacker.isRageMode) dmg *= (attacker.rageMult || T.rageDamageMult);
+    if (defender.damageTakenMult) dmg *= defender.damageTakenMult;
     if (isCounter) {
       dmg *= T.counterDamage;
       data.hitStun = (data.hitStun || 16) + T.counterStun;
@@ -377,7 +388,7 @@ export class CombatDirector {
     }
     dmg = Math.max(1, Math.round(dmg * scale));
     data.damage = dmg;
-    if (data.chipDamage) data.chipDamage = Math.round(data.chipDamage * Math.min(1, scale + 0.2));
+    if (data.chipDamage) data.chipDamage = Math.round(data.chipDamage * Math.min(1, scale + 0.2) * (defender.chipTakenMult ?? 1));
 
     // Hit-stun decay in long combos
     if (n >= T.stunDecayStart && data.hitStun) {
@@ -412,6 +423,7 @@ export class CombatDirector {
     const shake = this.shakeMult();
 
     if (result === 'blocked') {
+      this.notifyTraining('hit', attacker, defender, result, { dealt: 0, base: baseData.damage || 0, scale: 1 });
       // Specials and reversals are minus on block: shorten the defender's block-stun so
       // invincible uppercuts and rush moves can be punished instead of being free.
       const st = attacker ? attacker.state : '';
@@ -421,6 +433,10 @@ export class CombatDirector {
         defender.blockStun = Math.min(defender.blockStun || 0, rising ? 7 : 11);
       }
       vfx.blockSpark(pos.x, pos.y, { dir });
+      if (data.guardCrush) {
+        defender.consumeStamina(data.guardCrush, true);
+        vfx.popup(pos.x, pos.y - 30, 'GUARD CRUSH', { color: COLOR_EFFECT.crush, size: 10 });
+      }
       this.addFreeze(T.freezeBlock);
       if (attacker) attacker.addSuper((baseData.damage || 0) * 0.03);
       defender.addSuper((baseData.damage || 0) * 0.05);
@@ -442,6 +458,7 @@ export class CombatDirector {
       defender.poise = 100;
       vfx.popup(pos.x, pos.y - 44, 'CRITICAL!', { color: '#ff4d4d', size: 16, life: 45, rise: 0.35 });
       vfx.flashScreen('#ffefc2', 0.4, 0.05);
+      try { soundFX.playCritical(); } catch (e) {}
       vfx.burst(pos.x, pos.y, { color: '#ffe066', count: 26, speed: 8 });
       this.game.triggerCameraZoom(1.2, 50);
       if (attacker && attacker.playerNum === 1) { try { this.game.achievements.unlock('CRITICAL_RIPOSTE'); } catch (e) {} }
@@ -451,9 +468,19 @@ export class CombatDirector {
     defender.hitFlash = heavy ? 5 : 3;
 
     vfx.hitSpark(pos.x, pos.y, { dir, heavy, color: isSuper ? '#ffe066' : (heavy ? glow : '#ffd34d'), counter: isCounter });
-    if (isCounter) vfx.popup(pos.x, pos.y - 34, 'COUNTER', { color: '#ff4d4d', size: 13 });
+    if (isCounter) {
+      vfx.popup(pos.x, pos.y - 34, 'COUNTER', { color: '#ff4d4d', size: 13 });
+      try { soundFX.playCounterHit(); } catch (e) {}
+    }
     if (result === 'knockdown' || result === 'ko') {
       vfx.shockwave(pos.x, pos.y, { color: glow, ground: false, size: 0.9 });
+    }
+
+    // Kit effects (burn, chill, bleed, blind, pull...)
+    const effect = data.effect || opts.effect;
+    if (effect) this.applyEffect(attacker, defender, effect, result, dir, pos, dmg);
+    if (attacker && typeof attacker.onSpecialHit === 'function') {
+      try { attacker.onSpecialHit(defender, result, data); } catch (e) {}
     }
 
     // Meter gain on hit
@@ -481,9 +508,30 @@ export class CombatDirector {
       const side = attacker.team === 1 ? 1 : 2;
       this.matchStats.bestCombo[side] = Math.max(this.matchStats.bestCombo[side] || 0, defender.comboHits);
     }
+    this.notifyTraining('hit', attacker, defender, result, { dealt, base: baseData.damage || 0, scale, counter: isCounter, crit: isCrit });
     // HUD combo counter
     if (this.hud.setCombo && attacker) this.hud.setCombo(attacker.team === 1 ? 1 : 2, defender.comboHits, defender.comboDamage, isCounter);
     return result;
+  }
+
+  notifyTraining(kind, a, b, result, info) {
+    // Daily challenge progress for the local player (outside Training)
+    const g = this.game;
+    if (!g.isTraining && g.recordChallenge && a && a === g.f1 && !a.isCpu) {
+      if (kind === 'hit' && result !== 'blocked' && result !== 'armored') {
+        if (info && info.counter) g.recordChallenge('counter');
+        if (info && info.crit) g.recordChallenge('crit');
+        if (b && b.comboHits === 5) g.recordChallenge('combo5');
+      } else if (kind === 'throw' || kind === 'tech' || kind === 'breaker' || kind === 'ultimateLock') {
+        g.recordChallenge(kind);
+      }
+    }
+    const tr = this.game.isTraining && this.game.training;
+    if (!tr) return;
+    try {
+      if (kind === 'hit') tr.onHit(a, b, result, info);
+      else tr.onEvent(kind, a);
+    } catch (e) {}
   }
 
   // Melee hit from Game.checkAttacks
@@ -497,6 +545,7 @@ export class CombatDirector {
 
   resolveProjectile(p, target) {
     const data = {
+      effect: p.effect,
       damage: p.damage,
       hitStun: 22,
       blockStun: 14,
@@ -507,6 +556,59 @@ export class CombatDirector {
       isProjectile: true
     };
     return this.applyHit(p.owner, target, data, { x: p.x + p.width / 2, y: p.y + p.height / 2 }, { projectile: true });
+  }
+
+  applyEffect(attacker, def, effect, result, dir, pos, dmg) {
+    const stunned = result === 'hit' || result === 'stun';
+    switch (effect) {
+      case 'burn':
+        def.applyStatusEffect('BURN', 120);
+        vfx.popup(pos.x, pos.y - 30, 'BURN', { color: COLOR_EFFECT.burn, size: 10 });
+        break;
+      case 'bleed':
+        def.applyStatusEffect('BLEED', 180);
+        vfx.popup(pos.x, pos.y - 30, 'BLEED', { color: COLOR_EFFECT.bleed, size: 10 });
+        break;
+      case 'chill':
+        def.chillTimer = 150;
+        vfx.popup(pos.x, pos.y - 30, 'CHILLED', { color: COLOR_EFFECT.chill, size: 10 });
+        vfx.burst(pos.x, pos.y, { color: '#bfeaff', count: 12, speed: 4 });
+        break;
+      case 'freeze':
+        if (stunned || !def.isGrounded) {
+          def.hitStun = (def.hitStun || 0) + 16;
+          def.chillTimer = Math.max(def.chillTimer || 0, 60);
+          vfx.popup(pos.x, pos.y - 30, 'FROZEN', { color: COLOR_EFFECT.chill, size: 12 });
+          vfx.burst(pos.x, pos.y, { color: '#e0f7ff', count: 18, speed: 5 });
+        }
+        break;
+      case 'blind':
+      case 'daze':
+        if (stunned && def.isGrounded) {
+          def.hitStun = 0;
+          def.blindTimer = effect === 'blind' ? 28 : 22;
+          def.changeState(FIGHTER_STATE.BLIND_STUN, true);
+          vfx.popup(pos.x, pos.y - 30, effect === 'blind' ? 'BLINDED' : 'DAZED', { color: COLOR_EFFECT.crush, size: 10 });
+        }
+        break;
+      case 'pull':
+        if (stunned) def.vx = -dir * 5.5;
+        break;
+      case 'poise':
+        def.poise = Math.max(0, (def.poise === undefined ? 100 : def.poise) - dmg * 0.6);
+        break;
+      case 'wallSplat':
+        if (stunned || result === 'knockdown') {
+          def.vx = dir * 11;
+          def.wallBouncedInCombo = false;
+        }
+        break;
+      case 'launch':
+        if (result === 'knockdown') { def.vy = -11.5; def.vx *= 0.6; }
+        break;
+      default:
+        break;
+    }
   }
 
   // Called when an ultimate starts (from the 'ultimate-activated' event)
@@ -530,6 +632,15 @@ export class CombatDirector {
     for (const f of this.game.allFighters || []) {
       if (!f) continue;
       if (f.dirtyCooldown > 0) f.dirtyCooldown--;
+      // Chill: slower movement while it lasts
+      if (f.chillTimer > 0) {
+        if (f._baseWalk === undefined) { f._baseWalk = f.walkSpeed; f._baseDash = f.dashSpeed; }
+        f.walkSpeed = f._baseWalk * 0.6;
+        f.dashSpeed = f._baseDash * 0.7;
+        f.chillTimer--;
+        if (f.chillTimer % 6 === 0) vfx.motes(f.x + 20, f.y - 80, 40, 70, { color: '#bfeaff', count: 2, rise: 0.8, size: 2 });
+        if (f.chillTimer <= 0) { f.walkSpeed = f._baseWalk; f.dashSpeed = f._baseDash; f._baseWalk = undefined; }
+      }
       if (f.throwProtect > 0) f.throwProtect--;
       if (f.hitFlash > 0) f.hitFlash--;
       if (f.invulnTimer > 0) {
@@ -546,6 +657,7 @@ export class CombatDirector {
       if (f._prevGrounded === false && f.isGrounded) {
         const hard = prev === FIGHTER_STATE.KNOCKDOWN || cur === FIGHTER_STATE.KNOCKDOWN;
         vfx.dust(center(f), 300, { amount: hard ? 12 : 5, scale: hard ? 1.4 : 1 });
+        try { soundFX.playLand(hard); } catch (e) {}
         if (hard) {
           this.hud.triggerShake(4 * this.shakeMult());
           vfx.shockwave(center(f), 300, { color: 'rgba(255,255,255,0.7)', size: 0.8 });
@@ -575,9 +687,11 @@ export class CombatDirector {
     switch (cur) {
       case FIGHTER_STATE.DASH_FWD:
       case FIGHTER_STATE.DASH_BACK:
+        this.notifyTraining('dash', f);
         vfx.dust(cx - dir * 10, 300, { dir: cur === FIGHTER_STATE.DASH_FWD ? dir : -dir, amount: 5 });
         break;
       case FIGHTER_STATE.JUMP:
+        this.notifyTraining('jump', f);
         vfx.dust(cx, 300, { amount: 4, scale: 0.8 });
         break;
       case FIGHTER_STATE.SPECIAL_1:
@@ -587,6 +701,7 @@ export class CombatDirector {
         vfx.push({ kind: 'flash', x: cx + dir * 18, y: f.y - 58, r: 18, life: 8, color: '#ffffff', glow });
         vfx.push({ kind: 'ring', x: cx, y: f.y - 46, r: 12, vr: 2.6, life: 12, color: glow, w: 2 });
         f.addSuper(2.5);
+        this.notifyTraining('special', f);
         break;
       case FIGHTER_STATE.DIRTY_TACTIC:
         f.dirtyCooldown = COMBAT_TUNING.dirtyCooldown;
@@ -603,6 +718,7 @@ export class CombatDirector {
   // Continuous trails while an ability is active, so specials look like specials.
   onStateTick(f, cur) {
     if (f.isDead) return;
+    if (f.ult && f.ult.phase === 'lock' && f.ult.lockT === 1) this.notifyTraining('ultimateLock', f);
     const glow = getGlow(f);
     const cx = center(f);
     const dir = f.facingRight ? 1 : -1;
