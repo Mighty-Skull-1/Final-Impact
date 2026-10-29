@@ -19,52 +19,6 @@
       </div>
     </main>
 
-    <!-- Collapsible controls reference (Kept hidden, accessible via Settings) -->
-    <details class="controls-drawer" style="display: none;">
-      <summary>HOW TO PLAY &mdash; CONTROLS &amp; MOVES</summary>
-      <div class="controls-grid">
-        <section class="ctrl-card">
-          <h3>MOVEMENT</h3>
-          <ul>
-            <li><kbd>W</kbd> Jump</li>
-            <li><kbd>S</kbd> Crouch</li>
-            <li><kbd>A</kbd><kbd>D</kbd> Back / Forward</li>
-            <li><kbd>D</kbd><kbd>D</kbd> Dash (double tap)</li>
-          </ul>
-        </section>
-        <section class="ctrl-card">
-          <h3>ATTACKS</h3>
-          <ul>
-            <li><kbd>U</kbd> Light Punch</li>
-            <li><kbd>I</kbd> Heavy Punch</li>
-            <li><kbd>J</kbd> Light Kick</li>
-            <li><kbd>K</kbd> Heavy Kick</li>
-            <li><kbd>C</kbd> Dirty Tactic</li>
-          </ul>
-        </section>
-        <section class="ctrl-card">
-          <h3>SPECIALS</h3>
-          <ul>
-            <li><kbd>Q</kbd>/<kbd>O</kbd> Special 1 <em>(↓ ↘ → + Punch)</em></li>
-            <li><kbd>E</kbd>/<kbd>L</kbd> Special 2 <em>(→ ↓ ↘ + Punch/Kick)</em></li>
-            <li><kbd>R</kbd>/<kbd>;</kbd> Special 3 <em>(↓ ↙ ← + Kick)</em></li>
-            <li><kbd>SPACE</kbd> Ultimate / FINISH HIM</li>
-          </ul>
-        </section>
-        <section class="ctrl-card">
-          <h3>CONTROLLER</h3>
-          <ul>
-            <li><kbd>X</kbd><kbd>Y</kbd><kbd>A</kbd><kbd>B</kbd> LP / HP / LK / HK</li>
-            <li><kbd>RB</kbd><kbd>RT</kbd><kbd>LB</kbd> Specials</li>
-            <li><kbd>LT</kbd> Dirty &nbsp; <kbd>R3</kbd> Ultimate</li>
-            <li><kbd>START</kbd> Pause</li>
-          </ul>
-        </section>
-      </div>
-      <p class="tip">TIP: Slamming an opponent into a corner makes the crowd bounce them for juggle combos!</p>
-    </details>
-
-
     <!-- Settings Overlay Modal -->
     <div id="settingsModal" class="modal-backdrop" style="display: none;">
       <div class="modal-card">
@@ -74,9 +28,108 @@
         </div>
 
         <div class="modal-tabs">
+          <button id="tabMoveListBtn" class="tab-btn">📖 MOVE LIST</button>
           <button id="tabGeneralBtn" class="tab-btn active">⚙️ GENERAL</button>
           <button id="tabControlsBtn" class="tab-btn">⌨️ KEYBOARD</button>
           <button id="tabGamepadBtn" class="tab-btn">🎮 CONTROLLER</button>
+        </div>
+
+        <!-- Move List Tab (In-Fight Pause & Moves Guide) -->
+        <div id="tabMoveListContent" class="tab-pane" style="display: none;">
+          <!-- Top Quick Actions Bar -->
+          <div class="move-list-actions">
+            <button id="moveListResumeBtn" class="arcade-btn primary-btn" style="flex: 1.4; padding: 10px; font-weight: bold; font-size: 9px;">▶ RESUME FIGHT [P]</button>
+            <button id="moveListRestartBtn" class="arcade-btn" style="flex: 1; padding: 10px; font-size: 8px;">🔄 RESTART</button>
+            <button id="moveListCharSelectBtn" class="arcade-btn" style="flex: 1; padding: 10px; font-size: 8px;">👥 FIGHTERS</button>
+            <button id="moveListLeaveBtn" class="arcade-btn danger-btn" style="flex: 1; padding: 10px; font-size: 8px;">🚪 MENU</button>
+          </div>
+
+          <!-- Fighter Selection Switcher -->
+          <div class="setting-group" style="padding: 8px 12px; background: #131726; border-color: #38bdf8;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div style="display: flex; gap: 6px;" id="moveListFighterTabs">
+                <button id="mlTabP1Btn" class="tab-btn active" style="font-size: 8px; padding: 6px 12px;">P1: KAZUKI</button>
+                <button id="mlTabP2Btn" class="tab-btn" style="font-size: 8px; padding: 6px 12px;">P2: OPPONENT</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="moveListFighterSelect" style="font-size: 7.5px; color: #94a3b8;">ALL FIGHTERS:</label>
+                <select id="moveListFighterSelect" class="arcade-select" style="font-size: 7.5px; padding: 3px 6px;">
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Fighter Bio & Stats Banner -->
+          <div id="mlFighterBanner" class="fighter-bio-card">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Special Moves Section -->
+          <div class="setting-group">
+            <h3 style="color: #facc15; font-size: 9px; letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 8px;">
+              ⚡ SIGNATURE SPECIAL MOVES
+            </h3>
+            <div id="mlSpecialsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Secret Ougi Ultimate & Fatality -->
+          <div class="setting-group" style="border-color: #ef4444; background: rgba(220, 38, 38, 0.05);">
+            <h3 style="color: #f87171; font-size: 9px; letter-spacing: 1px; border-bottom: 1px solid #7f1d1d; padding-bottom: 6px; margin-bottom: 8px;">
+              🔥 SECRET OUGI ULTIMATE & FATALITIES
+            </h3>
+            <div id="mlUltimatesContainer" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Universal Mechanics Cheat Sheet -->
+          <div class="setting-group">
+            <h3 style="color: #38bdf8; font-size: 9px; letter-spacing: 1px; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 8px;">
+              🛡️ UNIVERSAL COMBAT & DEFENSE MECHANICS
+            </h3>
+            <div class="mechanics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;">
+              <div class="mech-card">
+                <span class="mech-title" style="color: #4ade80;">BLOCKING (DEFENSE)</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  Hold <strong>BACK</strong> (away from foe) to block High/Mid attacks and projectiles. Hold <strong>DOWN-BACK</strong> to block Low sweeps.
+                </p>
+              </div>
+              <div class="mech-card">
+                <span class="mech-title" style="color: #facc15;">STANCE / POISE BREAK</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  Deplete the enemy's hidden Poise bar to trigger a Stance Break for a <strong>2.5× bonus damage Critical Riposte</strong>!
+                </p>
+              </div>
+              <div class="mech-card">
+                <span class="mech-title" style="color: #38bdf8;">NORMAL ATTACKS</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  <strong>[U]</strong> Light Punch &bull; <strong>[I]</strong> Heavy Punch<br>
+                  <strong>[J]</strong> Light Kick &bull; <strong>[K]</strong> Heavy Kick<br>
+                  <em>Gamepad: [X] LP &bull; [Y] HP &bull; [A] LK &bull; [B] HK</em>
+                </p>
+              </div>
+              <div class="mech-card">
+                <span class="mech-title" style="color: #fb923c;">DIRTY TACTIC</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  Press <strong>[C]</strong> (Keyboard) or <strong>[LT]</strong> (Gamepad) for an unblockable blinding stun. Recharges for 9 seconds (the <strong>D</strong> icon by your meter).
+                </p>
+              </div>
+              <div class="mech-card">
+                <span class="mech-title" style="color: #f472b6;">THROW &amp; TECH</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  Up close, press <strong>[U]+[J]</strong> (Gamepad <strong>X+A</strong>) to throw someone who is blocking. Hold BACK to throw them behind you. Press the same buttons right as you're grabbed to <strong>tech</strong> it.
+                </p>
+              </div>
+              <div class="mech-card">
+                <span class="mech-title" style="color: #fde047;">COMBO BREAKER</span>
+                <p style="font-size: 7.5px; color: #cbd5e1; line-height: 1.4; margin-top: 4px;">
+                  Getting comboed? Press <strong>[C]</strong> / <strong>[LT]</strong> with 50% Super to burst free and knock the attacker back. A full bar (100%) unleashes your <strong>Ultimate</strong> with <strong>[SPACE]</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- General Settings Tab -->
@@ -115,6 +168,16 @@
                 <option value="easy">Beginner / Casual</option>
                 <option value="normal" selected>Normal Arcade</option>
                 <option value="hard">Master / Tournament</option>
+                <option value="nightmare">Nightmare</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <label for="cameraZoomSelect">Fight Camera:</label>
+              <select id="cameraZoomSelect" class="arcade-select">
+                <option value="dynamic" selected>Dynamic Zoom (Recommended)</option>
+                <option value="far">Subtle Zoom</option>
+                <option value="off">Fixed (No Zoom)</option>
               </select>
             </div>
 
@@ -139,6 +202,12 @@
             <div class="setting-row checkbox-row">
               <label>
                 <input type="checkbox" id="easyInputsCheck"> Easy Specials & 1-Button Ultimates
+              </label>
+            </div>
+
+            <div class="setting-row checkbox-row">
+              <label>
+                <input type="checkbox" id="controlsHelperCheck" checked> On-Screen Beginner Controls HUD (TAB)
               </label>
             </div>
           </div>

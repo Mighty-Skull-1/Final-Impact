@@ -12,6 +12,9 @@ export class Zephyr extends Fighter {
       id: 'zephyr',
       name: 'ZEPHYR'
     });
+    this.ultimateStyle = 'beatdown';
+    this.damageMult = 1.3;
+    this.reachBonus = 8;
     this.walkSpeed = 4.5;
     this.dashSpeed = 9.5;
     this.jumpForce = -15.0;

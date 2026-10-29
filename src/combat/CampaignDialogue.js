@@ -1,5 +1,6 @@
 // Final Impact - Campaign Pre-Fight Dialogue & Story Banter Engine
 import { soundFX } from '../audio/SoundFX.js';
+import { COLORS, FONTS, ease, wrapLines, hexToRgba, slantPath, drawText, drawKeyCap } from '../ui/Theme.js';
 
 export const CAMPAIGN_SCRIPTS = {
   riot_cop: {
@@ -238,153 +239,157 @@ export class CampaignDialogue {
     }
   }
 
+  // Head-and-shoulders portrait from a fighter's idle sprite (falls back to a monogram)
+  drawPortrait(ctx, fighter, x, y, size, color, mirror) {
+    ctx.save();
+    slantPath(ctx, x, y, size, size, 8);
+    const bg = ctx.createLinearGradient(0, y, 0, y + size);
+    bg.addColorStop(0, hexToRgba(color, 0.35));
+    bg.addColorStop(1, 'rgba(8,8,12,0.95)');
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.clip();
+    const frames = fighter && fighter.sprites ? (fighter.sprites.IDLE || fighter.sprites.idle || []) : [];
+    const img = frames[0];
+    if (img && img.width) {
+      ctx.imageSmoothingEnabled = false;
+      const crop = 36;
+      if (mirror) {
+        ctx.translate(x + size, y);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 40 - crop / 2 + 3, 12, crop, crop, 0, 2, size, size);
+      } else {
+        ctx.drawImage(img, 40 - crop / 2 + 3, 12, crop, crop, x, y + 2, size, size);
+      }
+    } else {
+      const initial = String((fighter && fighter.name) || '?').charAt(0).toUpperCase();
+      drawText(ctx, initial, x + size / 2, y + size / 2 + 10, { font: FONTS.display(30), color, align: 'center' });
+    }
+    ctx.restore();
+    ctx.save();
+    slantPath(ctx, x + 0.5, y + 0.5, size - 1, size - 1, 8);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   render(ctx, W, H) {
     if (!this.active || !this.script) return;
+    this._t = (this._t || 0) + 1;
+    const t = this._t;
+    const lb = ease.outCubic(this.letterboxProgress);
 
     ctx.save();
 
     // 1. Cinematic letterbox bars
-    const barHeight = 40 * this.letterboxProgress;
-    ctx.fillStyle = '#05030a';
+    const barHeight = 40 * lb;
+    ctx.fillStyle = '#05040a';
     ctx.fillRect(0, 0, W, barHeight);
     ctx.fillRect(0, H - barHeight, W, barHeight);
+    ctx.fillStyle = hexToRgba(COLORS.gold, 0.35 * lb);
+    ctx.fillRect(0, barHeight, W, 1);
 
-    // Stage Title Banner at top
+    // Stage title ("STAGE 1 / 8 : CYBER-CITY CURFEW" -> small label + big title)
     if (this.letterboxProgress >= 0.8) {
-      ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 9px "Press Start 2P", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = '#eab308';
-      ctx.shadowBlur = 8;
-      ctx.fillText(this.script.stageTitle, W / 2, 20);
-      ctx.shadowBlur = 0;
+      const parts = String(this.script.stageTitle || '').split(' : ');
+      const label = parts.length > 1 ? parts[0] : '';
+      const title = parts.length > 1 ? parts.slice(1).join(' : ') : parts[0];
+      if (label) drawText(ctx, label, W / 2, 13, { font: FONTS.ui(8, 800), color: COLORS.gold, align: 'center', letterSpacing: 2.5 });
+      drawText(ctx, title, W / 2, label ? 31 : 26, { font: FONTS.display(15), color: '#fff', align: 'center', letterSpacing: 0.5 });
     }
 
-    // 2. Dialogue Box at bottom
+    // 2. Dialogue box (geometry matches handleClick)
     const boxX = 24;
     const boxY = H - 100;
     const boxW = W - 48;
     const boxH = 76;
-
-    // Dark glass background
-    ctx.fillStyle = 'rgba(8, 6, 16, 0.92)';
-    ctx.fillRect(boxX, boxY, boxW, boxH);
-
     const currentLine = this.script.lines[this.currentLineIndex];
     const isBoss = currentLine ? (currentLine.speaker === 'boss') : true;
+    const accentColor = isBoss ? (this.script.bossColor || COLORS.p2) : COLORS.p1;
 
-    // Border with speaker-themed accent
-    const accentColor = isBoss ? this.script.bossColor : '#38bdf8';
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-    // Inner gold hairline
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.3)';
+    // slide the panel up as the letterbox opens
+    ctx.translate(0, (1 - lb) * 20);
+    ctx.globalAlpha = lb;
+    slantPath(ctx, boxX, boxY, boxW, boxH, 12);
+    const bg = ctx.createLinearGradient(0, boxY, 0, boxY + boxH);
+    bg.addColorStop(0, 'rgba(16, 14, 24, 0.96)');
+    bg.addColorStop(1, 'rgba(7, 6, 11, 0.96)');
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
+    ctx.stroke();
+    // speaker-side accent edge
+    const eg = ctx.createLinearGradient(isBoss ? boxX : boxX + boxW, 0, isBoss ? boxX + boxW * 0.6 : boxX + boxW * 0.4, 0);
+    eg.addColorStop(0, accentColor);
+    eg.addColorStop(1, hexToRgba(accentColor, 0));
+    ctx.fillStyle = eg;
+    ctx.fillRect(boxX + 12, boxY, boxW - 12, 2);
 
-    // 3. Speaker Portrait Box
-    const portSize = 56;
-    const portX = isBoss ? (boxX + 10) : (boxX + boxW - portSize - 10);
-    const portY = boxY + 10;
+    // 3. Speaker portrait (boss on the left, player on the right)
+    const portSize = 48;
+    const portX = isBoss ? (boxX + 16) : (boxX + boxW - portSize - 18);
+    const portY = boxY + 9;
+    this.drawPortrait(ctx, isBoss ? this.p2Fighter : this.p1Fighter, portX, portY, portSize, accentColor, !isBoss);
 
-    ctx.fillStyle = '#110f22';
-    ctx.fillRect(portX, portY, portSize, portSize);
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(portX, portY, portSize, portSize);
-
-    // Pixel Avatar Emblem
-    ctx.save();
-    ctx.fillStyle = accentColor;
-    ctx.font = '24px "Press Start 2P", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const icon = isBoss ? '👹' : '⚔️';
-    ctx.fillText(icon, portX + portSize / 2, portY + portSize / 2);
-    ctx.restore();
-
-    // 4. Speaker Name Plaque
-    const p1Name = this.p1Fighter ? this.p1Fighter.name.toUpperCase() : 'CHALLENGER';
+    // 4. Speaker name + subtitle
+    const p1Name = this.p1Fighter && this.p1Fighter.name ? this.p1Fighter.name.toUpperCase() : 'CHALLENGER';
     const speakerName = isBoss ? this.script.bossName : p1Name;
-    const speakerSub = isBoss ? this.script.bossTitle : 'CONTENDER';
-
-    const textX = isBoss ? (boxX + portSize + 22) : (boxX + 18);
-    const textW = boxW - portSize - 40;
-
-    ctx.font = 'bold 10px "Press Start 2P", monospace';
+    const speakerSub = isBoss ? this.script.bossTitle : 'Contender';
+    const textX = isBoss ? (boxX + portSize + 28) : (boxX + 22);
+    const textW = boxW - portSize - 60;
+    drawText(ctx, speakerName, textX, boxY + 22, { font: FONTS.display(14), color: accentColor });
+    ctx.font = FONTS.display(14);
     const nameWidth = ctx.measureText(speakerName).width;
-    ctx.fillStyle = accentColor;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(speakerName, textX, boxY + 12);
+    drawText(ctx, String(speakerSub).toUpperCase(), textX + nameWidth + 10, boxY + 21, { font: FONTS.ui(8, 700), color: COLORS.textDim, letterSpacing: 1 });
 
-    ctx.font = '7px "Press Start 2P", monospace';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(`// ${speakerSub}`, textX + nameWidth + 12, boxY + 14);
-
-    // 5. Dialogue Body Text
+    // 5. Dialogue body (typewriter)
     if (currentLine) {
       const displayText = currentLine.text.substring(0, this.charIndex);
-      ctx.font = '10px "Press Start 2P", monospace';
-      ctx.fillStyle = '#ffffff';
-
-      // Simple word wrapping
-      const words = displayText.split(' ');
-      let line = '';
-      let curY = boxY + 32;
-      const lineHeight = 16;
-
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > textW && n > 0) {
-          ctx.fillText(line, textX, curY);
-          line = words[n] + ' ';
-          curY += lineHeight;
-        } else {
-          line = testLine;
-        }
+      ctx.font = FONTS.ui(10, 600);
+      const lines = wrapLines(ctx, displayText, textW).slice(0, 3);
+      lines.forEach((ln, i) => {
+        drawText(ctx, ln, textX, boxY + 37 + i * 12, { font: FONTS.ui(10, 600), color: COLORS.text });
+      });
+      const done = this.charIndex >= currentLine.text.length;
+      if (done) {
+        // bouncing continue marker
+        const by = Math.sin(t * 0.18) * 1.5;
+        ctx.fillStyle = COLORS.gold;
+        ctx.beginPath();
+        const mx = isBoss ? boxX + boxW - 26 : portX - 14;
+        ctx.moveTo(mx - 4, boxY + 26 + by);
+        ctx.lineTo(mx + 4, boxY + 26 + by);
+        ctx.lineTo(mx, boxY + 31 + by);
+        ctx.closePath();
+        ctx.fill();
       }
-      ctx.fillText(line, textX, curY);
     }
 
-    // 6. Navigation Prompts at bottom right (Next & Skip interactive badges)
-    const promptRight = boxX + boxW - 8;
-    const promptBottom = boxY + boxH - 6;
+    // 6. Prompts (bottom-right of the box; this region is the click-to-skip area)
+    const promptY = boxY + boxH - 7;
+    ctx.font = FONTS.ui(8, 800);
+    const skipW = ctx.measureText('SKIP').width;
+    const escW = Math.max(12, Math.ceil(ctx.measureText('ESC').width) + 8);
+    let px = boxX + boxW - 14 - skipW;
+    drawText(ctx, 'SKIP', px, promptY, { font: FONTS.ui(8, 800), color: COLORS.textDim });
+    px -= escW + 4;
+    drawKeyCap(ctx, 'ESC', px, promptY - 9);
+    const nextW = ctx.measureText('NEXT').width;
+    px -= 12 + nextW;
+    drawText(ctx, 'NEXT', px, promptY, { font: FONTS.ui(8, 800), color: COLORS.textDim });
+    const entW = Math.max(12, Math.ceil(ctx.measureText('ENTER').width) + 8);
+    px -= entW + 4;
+    drawKeyCap(ctx, 'ENTER', px, promptY - 9, { border: hexToRgba(COLORS.gold, 0.7), color: COLORS.goldPale });
 
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'bottom';
-
-    // Interactive pill badge for SKIP
-    const skipText = '[ESC / B] SKIP';
-    ctx.font = '7px "Press Start 2P", monospace';
-    const skipWidth = ctx.measureText(skipText).width;
-
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
-    ctx.fillRect(promptRight - skipWidth - 6, promptBottom - 13, skipWidth + 10, 15);
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(promptRight - skipWidth - 6, promptBottom - 13, skipWidth + 10, 15);
-
-    ctx.fillStyle = '#fca5a5';
-    ctx.fillText(skipText, promptRight - 1, promptBottom - 2);
-
-    // Interactive pill badge for NEXT
-    const nextText = '[ENTER / A / LP] NEXT';
-    const nextWidth = ctx.measureText(nextText).width;
-    const nextRight = promptRight - skipWidth - 18;
-
-    ctx.fillStyle = 'rgba(234, 179, 8, 0.18)';
-    ctx.fillRect(nextRight - nextWidth - 6, promptBottom - 13, nextWidth + 10, 15);
-    ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(nextRight - nextWidth - 6, promptBottom - 13, nextWidth + 10, 15);
-
-    ctx.fillStyle = '#fef08a';
-    ctx.fillText(nextText, nextRight - 1, promptBottom - 2);
+    // line progress pips
+    const n = this.script.lines.length;
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = i === this.currentLineIndex ? accentColor : (i < this.currentLineIndex ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.12)');
+      slantPath(ctx, textX + i * 10, boxY + boxH - 11, 7, 3, 1.5);
+      ctx.fill();
+    }
 
     ctx.restore();
   }

@@ -12,6 +12,9 @@ export class Fang extends Fighter {
       id: 'fang',
       name: 'FANG'
     });
+    this.ultimateStyle = 'beatdown';
+    this.damageMult = 1.2;
+    this.reachBonus = 8;
     this.walkSpeed = 3.8;
     this.dashSpeed = 8.2;
     this.jumpForce = -13.0;

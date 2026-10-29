@@ -12,6 +12,8 @@ export class Kagura extends Fighter {
       id: 'kagura',
       name: 'KAGURA'
     });
+    this.ultimateStyle = 'clones';
+    this.damageMult = 1.12;
     this.walkSpeed = 4.2;
     this.dashSpeed = 9.2; // Extra fast ninja dash!
     this.jumpForce = -14.0;

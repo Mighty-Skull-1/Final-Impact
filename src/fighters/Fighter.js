@@ -4,6 +4,8 @@ import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
 import { AlleyPickup } from '../engine/Projectiles.js';
 import { EconomyManager, AURA_CATALOG } from '../shop/SkinCatalog.js';
+import { vfx } from '../graphics/VFX.js';
+import { FIGHTER_DESIGNS } from '../graphics/FighterDesigns.js';
 
 export class Fighter {
   constructor({
@@ -202,11 +204,13 @@ export class Fighter {
 
   getGlobalHitbox() {
     if (!this.activeHitbox) return null;
-    const offset = this.facingRight ? this.activeHitbox.x : (80 - this.activeHitbox.x - this.activeHitbox.w);
+    const bonus = this.reachBonus || 0;
+    const w = this.activeHitbox.w + bonus;
+    const offset = this.facingRight ? this.activeHitbox.x : (80 - this.activeHitbox.x - w);
     return new Box(
       this.x + offset,
       this.y - 90 + this.activeHitbox.y,
-      this.activeHitbox.w,
+      w,
       this.activeHitbox.h
     );
   }
@@ -223,6 +227,8 @@ export class Fighter {
       }
       return;
     }
+    if (newState !== FIGHTER_STATE.ULTIMATE) this.ult = null;
+    else if (this.state !== FIGHTER_STATE.ULTIMATE) this.ult = null;
     this.state = newState;
     this.stateTimer = 0;
     this.animFrame = 0;
@@ -258,6 +264,15 @@ export class Fighter {
     this.stateTimer++;
     if (this.armorFlash > 0) this.armorFlash--;
     if (this.projectileCooldown > 0) this.projectileCooldown--;
+
+    // Throw sequences are driven by the CombatDirector; fighters just hold the pose
+    if (this.state === FIGHTER_STATE.THROW || this.state === FIGHTER_STATE.THROWN) {
+      this.vx *= 0.7;
+      this.x += this.vx;
+      this.x = Math.max(30, Math.min(stageWidth - 110, this.x));
+      this.animFrame = this.state === FIGHTER_STATE.THROW ? (this.stateTimer < 12 ? 0 : Math.min(2, 1 + Math.floor((this.stateTimer - 12) / 6))) : 0;
+      return;
+    }
 
     // Handle Winded state (0 Stamina exhaustion)
     if (this.state === FIGHTER_STATE.WINDED) {
@@ -467,7 +482,173 @@ export class Fighter {
     }
 
     // State Updates
+    if (this.state === FIGHTER_STATE.ULTIMATE && this.ultimateStyle) {
+      this.updateCinematicUltimate(opponent || this.ultimateTarget);
+      return;
+    }
     this.updateState(opponent);
+
+    // Jump attacks stay active for a limited window instead of the whole descent
+    if ((this.state === FIGHTER_STATE.JUMP_PUNCH || this.state === FIGHTER_STATE.JUMP_KICK) && this.stateTimer > 14) {
+      this.activeHitbox = null;
+      this.animFrame = 0;
+    }
+  }
+
+  // =====================================================================
+  // Cinematic Ultimate (shared by every base move-set and the roster built on them)
+  // Lunge → on hit, lock the opponent into a flurry → style-specific finisher.
+  // Whiffing or getting blocked leaves you open, so ultimates are a commitment.
+  // =====================================================================
+  getGlowColor() {
+    const d = FIGHTER_DESIGNS[this.id];
+    return (d && d.glow) || '#ffd34d';
+  }
+
+  ultimateHit(target, data, pos) {
+    if (typeof this.combatHit === 'function') return this.combatHit(target, data, pos);
+    return target.takeHit(data, this.facingRight ? 1 : -1);
+  }
+
+  updateCinematicUltimate(target) {
+    const t = this.stateTimer;
+    const dir = this.facingRight ? 1 : -1;
+    const glow = this.getGlowColor();
+    const style = this.ultimateStyle;
+    const isRush = style === 'dragon' || style === 'orbital' || style === 'clones';
+    const lungeSpeed = isRush ? 13 : 9.5;
+    const lungeEnd = isRush ? 26 : 22;
+    this.isInvincible = true;
+    const frames = this.sprites[FIGHTER_STATE.ULTIMATE] || this.sprites.ATTACK_HP || this.sprites.IDLE || [];
+    const maxF = Math.max(0, frames.length - 1);
+
+    if (!this.ult) this.ult = { phase: 'windup', lockT: 0, hits: 0 };
+    const u = this.ult;
+
+    if (u.phase === 'windup') {
+      this.animFrame = 0;
+      this.vx = 0;
+      if (t % 2 === 0) this.addAfterImage();
+      if (t >= 8) { u.phase = 'lunge'; this.hasHitThisAttack = false; }
+    } else if (u.phase === 'lunge') {
+      this.animFrame = Math.min(1, maxF);
+      this.vx = dir * lungeSpeed;
+      this.addAfterImage();
+      this.activeHitbox = new Box(30, 8, 66, 66);
+      this.currentAttackData = {
+        damage: 60, hitStun: 50, blockStun: 16, pushback: 4,
+        height: ATTACK_HEIGHT.MID, hitType: HIT_TYPE.HEAVY, chipDamage: 35, isUltimate: true
+      };
+      if (this.hasHitThisAttack && target) {
+        this.activeHitbox = null;
+        if (target.hitStun > 0 && !target.isDead && target.state !== FIGHTER_STATE.BLOCK && target.state !== FIGHTER_STATE.CROUCH_BLOCK) {
+          u.phase = 'lock';
+          u.lockT = 0;
+          this.vx = 0;
+        } else {
+          u.phase = 'recover';
+          u.recoverT = 0;
+          this.vx = -dir * 3;
+        }
+      } else if (t >= lungeEnd) {
+        this.activeHitbox = null;
+        u.phase = 'recover';
+        u.recoverT = 0;
+      }
+    } else if (u.phase === 'lock') {
+      u.lockT++;
+      const lt = u.lockT;
+      this.vx = 0;
+      if (target && !target.isDead) {
+        // Pin the target in place for the flurry
+        target.vx = 0;
+        target.hitStun = Math.max(target.hitStun, 12);
+        if (!target.isGrounded) { target.vy = 0; }
+        const pinX = this.x + dir * 44;
+        target.x += (pinX - target.x) * 0.5;
+      }
+      const tx = target ? target.x + 40 : this.x + 40 + dir * 44;
+      const ty = target ? target.y - 48 : this.y - 48;
+      // Style-specific positioning during the flurry
+      if (style === 'clones' && target && lt % 6 === 1) {
+        // Blink to alternating sides of the target
+        const side = (u.hits % 2 === 0) ? -1 : 1;
+        this.x = target.x - side * dir * 44;
+        this.facingRight = this.x < target.x;
+        this.addAfterImage();
+        vfx.speedLines(this.x + 40, this.y - 20, { dir: side * dir, count: 4 });
+      }
+      this.animFrame = Math.min(maxF, 1 + (Math.floor(lt / 3) % 2));
+      if (lt % 2 === 0) this.addAfterImage();
+      // Flurry: 6 hits
+      if (lt % 6 === 3 && u.hits < 6 && target && !target.isDead) {
+        u.hits++;
+        this.ultimateHit(target, {
+          damage: 38, hitStun: 30, blockStun: 0, pushback: 0,
+          height: ATTACK_HEIGHT.UNBLOCKABLE, hitType: HIT_TYPE.LIGHT, isUltimate: true
+        }, { x: tx + (Math.random() - 0.5) * 18, y: ty + (Math.random() - 0.5) * 30 });
+        const ang = (u.hits % 3) - 1;
+        vfx.slash(tx, ty, { r: 30 + u.hits * 2, dir: this.facingRight ? 1 : -1, color: glow, a0: -1.3 + ang * 0.6, a1: 1.1 + ang * 0.6, life: 10, w: 5 });
+        if (style === 'dragon') vfx.burst(tx, ty, { color: '#ffb347', count: 6, speed: 4 });
+        if (style === 'orbital') vfx.push({ kind: 'line', x: tx + 60, y: ty + (Math.random() - 0.5) * 20, vx: 8, len: 50, life: 8, color: 'rgba(170, 230, 255, ALPHA)' });
+      }
+      // Finisher
+      if (lt === 44) {
+        if (target && !target.isDead) {
+          target.hitStun = Math.max(1, target.hitStun); // stay "in combo" so the finisher scales
+          this.ultimateHit(target, {
+            damage: 190, hitStun: 40, blockStun: 0, pushback: 9,
+            height: ATTACK_HEIGHT.UNBLOCKABLE, hitType: HIT_TYPE.KNOCKDOWN, isUltimate: true, ultimateFinisher: true
+          }, { x: tx, y: ty });
+        }
+        this.ultimateFinisherFX(tx, ty, glow);
+        soundFX.playUltimateFinisher && soundFX.playUltimateFinisher();
+      }
+      if (lt >= 50) {
+        u.phase = 'recover';
+        u.recoverT = 0;
+      }
+    } else if (u.phase === 'recover') {
+      u.recoverT++;
+      this.activeHitbox = null;
+      this.animFrame = Math.min(maxF, 3);
+      // Whiffed / blocked ultimates are punishable: invincibility ends early
+      if (u.recoverT > 4) this.isInvincible = false;
+      if (u.recoverT >= 26) {
+        this.ult = null;
+        this.isInvincible = false;
+        this.changeState(FIGHTER_STATE.IDLE);
+      }
+    }
+  }
+
+  ultimateFinisherFX(x, y, glow) {
+    const style = this.ultimateStyle;
+    vfx.flashScreen('#ffffff', 0.75, 0.05);
+    vfx.push({ kind: 'ring', x, y, r: 12, vr: 9, life: 26, color: '#ffffff', w: 6 });
+    vfx.push({ kind: 'ring', x, y, r: 8, vr: 6, life: 30, color: glow, w: 4 });
+    if (style === 'dragon') {
+      vfx.pillar(x, 302, { color: glow, w: 70, h: 360, life: 34 });
+      vfx.burst(x, y, { color: '#ffb347', count: 40, speed: 10, life: 34, size: 3.5 });
+      vfx.burst(x, y, { color: glow, count: 24, speed: 7, life: 30, size: 3 });
+    } else if (style === 'orbital') {
+      vfx.pillar(x, 302, { color: '#9be7ff', w: 54, h: 400, life: 30 });
+      vfx.pillar(x, 302, { color: glow, w: 22, h: 400, life: 36 });
+      vfx.shockwave(x, 300, { color: '#9be7ff', size: 2.2 });
+      vfx.dust(x, 300, { amount: 16, scale: 1.6 });
+    } else if (style === 'clones') {
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        vfx.slash(x + Math.cos(a) * 10, y + Math.sin(a) * 10, { r: 46, dir: 1, color: glow, a0: a - 0.9, a1: a + 0.9, life: 14, w: 4 });
+      }
+      vfx.burst(x, y, { color: glow, count: 30, speed: 9, life: 28 });
+    } else {
+      // Grounded beat-downs end in a seismic slam
+      vfx.shockwave(x, 300, { color: glow, size: 2.6 });
+      vfx.shockwave(x, 300, { color: '#ffffff', size: 1.6 });
+      vfx.dust(x, 300, { amount: 22, scale: 1.8 });
+      vfx.burst(x, y, { color: glow, count: 28, speed: 8, life: 26 });
+    }
   }
 
   executePickupAttack(type, opponent) {
@@ -786,7 +967,7 @@ export class Fighter {
     else soundFX.playHitLight();
 
     this.health = Math.max(0, this.health - attackData.damage);
-    this.addSuper(attackData.damage * 0.08);
+    this.addSuper(attackData.damage * 0.05);
 
     // Apply Arterial Bleed
     if (attackData.hitType === HIT_TYPE.BLEED_SLASH) {
@@ -841,8 +1022,9 @@ export class Fighter {
 
   addSuper(amount) {
     const mult = this.isRageMode ? 1.5 : 1.0;
+    const wasFull = this.superMeter >= this.maxSuperMeter;
     this.superMeter = Math.min(this.maxSuperMeter, this.superMeter + amount * mult);
-    if (this.superMeter >= this.maxSuperMeter) {
+    if (!wasFull && this.superMeter >= this.maxSuperMeter) {
       soundFX.playSuperReady();
     }
   }
@@ -990,6 +1172,8 @@ export class Fighter {
 
     // 3. Render Main Sprite with Heavy Panting Heave & Visual Damage
     const frames = this.sprites[this.state] || 
+                   (this.state === FIGHTER_STATE.THROW ? (this.sprites.ATTACK_HP || this.sprites.IDLE) : null) ||
+                   (this.state === FIGHTER_STATE.THROWN ? (this.sprites.HIT || this.sprites.IDLE) : null) ||
                    (this.state === FIGHTER_STATE.CROUCH_HEAVY_PUNCH ? this.sprites.CROUCH_LP : null) || 
                    (this.state === FIGHTER_STATE.DIRTY_TACTIC ? (this.sprites.ATTACK_HP || this.sprites.IDLE) : null) ||
                    (this.state === FIGHTER_STATE.BLIND_STUN ? (this.sprites.HIT || this.sprites.IDLE) : null) ||
@@ -999,6 +1183,18 @@ export class Fighter {
     const currentImg = frames[Math.min(this.animFrame, frames.length - 1)];
 
     if (!currentImg) return;
+
+    // Soft contact shadow (shrinks as the fighter leaves the ground)
+    {
+      const lift = Math.max(0, 300 - this.y);
+      const k = Math.max(0.35, 1 - lift / 200);
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.42 * k})`;
+      ctx.beginPath();
+      ctx.ellipse(this.x + 40, 301, 26 * k, 6 * k, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.save();
     let drawY = this.y - 90;
@@ -1016,6 +1212,11 @@ export class Fighter {
 
     if (this.armorFlash > 0) {
       ctx.filter = 'brightness(2.5)';
+    } else if (this.hitFlash > 0) {
+      // Impact flash: bright on the first frames of a hit
+      ctx.filter = this.hitFlash > 2 ? 'brightness(3) saturate(0)' : 'brightness(1.7)';
+    } else if (this.invulnTimer > 0 && Math.floor(this.invulnTimer / 2) % 2 === 0) {
+      ctx.filter = 'brightness(1.6) sepia(1) saturate(4) hue-rotate(5deg)';
     }
 
     ctx.drawImage(currentImg, 0, 0);
@@ -1046,12 +1247,15 @@ export class Fighter {
       ctx.restore();
     }
 
-    // 5. 2V2 Cel-Shaded Team Ground Indicator
+    // 5. Team marker ring at the feet (shadow itself is drawn before the sprite)
     ctx.save();
-    ctx.fillStyle = this.team === 1 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(244, 63, 94, 0.45)';
+    const lift = Math.max(0, 300 - this.y);
+    const ringScale = Math.max(0.4, 1 - lift / 220);
+    ctx.strokeStyle = this.team === 1 ? 'rgba(63, 182, 255, 0.55)' : 'rgba(255, 77, 109, 0.55)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.ellipse(this.x + 40, this.y, 20, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.ellipse(this.x + 40, 300, 22 * ringScale, 5 * ringScale, 0, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
 
     // 6. Held Environmental Weapon Pickup

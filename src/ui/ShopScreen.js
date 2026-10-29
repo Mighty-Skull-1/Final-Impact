@@ -6,6 +6,12 @@ import { spriteGenerator } from '../graphics/SpriteGenerator.js';
 import { soundFX } from '../audio/SoundFX.js';
 import { isMightyUnlocked } from '../utils/CryptoAuth.js';
 import { achievements } from '../engine/Achievements.js';
+import { input } from '../engine/Input.js';
+import {
+  COLORS, FONTS, approach, wrapLines, cleanLabel, hexToRgba, slantPath,
+  drawText, drawLabel, drawBackdrop, drawScreenHeader, drawPromptBar, drawPanel, drawKeyCap,
+  drawPlatform, drawFighterSprite, drawActionButton, drawStatusBar, drawChip
+} from './Theme.js';
 
 export class ShopScreen {
   constructor() {
@@ -313,22 +319,37 @@ export class ShopScreen {
     }
   }
 
+  // Shared layout (640x360 logical canvas) for rendering and hit-testing
+  layout(W = 640) {
+    const tabW = 78, tabH = 18, tabY = 52;
+    const tabsW = this.categories.length * tabW + (this.categories.length - 1) * 4;
+    const tabX0 = W / 2 - tabsW / 2;
+    return {
+      back: { x: W - 16 - 64, y: 14, w: 64, h: 18 },
+      wallet: { x: W - 16 - 64 - 8 - 112, y: 14, w: 112, h: 18 },
+      tabs: { x0: tabX0, y: tabY, w: tabW, h: tabH, gap: 4 },
+      prevTab: { x: tabX0 - 30, y: tabY, w: 24, h: tabH },
+      nextTab: { x: tabX0 + tabsW + 6, y: tabY, w: 24, h: tabH },
+      list: { x: 16, y: 82, w: 150, h: 244, rowY: 102, rowH: 22 },
+      stage: { x: 174, y: 82, w: 284, h: 244 },
+      leftArrow: { x: 180, y: 176, w: 22, h: 40 },
+      rightArrow: { x: 430, y: 176, w: 22, h: 40 },
+      detail: { x: 466, y: 82, w: W - 466 - 16, h: 244 },
+      action: { x: 474, y: 296, w: W - 466 - 16 - 16, h: 22 }
+    };
+  }
+
   handleMouseClick(x, y, W, H) {
-    // Back button hit test (top left: 16, 12, 100, 26)
-    if (x >= 16 && x <= 126 && y >= 12 && y <= 38) {
+    W = W || 640;
+    const L = this.layout(W);
+    const inR = (r, pad = 0) => x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
+
+    if (inR(L.back, 3)) {
       soundFX.playMenuSelect();
       return { action: 'back' };
     }
 
-    // Category Navigation Pills (Center top)
-    const catTabW = 64;
-    const catTabH = 20;
-    const catTabY = 28;
-    const catStartX = W / 2 - (this.categories.length * catTabW) / 2;
-
-    // LB button hit test
-    const lbX = catStartX - 36;
-    if (x >= lbX && x <= lbX + 32 && y >= catTabY && y <= catTabY + catTabH) {
+    if (inR(L.prevTab, 2)) {
       this.currentCategoryIndex = (this.currentCategoryIndex - 1 + this.categories.length) % this.categories.length;
       this.selectedItemIndex = 0;
       this.selectedSkinIndex = 0;
@@ -336,10 +357,7 @@ export class ShopScreen {
       soundFX.playWhoosh('light');
       return { action: 'change_category' };
     }
-
-    // RB button hit test
-    const rbX = catStartX + this.categories.length * catTabW + 4;
-    if (x >= rbX && x <= rbX + 32 && y >= catTabY && y <= catTabY + catTabH) {
+    if (inR(L.nextTab, 2)) {
       this.currentCategoryIndex = (this.currentCategoryIndex + 1) % this.categories.length;
       this.selectedItemIndex = 0;
       this.selectedSkinIndex = 0;
@@ -347,10 +365,9 @@ export class ShopScreen {
       soundFX.playWhoosh('light');
       return { action: 'change_category' };
     }
-
     for (let c = 0; c < this.categories.length; c++) {
-      const cx = catStartX + c * catTabW;
-      if (x >= cx + 2 && x <= cx + catTabW - 2 && y >= catTabY && y <= catTabY + catTabH) {
+      const r = { x: L.tabs.x0 + c * (L.tabs.w + L.tabs.gap), y: L.tabs.y, w: L.tabs.w, h: L.tabs.h };
+      if (inR(r)) {
         this.currentCategoryIndex = c;
         this.selectedItemIndex = 0;
         this.selectedSkinIndex = 0;
@@ -360,58 +377,42 @@ export class ShopScreen {
       }
     }
 
-    if (this.currentCategory === 'SKINS') {
-      const mightyOpen = isMightyUnlocked();
-      const availableFighters = this.fighters.filter(f => f.id !== 'mighty' || mightyOpen);
-
-      // Fighter list items on left (x: 20 to 150, y starting around 60)
-      const listY0 = 60;
-      const itemH = 28;
-      for (let i = 0; i < availableFighters.length; i++) {
-        const iy = listY0 + i * itemH;
-        if (x >= 20 && x <= 160 && y >= iy && y <= iy + itemH - 4) {
+    const rows = this.currentCategory === 'SKINS' ? this.availableFighters().length : this.availableItems.length;
+    for (let i = 0; i < rows; i++) {
+      const r = { x: L.list.x + 4, y: L.list.rowY + i * L.list.rowH, w: L.list.w - 8, h: L.list.rowH - 2 };
+      if (inR(r)) {
+        if (this.currentCategory === 'SKINS') {
           this.selectedFighterIndex = i;
           this.selectedSkinIndex = 0;
           this.focusZone = 'ITEMS';
           soundFX.playWhoosh('light');
           return { action: 'select_fighter' };
         }
-      }
-    } else {
-      const items = this.availableItems;
-      const listY0 = 60;
-      const itemH = 28;
-      for (let i = 0; i < items.length; i++) {
-        const iy = listY0 + i * itemH;
-        if (x >= 20 && x <= 160 && y >= iy && y <= iy + itemH - 4) {
-          this.selectedItemIndex = i;
-          this.focusZone = 'ITEMS';
-          soundFX.playWhoosh('light');
-          return { action: 'select_item' };
-        }
+        this.selectedItemIndex = i;
+        this.focusZone = 'ITEMS';
+        soundFX.playWhoosh('light');
+        return { action: 'select_item' };
       }
     }
 
-    // Left arrow for skin carousel (x: 180 to 220, y: 150 to 200)
-    if (x >= 180 && x <= 220 && y >= 150 && y <= 200) {
-      const skins = this.availableSkins;
-      this.selectedSkinIndex = (this.selectedSkinIndex - 1 + skins.length) % skins.length;
-      this.focusZone = 'ITEMS';
-      soundFX.playWhoosh('light');
-      return { action: 'prev_skin' };
+    if (this.currentCategory === 'SKINS') {
+      if (inR(L.leftArrow, 4)) {
+        const skins = this.availableSkins;
+        this.selectedSkinIndex = (this.selectedSkinIndex - 1 + skins.length) % skins.length;
+        this.focusZone = 'ITEMS';
+        soundFX.playWhoosh('light');
+        return { action: 'prev_skin' };
+      }
+      if (inR(L.rightArrow, 4)) {
+        const skins = this.availableSkins;
+        this.selectedSkinIndex = (this.selectedSkinIndex + 1) % skins.length;
+        this.focusZone = 'ITEMS';
+        soundFX.playWhoosh('light');
+        return { action: 'next_skin' };
+      }
     }
 
-    // Right arrow for skin carousel (x: 430 to 470, y: 150 to 200)
-    if (x >= 430 && x <= 470 && y >= 150 && y <= 200) {
-      const skins = this.availableSkins;
-      this.selectedSkinIndex = (this.selectedSkinIndex + 1) % skins.length;
-      this.focusZone = 'ITEMS';
-      soundFX.playWhoosh('light');
-      return { action: 'next_skin' };
-    }
-
-    // Main action button (BUY / EQUIP) at bottom right: x: 470 to 620, y: 280 to 325
-    if (x >= 470 && x <= 620 && y >= 280 && y <= 325) {
+    if (inR(L.action, 3)) {
       this.focusZone = 'ITEMS';
       this.triggerSkinAction();
       return { action: 'buy_equip' };
@@ -420,478 +421,273 @@ export class ShopScreen {
     return null;
   }
 
+  availableFighters() {
+    const mightyOpen = isMightyUnlocked();
+    return this.fighters.filter(f => f.id !== 'mighty' || mightyOpen);
+  }
+
+  hasGamepad() {
+    try { return input.hasGamepadConnected(); } catch (e) { return false; }
+  }
+
+  drawCoin(ctx, x, y, r = 5) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0.5, x, y, r);
+    g.addColorStop(0, COLORS.goldPale);
+    g.addColorStop(1, COLORS.goldDeep);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(80,50,0,0.8)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   render(ctx, W, H) {
     this.update();
-
-    // 1. Dark Tournament Backdrop
-    ctx.fillStyle = '#08060a';
-    ctx.fillRect(0, 0, W, H);
-
-    // Cyber / Arcade Grid pattern
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.04)';
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < W; gx += 20) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, H);
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < H; gy += 20) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(W, gy);
-      ctx.stroke();
-    }
-
-    // Header Glow Bar
-    const grad = ctx.createLinearGradient(0, 0, W, 0);
-    grad.addColorStop(0, 'rgba(220, 38, 38, 0.8)');
-    grad.addColorStop(0.5, 'rgba(234, 179, 8, 0.9)');
-    grad.addColorStop(1, 'rgba(220, 38, 38, 0.8)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, 4);
-
-    // 2. Top Header Bar
-    // Back Button
-    ctx.fillStyle = '#1e1b4b';
-    ctx.strokeStyle = '#6366f1';
-    ctx.lineWidth = 1.5;
-    ctx.fillRect(16, 12, 100, 26);
-    ctx.strokeRect(16, 12, 100, 26);
-    ctx.fillStyle = '#c7d2fe';
-    ctx.font = '8px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('◀ [ESC] BACK', 66, 25);
-
-    // Title
-    ctx.fillStyle = '#facc15';
-    ctx.font = '9px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(250, 204, 21, 0.6)';
-    ctx.shadowBlur = 8;
-    ctx.fillText('🛍️ FIGHTER\'S VAULT & ITEM SHOP', W / 2, 17);
-    ctx.shadowBlur = 0;
-
-    // Wallet / Coin Display (top right)
-    const coins = EconomyManager.getCoins();
-    ctx.fillStyle = '#18181b';
-    ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 1.5;
-    ctx.fillRect(W - 165, 12, 148, 26);
-    ctx.strokeRect(W - 165, 12, 148, 26);
-
-    ctx.fillStyle = '#fde047';
-    ctx.font = '8px "Press Start 2P"';
-    ctx.textAlign = 'right';
-    ctx.fillText(`🪙 ${coins.toLocaleString()} COINS`, W - 24, 25);
-
-    // Category Navigation Pills (Center top)
-    const catTabW = 64;
-    const catTabH = 20;
-    const catTabY = 28;
-    const catStartX = W / 2 - (this.categories.length * catTabW) / 2;
-
-    // LB Bumper Button badge
-    const lbX = catStartX - 36;
-    ctx.fillStyle = '#1e1b4b';
-    ctx.strokeStyle = '#818cf8';
-    ctx.lineWidth = 1;
-    ctx.fillRect(lbX, catTabY + 1, 30, catTabH - 2);
-    ctx.strokeRect(lbX, catTabY + 1, 30, catTabH - 2);
-    ctx.fillStyle = '#c7d2fe';
-    ctx.font = '6px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.fillText('◀ LB', lbX + 15, catTabY + 13);
-
-    // RB Bumper Button badge
-    const rbX = catStartX + this.categories.length * catTabW + 6;
-    ctx.fillStyle = '#1e1b4b';
-    ctx.strokeStyle = '#818cf8';
-    ctx.lineWidth = 1;
-    ctx.fillRect(rbX, catTabY + 1, 30, catTabH - 2);
-    ctx.strokeRect(rbX, catTabY + 1, 30, catTabH - 2);
-    ctx.fillStyle = '#c7d2fe';
-    ctx.font = '6px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.fillText('RB ▶', rbX + 15, catTabY + 13);
-
-    for (let c = 0; c < this.categories.length; c++) {
-      const catName = this.categories[c];
-      const cx = catStartX + c * catTabW;
-      const isCur = (c === this.currentCategoryIndex);
-      const isFocused = isCur && (this.focusZone === 'CATEGORIES');
-
-      if (isFocused) {
-        ctx.fillStyle = '#facc15';
-        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
-
-        ctx.fillStyle = '#000000';
-        ctx.font = '7px "Press Start 2P"';
-        ctx.textAlign = 'center';
-        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
-
-        // Animated cursor arrow pointing down to items
-        const arrowBounce = Math.sin(this.animTimer * 0.2) * 2;
-        ctx.fillStyle = '#fde047';
-        ctx.font = '7px "Press Start 2P"';
-        ctx.fillText('▼', cx + catTabW / 2, catTabY + catTabH + 8 + arrowBounce);
-      } else if (isCur) {
-        ctx.fillStyle = '#b45309';
-        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
-        ctx.strokeStyle = '#fde047';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
-
-        ctx.fillStyle = '#fef08a';
-        ctx.font = '7px "Press Start 2P"';
-        ctx.textAlign = 'center';
-        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
-      } else {
-        ctx.fillStyle = '#18181b';
-        ctx.fillRect(cx + 2, catTabY, catTabW - 4, catTabH);
-        ctx.strokeStyle = '#3f3f46';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(cx + 2, catTabY, catTabW - 4, catTabH);
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '7px "Press Start 2P"';
-        ctx.textAlign = 'center';
-        ctx.fillText(catName, cx + catTabW / 2, catTabY + 13);
-      }
-    }
-
-    // 3. Left Panel: Item / Fighter List
-    const listX = 16;
-    const listY = 56;
-    const listW = 150;
-
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(listX, listY, listW, 268);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.strokeRect(listX, listY, listW, 268);
-
-    ctx.fillStyle = '#64748b';
-    ctx.font = '7px "Press Start 2P"';
-    ctx.textAlign = 'left';
-    ctx.fillText(this.currentCategory === 'SKINS' ? 'ROSTER SELECT' : `${this.currentCategory} LIST`, listX + 8, listY + 14);
-
-    const itemH = 26;
-
-    if (this.currentCategory === 'SKINS') {
-      const mightyOpen = isMightyUnlocked();
-      const availableFighters = this.fighters.filter(f => f.id !== 'mighty' || mightyOpen);
-
-      for (let i = 0; i < availableFighters.length; i++) {
-        const f = availableFighters[i];
-        const isSelected = (i === this.selectedFighterIndex);
-        const iy = listY + 24 + i * itemH;
-
-        if (isSelected) {
-          const isItemActive = (this.focusZone === 'ITEMS');
-          ctx.fillStyle = isItemActive ? 'rgba(234, 179, 8, 0.25)' : 'rgba(234, 179, 8, 0.08)';
-          ctx.fillRect(listX + 4, iy, listW - 8, itemH - 4);
-          ctx.strokeStyle = isItemActive ? '#eab308' : '#52525b';
-          ctx.lineWidth = isItemActive ? 1.5 : 1;
-          ctx.strokeRect(listX + 4, iy, listW - 8, itemH - 4);
-
-          ctx.fillStyle = isItemActive ? '#fde047' : '#e2e8f0';
-          ctx.font = '8px "Press Start 2P"';
-          ctx.fillText(`▶ ${f.name}`, listX + 12, iy + 14);
-        } else {
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '7px "Press Start 2P"';
-          ctx.fillText(`  ${f.name}`, listX + 12, iy + 14);
-        }
-
-        const eq = EconomyManager.getEquippedSkin(f.id);
-        if (eq) {
-          ctx.fillStyle = '#22c55e';
-          ctx.beginPath();
-          ctx.arc(listX + listW - 14, iy + 11, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    } else {
-      const items = this.availableItems;
-      const cosType = this.currentCategory === 'AURAS' ? 'aura' : (this.currentCategory === 'SPARKS' ? 'spark' : 'title');
-      const equippedCos = EconomyManager.getEquippedCosmetics();
-
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        const isSelected = (i === this.selectedItemIndex);
-        const iy = listY + 24 + i * itemH;
-
-        if (isSelected) {
-          const isItemActive = (this.focusZone === 'ITEMS');
-          ctx.fillStyle = isItemActive ? 'rgba(234, 179, 8, 0.25)' : 'rgba(234, 179, 8, 0.08)';
-          ctx.fillRect(listX + 4, iy, listW - 8, itemH - 4);
-          ctx.strokeStyle = isItemActive ? '#eab308' : '#52525b';
-          ctx.lineWidth = isItemActive ? 1.5 : 1;
-          ctx.strokeRect(listX + 4, iy, listW - 8, itemH - 4);
-
-          ctx.fillStyle = isItemActive ? '#fde047' : '#e2e8f0';
-          ctx.font = '7px "Press Start 2P"';
-          ctx.fillText(`▶ ${it.name.substring(0, 11)}`, listX + 8, iy + 14);
-        } else {
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '6.5px "Press Start 2P"';
-          ctx.fillText(`  ${it.name.substring(0, 11)}`, listX + 8, iy + 14);
-        }
-
-        if (equippedCos[cosType] === it.id) {
-          ctx.fillStyle = '#22c55e';
-          ctx.beginPath();
-          ctx.arc(listX + listW - 14, iy + 11, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-
-    // 4. Center Stage: Fighter Live Animated Rig Sprite Preview
-    const centerStageX = 180;
-    const centerStageY = 56;
-    const centerStageW = 280;
-    const centerStageH = 268;
-
-    ctx.fillStyle = '#09090b';
-    ctx.fillRect(centerStageX, centerStageY, centerStageW, centerStageH);
-    ctx.strokeStyle = '#27272a';
-    ctx.strokeRect(centerStageX, centerStageY, centerStageW, centerStageH);
-
-    // Stage spotlight circle
-    const spotGrad = ctx.createRadialGradient(
-      centerStageX + centerStageW / 2, centerStageY + 210, 10,
-      centerStageX + centerStageW / 2, centerStageY + 210, 120
-    );
+    const t = this.animTimer;
+    const L = this.layout(W);
+    const gp = this.hasGamepad();
+    const isSkinCat = this.currentCategory === 'SKINS';
     const currentSkin = this.currentSkin;
     const currentItem = this.currentItem;
-    const isSkinCat = (this.currentCategory === 'SKINS');
     const displayItem = isSkinCat ? currentSkin : currentItem;
-
-    const auraColor = displayItem.tierColor || '#38bdf8';
-    spotGrad.addColorStop(0, `${auraColor}33`);
-    spotGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = spotGrad;
-    ctx.beginPath();
-    ctx.ellipse(centerStageX + centerStageW / 2, centerStageY + 215, 100, 24, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw the fighter sprite (idle frame 0-3)
+    const tierColor = displayItem.tierColor || COLORS.p1;
     const fighter = this.currentFighter;
+    const coins = EconomyManager.getCoins();
+
+    drawBackdrop(ctx, W, H, t, { tint: COLORS.goldDeep });
+    drawScreenHeader(ctx, W, 'ITEM SHOP', "FIGHTER'S VAULT", t);
+
+    // Wallet + back chip
+    const wl = L.wallet;
+    slantPath(ctx, wl.x, wl.y, wl.w, wl.h, 5);
+    ctx.fillStyle = 'rgba(10,10,16,0.8)';
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(COLORS.gold, 0.5);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    this.drawCoin(ctx, wl.x + 16, wl.y + wl.h / 2, 5);
+    drawText(ctx, coins.toLocaleString(), wl.x + 26, wl.y + 13, { font: FONTS.display(12), color: COLORS.goldPale });
+    drawText(ctx, 'COINS', wl.x + wl.w - 10, wl.y + 12.5, { font: FONTS.ui(8, 800), color: COLORS.textDim, align: 'right', letterSpacing: 1 });
+    drawChip(ctx, L.back.x, L.back.y, L.back.w, L.back.h, gp ? 'B' : 'ESC', 'BACK');
+
+    // ---- Category tabs ----
+    const T = L.tabs;
+    const catFocus = this.focusZone === 'CATEGORIES';
+    this._tabX = approach(this._tabX, T.x0 + this.currentCategoryIndex * (T.w + T.gap), 0.3);
+    for (let c = 0; c < this.categories.length; c++) {
+      const x = T.x0 + c * (T.w + T.gap);
+      slantPath(ctx, x, T.y, T.w, T.h, 6);
+      ctx.fillStyle = 'rgba(14,13,20,0.85)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    {
+      const g = ctx.createLinearGradient(0, T.y, 0, T.y + T.h);
+      g.addColorStop(0, COLORS.crimson);
+      g.addColorStop(1, COLORS.crimsonDeep);
+      slantPath(ctx, this._tabX, T.y, T.w, T.h, 6);
+      ctx.fillStyle = g;
+      ctx.fill();
+      if (catFocus) {
+        ctx.strokeStyle = COLORS.gold;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+    for (let c = 0; c < this.categories.length; c++) {
+      const x = T.x0 + c * (T.w + T.gap);
+      const cur = c === this.currentCategoryIndex;
+      drawText(ctx, this.categories[c], x + T.w / 2, T.y + 13, { font: FONTS.display(11), color: cur ? '#fff' : COLORS.textDim, align: 'center' });
+    }
+    drawKeyCap(ctx, gp ? 'LB' : 'Q', L.prevTab.x + 4, L.prevTab.y + 3);
+    drawKeyCap(ctx, gp ? 'RB' : 'E', L.nextTab.x + 4, L.nextTab.y + 3);
+
+    // ---- Left list ----
+    const LS = L.list;
+    drawPanel(ctx, LS.x, LS.y, LS.w, LS.h, { fill: 'rgba(12, 11, 18, 0.88)', stroke: 'rgba(255,255,255,0.08)' });
+    drawLabel(ctx, isSkinCat ? 'ROSTER' : this.currentCategory, LS.x + 10, LS.y + 13, { color: COLORS.textDim, size: 8 });
+    const itemsFocus = this.focusZone === 'ITEMS';
+    const rows = isSkinCat ? this.availableFighters() : this.availableItems;
+    const selIdx = isSkinCat ? Math.min(this.selectedFighterIndex, rows.length - 1) : Math.min(this.selectedItemIndex, rows.length - 1);
+    const cosType = this.currentCategory === 'AURAS' ? 'aura' : (this.currentCategory === 'SPARKS' ? 'spark' : 'title');
+    const equippedCos = EconomyManager.getEquippedCosmetics();
+    this._rowY = approach(this._rowY, LS.rowY + selIdx * LS.rowH, 0.3);
+    {
+      const g = ctx.createLinearGradient(LS.x, 0, LS.x + LS.w, 0);
+      g.addColorStop(0, hexToRgba(COLORS.crimson, itemsFocus ? 0.9 : 0.35));
+      g.addColorStop(1, hexToRgba(COLORS.crimsonDeep, 0.1));
+      slantPath(ctx, LS.x + 4, this._rowY, LS.w - 8, LS.rowH - 2, 6);
+      ctx.fillStyle = g;
+      ctx.fill();
+      if (itemsFocus) {
+        ctx.fillStyle = COLORS.gold;
+        ctx.fillRect(LS.x + 4, this._rowY + 2, 2, LS.rowH - 6);
+      }
+    }
+    rows.forEach((row, i) => {
+      const y = LS.rowY + i * LS.rowH;
+      const sel = i === selIdx;
+      drawText(ctx, cleanLabel(row.name), LS.x + 14, y + 14, {
+        font: FONTS.display(sel ? 11 : 10), color: sel ? '#fff' : COLORS.textDim, maxWidth: LS.w - 36
+      });
+      const eq = isSkinCat ? EconomyManager.getEquippedSkin(row.id) : (equippedCos[cosType] === row.id);
+      if (eq) {
+        ctx.fillStyle = COLORS.good;
+        ctx.beginPath();
+        ctx.arc(LS.x + LS.w - 14, y + 10, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // ---- Centre stage ----
+    const S = L.stage;
+    drawPanel(ctx, S.x, S.y, S.w, S.h, { fill: 'rgba(6, 6, 10, 0.75)', stroke: 'rgba(255,255,255,0.08)' });
+    const scx = S.x + S.w / 2;
+    const groundY = S.y + 196;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(S.x, S.y, S.w, S.h);
+    ctx.clip();
+    drawPlatform(ctx, scx, groundY, 70, tierColor, t);
     const skinIdToLoad = currentSkin.isDefault ? null : currentSkin.id;
     const sprites = this.getPreviewSprite(fighter.id, skinIdToLoad);
+    const frames = sprites && (sprites.idle || sprites.IDLE);
+    const img = frames && frames.length ? frames[this.animFrame % frames.length] : null;
 
-    if (sprites && sprites.idle && sprites.idle.length > 0) {
-      const frameIdx = this.animFrame % sprites.idle.length;
-      const img = sprites.idle[frameIdx];
-      if (img) {
-        const scale = 2.4;
-        const sw = 80 * scale;
-        const sh = 90 * scale;
-        const sx = centerStageX + (centerStageW - sw) / 2;
-        const sy = centerStageY + 195 - sh;
-
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, sx, sy, sw, sh);
-      }
-    }
-
-    // Dynamic Live Cosmetic Preview Effects
-    if (this.currentCategory === 'AURAS' && currentItem.color !== 'transparent') {
+    // Live cosmetic preview effects (behind / around the fighter)
+    if (this.currentCategory === 'AURAS' && currentItem.color && currentItem.color !== 'transparent') {
       const col = currentItem.color;
-      for (let p = 0; p < 16; p++) {
-        const px = centerStageX + centerStageW / 2 + Math.sin(this.animTimer * 0.1 + p * 1.3) * 35;
-        const py = centerStageY + 180 - ((this.animTimer * 2 + p * 18) % 120);
+      const ag = ctx.createRadialGradient(scx, groundY - 70, 5, scx, groundY - 70, 90);
+      ag.addColorStop(0, hexToRgba(col, 0.25));
+      ag.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = ag;
+      ctx.fillRect(S.x, S.y, S.w, S.h);
+      for (let p = 0; p < 22; p++) {
+        const px = scx + Math.sin(t * 0.1 + p * 1.3) * 38;
+        const py = groundY - ((t * 2 + p * 18) % 160);
+        ctx.globalAlpha = 0.65 * (1 - ((t * 2 + p * 18) % 160) / 160);
         ctx.fillStyle = col;
-        ctx.globalAlpha = 0.65;
         ctx.fillRect(px, py, 3, 5);
       }
-      ctx.globalAlpha = 1.0;
-    } else if (this.currentCategory === 'SPARKS') {
-      const col = currentItem.color;
+      ctx.globalAlpha = 1;
+    }
+    drawFighterSprite(ctx, img, scx, groundY + 2, 2.2, { rim: tierColor, glow: 8 });
+    if (this.currentCategory === 'SPARKS') {
+      const col = currentItem.color || COLORS.gold;
+      const cy = groundY - 100;
       for (let s = 0; s < 12; s++) {
-        const ang = s * (Math.PI / 6) + this.animTimer * 0.05;
-        const rad = 25 + Math.sin(this.animTimer * 0.2 + s) * 15;
-        const sx = centerStageX + centerStageW / 2 + Math.cos(ang) * rad;
-        const sy = centerStageY + 120 + Math.sin(ang) * rad;
+        const ang = s * (Math.PI / 6) + t * 0.05;
+        const rad = 25 + Math.sin(t * 0.2 + s) * 15;
         ctx.fillStyle = col;
-        ctx.fillRect(sx, sy, 3, 3);
+        ctx.fillRect(scx + 40 + Math.cos(ang) * rad, cy + Math.sin(ang) * rad, 3, 3);
       }
     } else if (this.currentCategory === 'TITLES') {
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.25)';
-      ctx.fillRect(centerStageX + 20, centerStageY + 20, centerStageW - 40, 24);
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(centerStageX + 20, centerStageY + 20, centerStageW - 40, 24);
-      ctx.fillStyle = '#fde047';
-      ctx.font = '7px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText(`★ ${currentItem.name} ★`, centerStageX + centerStageW / 2, centerStageY + 36);
+      drawText(ctx, '★ ' + currentItem.name + ' ★', scx, S.y + 24, {
+        font: FONTS.display(12), color: tierColor, align: 'center', outline: 3, maxWidth: S.w - 24
+      });
+    }
+    ctx.restore();
+
+    if (isSkinCat) {
+      const skins = this.availableSkins;
+      const si = Math.max(0, Math.min(this.selectedSkinIndex, skins.length - 1));
+      const nudge = Math.sin(t * 0.15) * 1.5;
+      drawText(ctx, '◀', L.leftArrow.x + L.leftArrow.w / 2 - nudge, L.leftArrow.y + L.leftArrow.h / 2 + 4, { font: FONTS.ui(12, 800), color: COLORS.gold, align: 'center' });
+      drawText(ctx, '▶', L.rightArrow.x + L.rightArrow.w / 2 + nudge, L.rightArrow.y + L.rightArrow.h / 2 + 4, { font: FONTS.ui(12, 800), color: COLORS.gold, align: 'center' });
+      // skin pager dots
+      const dotsW = skins.length * 10;
+      skins.forEach((sk, i) => {
+        const dx = scx - dotsW / 2 + i * 10 + 5;
+        ctx.fillStyle = i === si ? (sk.tierColor || COLORS.gold) : 'rgba(255,255,255,0.18)';
+        slantPath(ctx, dx - 3, S.y + 216, 7, 4, 2);
+        ctx.fill();
+      });
+      drawText(ctx, `${fighter.name}  ·  SKIN ${si + 1} / ${skins.length}`, scx, S.y + 234, {
+        font: FONTS.ui(8, 800), color: COLORS.textDim, align: 'center', letterSpacing: 1
+      });
     }
 
-    // Carousel Left & Right Arrow Buttons
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(centerStageX + 8, centerStageY + 110, 24, 34);
-    ctx.fillStyle = '#facc15';
-    ctx.font = '12px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.fillText('◀', centerStageX + 20, centerStageY + 132);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(centerStageX + centerStageW - 32, centerStageY + 110, 24, 34);
-    ctx.fillStyle = '#facc15';
-    ctx.fillText('▶', centerStageX + centerStageW - 20, centerStageY + 132);
-
-    // 5. Right Panel: Details, Rarity, Lore, Buy / Equip Action
-    const detailX = 472;
-    const detailY = 56;
-    const detailW = W - detailX - 16;
-    const detailH = 268;
-
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(detailX, detailY, detailW, detailH);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.strokeRect(detailX, detailY, detailW, detailH);
-
-    // Rarity Badge Pill
-    ctx.fillStyle = `${displayItem.tierColor || '#38bdf8'}22`;
-    ctx.strokeStyle = displayItem.tierColor || '#38bdf8';
+    // ---- Right details ----
+    const D = L.detail;
+    drawPanel(ctx, D.x, D.y, D.w, D.h, { fill: 'rgba(12, 11, 18, 0.9)', stroke: 'rgba(255,255,255,0.08)' });
+    ctx.fillStyle = tierColor;
+    ctx.fillRect(D.x, D.y, D.w, 2);
+    const dx = D.x + 10, dw = D.w - 20;
+    // tier badge
+    const tier = displayItem.tier || 'COMMON';
+    ctx.font = FONTS.ui(8, 800);
+    const bw = ctx.measureText(tier).width + 16;
+    slantPath(ctx, dx, D.y + 10, bw, 12, 4);
+    ctx.fillStyle = hexToRgba(tierColor, 0.22);
+    ctx.fill();
+    ctx.strokeStyle = tierColor;
     ctx.lineWidth = 1;
-    ctx.fillRect(detailX + 12, detailY + 14, 80, 16);
-    ctx.strokeRect(detailX + 12, detailY + 14, 80, 16);
-    ctx.fillStyle = displayItem.tierColor || '#38bdf8';
-    ctx.font = '6px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.fillText(displayItem.tier || 'COMMON', detailX + 52, detailY + 24);
-
-    // Item Name
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '8px "Press Start 2P"';
-    ctx.textAlign = 'left';
-    ctx.fillText(displayItem.name.substring(0, 14), detailX + 12, detailY + 46);
-
-    // Subtitle
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '6px "Press Start 2P"';
-    ctx.fillText(isSkinCat ? `FIGHTER: ${fighter.name}` : `CATEGORY: ${this.currentCategory}`, detailX + 12, detailY + 58);
-
-    // Divider
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.beginPath();
-    ctx.moveTo(detailX + 12, detailY + 68);
-    ctx.lineTo(detailX + detailW - 12, detailY + 68);
     ctx.stroke();
+    drawText(ctx, tier, dx + bw / 2, D.y + 19, { font: FONTS.ui(8, 800), color: tierColor, align: 'center', letterSpacing: 1 });
+    ctx.font = FONTS.display(14);
+    const nameLines = wrapLines(ctx, cleanLabel(displayItem.name), dw).slice(0, 2);
+    nameLines.forEach((ln, i) => drawText(ctx, ln, dx, D.y + 42 + i * 15, { font: FONTS.display(14), color: '#fff', maxWidth: dw }));
+    let y = D.y + 42 + nameLines.length * 15 - 3;
+    drawText(ctx, isSkinCat ? `FIGHTER: ${fighter.name}` : `CATEGORY: ${this.currentCategory}`, dx, y, { font: FONTS.ui(8, 700), color: COLORS.textDim, letterSpacing: 1 });
+    y += 8;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(dx, y, dw, 1);
+    ctx.font = FONTS.ui(9, 600);
+    wrapLines(ctx, displayItem.desc || '', dw).slice(0, 6).forEach((ln, i) => {
+      drawText(ctx, ln, dx, y + 15 + i * 12, { font: FONTS.ui(9, 600), color: COLORS.text });
+    });
 
-    // Lore Description (wrapped)
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '6px "Press Start 2P"';
-    const words = (displayItem.desc || '').split(' ');
-    let line = '';
-    let textY = detailY + 84;
-    for (const w of words) {
-      const test = line + (line ? ' ' : '') + w;
-      if (test.length > 20) {
-        ctx.fillText(line, detailX + 12, textY);
-        textY += 12;
-        line = w;
-      } else {
-        line = test;
-      }
-    }
-    if (line) ctx.fillText(line, detailX + 12, textY);
-
-    // Ownership & Equip Status
+    // ownership state
     let isEquipped = false;
     let isOwned = false;
-
     if (isSkinCat) {
       const equippedSkinId = EconomyManager.getEquippedSkin(fighter.id);
       isEquipped = (equippedSkinId === currentSkin.id) || (!equippedSkinId && currentSkin.isDefault);
       isOwned = currentSkin.isDefault || EconomyManager.isSkinOwned(currentSkin.id);
     } else {
-      const cosType = this.currentCategory === 'AURAS' ? 'aura' : (this.currentCategory === 'SPARKS' ? 'spark' : 'title');
-      const equippedCos = EconomyManager.getEquippedCosmetics();
       isEquipped = (equippedCos[cosType] === currentItem.id);
       isOwned = (currentItem.price === 0) || EconomyManager.isSkinOwned(currentItem.id);
     }
-
-    const actionBoxY = detailY + 180;
+    const A = L.action;
+    const key = gp ? 'A' : 'ENTER';
     if (isEquipped) {
-      ctx.fillStyle = '#14532d';
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(detailX + 12, actionBoxY, detailW - 24, 36);
-      ctx.strokeRect(detailX + 12, actionBoxY, detailW - 24, 36);
-
-      ctx.fillStyle = '#4ade80';
-      ctx.font = '8px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText('✔ CURRENTLY EQUIPPED', detailX + detailW / 2, actionBoxY + 18);
-      ctx.font = '6px "Press Start 2P"';
-      ctx.fillStyle = '#86efac';
-      ctx.fillText('ACTIVE IN ALL FIGHTS', detailX + detailW / 2, actionBoxY + 28);
+      drawStatusBar(ctx, A.x, A.y, A.w, A.h, '✔ EQUIPPED', { color: COLORS.good, time: t, size: 9 });
     } else if (isOwned) {
-      ctx.fillStyle = '#1e3a8a';
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(detailX + 12, actionBoxY, detailW - 24, 36);
-      ctx.strokeRect(detailX + 12, actionBoxY, detailW - 24, 36);
-
-      ctx.fillStyle = '#93c5fd';
-      ctx.font = '8px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText('EQUIP ITEM', detailX + detailW / 2, actionBoxY + 18);
-      ctx.font = '6px "Press Start 2P"';
-      ctx.fillStyle = '#bfdbfe';
-      ctx.fillText('[A / ENTER TO EQUIP]', detailX + detailW / 2, actionBoxY + 28);
+      drawActionButton(ctx, A.x, A.y, A.w, A.h, 'EQUIP', { key, time: t, size: 12, color: '#2563eb', deep: '#1e3a8a' });
     } else {
-      const canAfford = coins >= displayItem.price;
-      ctx.fillStyle = canAfford ? '#78350f' : '#3f3f46';
-      ctx.strokeStyle = canAfford ? '#f59e0b' : '#71717a';
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(detailX + 12, actionBoxY, detailW - 24, 36);
-      ctx.strokeRect(detailX + 12, actionBoxY, detailW - 24, 36);
-
-      ctx.fillStyle = canAfford ? '#fde047' : '#d4d4d8';
-      ctx.font = '8px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText(`BUY: 🪙 ${displayItem.price}`, detailX + detailW / 2, actionBoxY + 16);
-      ctx.font = '6px "Press Start 2P"';
-      ctx.fillStyle = canAfford ? '#fef08a' : '#ef4444';
-      ctx.fillText(canAfford ? '[A / ENTER TO BUY]' : 'NEED MORE COINS', detailX + detailW / 2, actionBoxY + 28);
+      const price = displayItem.price || 0;
+      const canAfford = coins >= price;
+      // price row
+      this.drawCoin(ctx, dx + 5, A.y - 12, 5);
+      drawText(ctx, price.toLocaleString(), dx + 15, A.y - 8, { font: FONTS.display(13), color: canAfford ? COLORS.goldPale : COLORS.bad });
+      if (!canAfford) drawText(ctx, 'NEED ' + (price - coins).toLocaleString() + ' MORE', dx + dw, A.y - 8.5, { font: FONTS.ui(8, 800), color: COLORS.bad, align: 'right' });
+      drawActionButton(ctx, A.x, A.y, A.w, A.h, 'BUY', { key, time: t, size: 12, disabled: !canAfford });
     }
 
-    // 6. Floating Status / Feedback Message
+    // ---- Footer: feedback toast or prompts ----
     if (this.messageTimer > 0 && this.message) {
-      const msgW = 380;
-      const msgH = 28;
-      const msgX = (W - msgW) / 2;
-      const msgY = H - 38;
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-      ctx.fillRect(msgX, msgY, msgW, msgH);
-      ctx.strokeStyle = this.messageColor;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(msgX, msgY, msgW, msgH);
-
-      ctx.fillStyle = this.messageColor;
-      ctx.font = '7px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.message, W / 2, msgY + 16);
+      const fade = Math.min(1, this.messageTimer / 20, (180 - this.messageTimer + 1) / 8);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, fade);
+      const msg = cleanLabel(this.message).replace(/[✨\u{1F389}❌]/gu, '').trim();
+      drawStatusBar(ctx, W / 2 - 170, H - 26, 340, 18, msg, { color: this.messageColor || COLORS.gold, time: t, size: 8 });
+      ctx.restore();
     } else {
-      // Help Footer with dynamic controller & keyboard guidance
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '6px "Press Start 2P"';
-      ctx.textAlign = 'center';
-      if (this.focusZone === 'CATEGORIES') {
-        ctx.fillText('[D-PAD ◄/►] SELECT CATEGORY  |  [▼ / A] ENTER ITEMS  |  [LB/RB] SWITCH  |  [B / ESC] BACK', W / 2, H - 12);
-      } else {
-        ctx.fillText('[LB/RB] SWITCH CATEGORY  |  [▲ TO TOP] TABS  |  [◄/►] SKINS  |  [A / ENTER] BUY/EQUIP  |  [B / ESC] BACK', W / 2, H - 12);
-      }
+      const items = gp
+        ? [{ key: 'LB/RB', label: 'CATEGORY' }, { key: 'D-PAD', label: 'BROWSE' }, { key: 'A', label: 'BUY / EQUIP' }, { key: 'B', label: 'BACK' }]
+        : [{ key: 'Q/E', label: 'CATEGORY' }, { key: 'W/S', label: 'LIST' }, ...(isSkinCat ? [{ key: 'A/D', label: 'SKIN' }] : []), { key: 'ENTER', label: 'BUY / EQUIP' }, { key: 'ESC', label: 'BACK' }];
+      drawPromptBar(ctx, items, W / 2, H - 8);
     }
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 }

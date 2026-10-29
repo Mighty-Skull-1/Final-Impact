@@ -345,7 +345,7 @@ export class FatalitySystem {
       if (this.t > 45 && this.finisherData) {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#fca5a5';
-        ctx.font = 'bold 12px monospace';
+        ctx.font = '800 12px "Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
         ctx.fillText(this.finisherData.name, W / 2, barH + 24);
 
         if (this.finisherData.japanese) {

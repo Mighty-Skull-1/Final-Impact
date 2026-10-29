@@ -9,6 +9,33 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 
 ---
 
+## 🔥 Overhaul 2.0 — Combat, Abilities & UI
+
+**Combat engine**
+* **Real hit-stop & impact** — the whole fight freezes for a few frames on every hit (longer for heavies, counters, KOs), with hit-flash, world-space sparks, shockwaves and dust.
+* **Combo scaling & hit-stun decay** — hits 1–2 deal full damage, then scale down to a 35% floor (55% for Ultimates). No more touch-of-death or jab infinites.
+* **Counter hits** — interrupt an attack's start-up for +20% damage and extra stun.
+* **Throws** — `U + J` (gamepad `X + A`) up close beats blocking; hold BACK to throw behind you. Press the same buttons as you're grabbed to **tech**.
+* **Combo Breaker** — press Dirty (`C` / `LT`) while being comboed with 50% Super to burst free.
+* **Dirty Tactic** now recharges for 9s (the **D** icon by your meter) and its blind is capped, so it's a comeback tool rather than a spam button.
+* **Stance Break** now actually dazes the foe; land a heavy for a **2× Critical Riposte**.
+* Specials and invincible uppercuts are now **punishable on block**; corner pushback moves the attacker back; one wall bounce per combo.
+* **Dynamic camera** zooms in when fighters are close and lifts to follow jumps (Settings → Fight Camera). HUD is never cropped.
+* **Round intro lock**, tighter start positions, shorter KO slow-mo, quick key taps no longer get dropped.
+
+**Abilities**
+* Every fighter's **Ultimate** is now a cinematic: super-freeze cut-in with the fighter's own Ultimate name, an invincible lunge that locks the foe into a 6-hit flurry, and a style finisher (dragon pillar, orbital beam, shadow clones, seismic slam). Whiffing it leaves you open.
+* Specials get charge flashes, energy trails and slashes in each fighter's signature colour; projectiles were redrawn as glowing orbs, razors and kunai with trails.
+* Balance pass from CPU-vs-CPU round-robins (Zephyr, Fang, Kagura, Colossus buffed; Raven, Kazuki trimmed).
+
+**CPU AI** — rewritten: human-like reaction times, decisions rolled once per situation (no frame-perfect blocking), footsies by range, anti-airs, whiff punishes, hit-confirms, throws vs turtlers, throw techs, Breakers and Ultimates. New **Nightmare** difficulty; Training dummy is passive.
+
+**UI** — new shared theme (`src/ui/Theme.js`) across Title, Mode Select, Character Select, Stage Select, VS, Online Lobby, Shop, Campaign Dialogue, Site of Grace, the fight HUD and the Victory screen.
+
+**Tests** — `test_combat_overhaul.mjs` (25 checks) added to `npm test`.
+
+---
+
 ## 🌟 What's New in the Overhaul
 
 ### 💀 Mortal Kombat Finishers & Arcade Towers
@@ -105,6 +132,8 @@ Select from 6 distinct stages featuring animated parallax backgrounds and dynami
 | **🔥 ULTIMATE JUTSU (Ougi)** | `SPACE` (Requires 100% Super) | NumPad `0` (Requires 100% Super) |
 | **💀 FATALITY (Finish Him Window)**| `SPACE` or `I + K` | NumPad `0` or `NumPad 5 + 2` |
 | **⚡ STAGE FATALITY** | `C` | NumPad `3` |
+| **📖 Pause & Command Move List** | `P` | — |
+| **👁️ Toggle Controls Helper HUD** | `TAB` | — |
 | **🔒 Secret Developer Portal** | `Ctrl + Shift + Alt + A` | — |
 
 ---

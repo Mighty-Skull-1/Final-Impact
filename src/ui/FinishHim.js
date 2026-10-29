@@ -170,7 +170,7 @@ export class FinishHim {
       ctx.scale(scale, scale);
       ctx.globalAlpha = appear;
       ctx.fillStyle = '#000';
-      ctx.font = '900 46px monospace';
+      ctx.font = 'italic 900 46px "Bahnschrift", "Inter Display", "Arial Narrow", sans-serif';
       ctx.fillText('FINISH HIM!', 3, 3);
       const g = ctx.createLinearGradient(0, -34, 0, 6);
       g.addColorStop(0, '#fca5a5');
@@ -199,11 +199,11 @@ export class FinishHim {
       const fatInfo = FATALITY_CATALOG[charId] || FATALITY_CATALOG.kazuki;
 
       ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 9px monospace';
+      ctx.font = '800 9px "Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
       ctx.fillText(`[SPACE / HP+HK] FATALITY: ${fatInfo.name}`, W / 2, H / 2 + 24);
 
       ctx.fillStyle = '#f87171';
-      ctx.font = '8px monospace';
+      ctx.font = '600 8px "Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
       ctx.fillText(`[C] STAGE HAZARD FATALITY`, W / 2, H / 2 + 38);
     }
 
@@ -237,7 +237,7 @@ export class FinishHim {
         ctx.scale(1.6 - 0.6 * k, 1.6 - 0.6 * k);
         ctx.globalAlpha = k;
         ctx.fillStyle = '#000';
-        ctx.font = '900 40px monospace';
+        ctx.font = 'italic 900 40px "Bahnschrift", "Inter Display", "Arial Narrow", sans-serif';
         ctx.fillText('FINAL IMPACT', 3, 3);
         const tg = ctx.createLinearGradient(0, -30, 0, 8);
         tg.addColorStop(0, '#fef9c3');
@@ -263,7 +263,7 @@ export class FinishHim {
         ctx.fillRect(0, H / 2 - 38, W, 2);
         ctx.fillRect(0, H / 2 + 26, W, 2);
         ctx.fillStyle = '#000';
-        ctx.font = '900 34px monospace';
+        ctx.font = 'italic 900 34px "Bahnschrift", "Inter Display", "Arial Narrow", sans-serif';
         ctx.fillText('FLAWLESS VICTORY', W / 2 + 2, H / 2 + 6);
         const fg = ctx.createLinearGradient(0, H / 2 - 24, 0, H / 2 + 10);
         fg.addColorStop(0, '#fef9c3');
@@ -271,12 +271,12 @@ export class FinishHim {
         ctx.fillStyle = fg;
         ctx.fillText('FLAWLESS VICTORY', W / 2, H / 2 + 4);
         ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 10px monospace';
+        ctx.font = '800 10px "Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
         ctx.fillText(this.executed ? 'AND A PERFECT FINISH' : 'NOT A SCRATCH TAKEN', W / 2, H / 2 + 20);
       } else if (this.winner) {
         const nm = `${String(this.winner.name).toUpperCase()} WINS`;
         ctx.fillStyle = '#000';
-        ctx.font = '900 30px monospace';
+        ctx.font = 'italic 900 30px "Bahnschrift", "Inter Display", "Arial Narrow", sans-serif';
         ctx.fillText(nm, W / 2 + 2, H / 2 + 4);
         ctx.fillStyle = '#fde047';
         ctx.fillText(nm, W / 2, H / 2 + 2);

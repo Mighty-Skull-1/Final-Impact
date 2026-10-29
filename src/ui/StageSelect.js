@@ -1,6 +1,12 @@
 // Final Impact - Battleground Select Screen (Mortal Kombat style arena picker)
 import { Stage } from '../graphics/Stage.js';
 import { soundFX } from '../audio/SoundFX.js';
+import { input } from '../engine/Input.js';
+import {
+  COLORS, FONTS, ease, approach, wrapLines, hexToRgba, slantPath,
+  drawText, drawLabel, drawBackdrop, drawScreenHeader, drawPromptBar, drawPanel,
+  drawCornerBrackets, drawActionButton, drawStatusBar, drawChip
+} from './Theme.js';
 
 const MODE_LABELS = {
   cpu: '1V1 VS CPU',
@@ -25,17 +31,24 @@ export class StageSelect {
     this.p2Name = 'CPU';
     this.canChoose = true; // false for the online challenger (host picks the arena)
 
-    // Layout (640x360 logical canvas)
+    // Layout (640x360 logical canvas) - shared by rendering and hit-testing
     this.layout = {
-      preview: { x: 20, y: 52, w: 312, h: 176 },
-      info: { x: 346, y: 52, w: 274, h: 176 },
-      tileW: 84,
-      tileH: 47,
-      tileGap: 4,
-      tileY: 242,
-      back: { x: 12, y: 10, w: 95, h: 22 },
-      btn: { w: 360, h: 26 }
+      preview: { x: 16, y: 54, w: 384, h: 216 },
+      info: { x: 412, y: 54, w: 212, h: 216 },
+      tileW: 74,
+      tileH: 42,
+      tileGap: 8,
+      tileY: 286,
+      back: { x: 640 - 16 - 64, y: 14, w: 64, h: 18 },
+      btn: { x: 424, y: 240, w: 188, h: 20 }
     };
+
+    // visual-only animation state
+    this._hiX = null;
+    this._swapT = -100;
+    this._swapDir = 1;
+    this._lastPreviewId = null;
+    this._lastIndex = 0;
   }
 
   // Total selectable tiles = every arena + the RANDOM tile
@@ -106,8 +119,9 @@ export class StageSelect {
   handleClick(x, y, W = 640, H = 360, callbacks = {}) {
     const { onBack, onConfirm } = callbacks;
     const { back, tileW, tileH, tileY, preview, btn } = this.layout;
+    const bx = W - (640 - back.x);
 
-    if (x >= back.x && x <= back.x + back.w && y >= back.y && y <= back.y + back.h) {
+    if (x >= bx - 3 && x <= bx + back.w + 3 && y >= back.y - 3 && y <= back.y + back.h + 3) {
       try { soundFX.playWhoosh('light'); } catch (e) {}
       if (onBack) onBack();
       return true;
@@ -115,8 +129,8 @@ export class StageSelect {
 
     if (!this.canChoose) return false;
 
-    // Arena tiles
-    if (y >= tileY && y <= tileY + tileH) {
+    // Arena filmstrip
+    if (y >= tileY - 4 && y <= tileY + tileH + 2) {
       for (let i = 0; i < this.count; i++) {
         const tx = this.getTileX(i, W);
         if (x >= tx && x <= tx + tileW) {
@@ -132,10 +146,8 @@ export class StageSelect {
     }
 
     // Clicking the big preview or the fight button confirms
-    const btnX = (W - btn.w) / 2;
-    const btnY = H - 34;
     const inPreview = x >= preview.x && x <= preview.x + preview.w && y >= preview.y && y <= preview.y + preview.h;
-    const inBtn = x >= btnX && x <= btnX + btn.w && y >= btnY && y <= btnY + btn.h;
+    const inBtn = x >= btn.x && x <= btn.x + btn.w && y >= btn.y - 2 && y <= btn.y + btn.h + 2;
     if (inPreview || inBtn) {
       if (onConfirm) onConfirm();
       return true;
@@ -186,305 +198,263 @@ export class StageSelect {
   }
 
   wrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let line = '';
-    words.forEach(w => {
-      const test = line ? `${line} ${w}` : w;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = test;
-      }
-    });
-    if (line) lines.push(line);
-    return lines;
+    return wrapLines(ctx, text, maxWidth);
+  }
+
+  hasGamepad() {
+    try { return input.hasGamepadConnected(); } catch (e) { return false; }
   }
 
   drawBackground(ctx, W, H) {
-    const t = this.tick;
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#140306');
-    bg.addColorStop(0.55, '#2b0808');
-    bg.addColorStop(1, '#0a0102');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
-
-    // Giant faded dragon medallion behind everything
-    ctx.save();
-    ctx.globalAlpha = 0.07;
-    ctx.fillStyle = '#facc15';
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2 + 10, 150, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2 + 10, 128, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.1;
-    ctx.fillStyle = '#facc15';
-    ctx.font = '900 190px serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('龍', W / 2, H / 2 + 76);
-    ctx.restore();
-
-    // Rising embers
-    for (let i = 0; i < 36; i++) {
-      const ex = (i * 71 + Math.sin(t * 0.01 + i) * 14 + 640) % W;
-      const ey = H - ((i * 53 + t * (0.4 + (i % 5) * 0.18)) % (H + 20));
-      ctx.fillStyle = i % 3 === 0 ? '#fde047' : (i % 3 === 1 ? '#f97316' : '#ef4444');
-      ctx.globalAlpha = 0.25 + (i % 4) * 0.12;
-      ctx.fillRect(ex, ey, 2, 2);
-    }
-    ctx.globalAlpha = 1;
-
-    // Vignette
-    const vg = ctx.createRadialGradient(W / 2, H / 2, 120, W / 2, H / 2, 380);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, W, H, this.tick, { tint: COLORS.crimsonDeep });
   }
 
-  render(ctx, W, H) {
-    this.bakeNextThumb();
-    const L = this.layout;
-    const entry = this.isRandom ? null : this.catalog[this.index];
+  drawPreview(ctx, W, H, accent) {
+    const pv = this.layout.preview;
+    const t = this.tick;
     const previewEntry = this.catalog[this.getPreviewCatalogIndex()];
-    const accent = (entry || previewEntry || { accent: '#facc15' }).accent;
+    if (previewEntry && previewEntry.id !== this._lastPreviewId) {
+      if (this._lastPreviewId !== null) this._swapT = t;
+      this._lastPreviewId = previewEntry.id;
+    }
+    const k = ease.outCubic((t - this._swapT) / 14);
 
-    this.drawBackground(ctx, W, H);
+    // drop shadow + frame base
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(pv.x + 3, pv.y + 4, pv.w, pv.h);
 
-    // ---- Header --------------------------------------------------------
-    ctx.fillStyle = 'rgba(30, 27, 75, 0.0)';
-    ctx.fillStyle = 'rgba(127, 29, 29, 0.55)';
-    ctx.fillRect(0, 6, W, 36);
-    ctx.fillStyle = '#facc15';
-    ctx.fillRect(0, 6, W, 2);
-    ctx.fillRect(0, 40, W, 2);
-
-    // Back button
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(L.back.x, L.back.y, L.back.w, L.back.h);
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(L.back.x, L.back.y, L.back.w, L.back.h);
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('⬅️ BACK [B]', L.back.x + L.back.w / 2, L.back.y + 14);
-
-    // Title
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#000';
-    ctx.font = '900 22px monospace';
-    ctx.fillText('CHOOSE YOUR BATTLEFIELD', W / 2 + 2, 31);
-    const tg = ctx.createLinearGradient(0, 14, 0, 34);
-    tg.addColorStop(0, '#fef08a');
-    tg.addColorStop(0.55, '#f59e0b');
-    tg.addColorStop(1, '#b91c1c');
-    ctx.fillStyle = tg;
-    ctx.fillText('CHOOSE YOUR BATTLEFIELD', W / 2, 29);
-
-    // ---- Big live preview ----------------------------------------------
-    const pv = L.preview;
     ctx.save();
     ctx.beginPath();
     ctx.rect(pv.x, pv.y, pv.w, pv.h);
     ctx.clip();
-    ctx.translate(pv.x, pv.y);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
+    ctx.translate(pv.x + (1 - k) * 18 * this._swapDir, pv.y);
     const s = pv.w / 640;
     ctx.scale(s, s);
     if (this.liveStage) {
-      const camX = 160 + Math.sin(this.tick * 0.012) * 150;
-      this.liveStage.render(ctx, camX, 640, 360);
-    } else {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, 640, 360);
+      const camX = 160 + Math.sin(t * 0.012) * 150;
+      try { this.liveStage.render(ctx, camX, 640, 360); } catch (e) {}
     }
     ctx.restore();
 
-    // Scanline sheen for that arcade monitor feel
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    for (let y = pv.y; y < pv.y + pv.h; y += 3) ctx.fillRect(pv.x, y, pv.w, 1);
-
-    // Ornate frame
-    const pulse = 0.65 + Math.sin(this.tick * 0.1) * 0.35;
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#000';
-    ctx.strokeRect(pv.x - 3, pv.y - 3, pv.w + 6, pv.h + 6);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = accent;
-    ctx.globalAlpha = pulse;
-    ctx.strokeRect(pv.x - 2, pv.y - 2, pv.w + 4, pv.h + 4);
-    ctx.globalAlpha = 1;
-    // Gold corner studs
-    ctx.fillStyle = '#facc15';
-    [[pv.x - 5, pv.y - 5], [pv.x + pv.w - 3, pv.y - 5], [pv.x - 5, pv.y + pv.h - 3], [pv.x + pv.w - 3, pv.y + pv.h - 3]]
-      .forEach(([cx, cy]) => ctx.fillRect(cx, cy, 8, 8));
-
-    // Random shuffle overlay
-    if (this.isRandom) {
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pv.x, pv.y, pv.w, pv.h);
+    ctx.clip();
+    // swap flash: quick dark-in plus a light wipe
+    if (k < 1) {
+      ctx.fillStyle = `rgba(0,0,0,${(1 - k) * 0.85})`;
       ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
-      ctx.fillStyle = '#fde047';
-      ctx.font = '900 54px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('?', pv.x + pv.w / 2, pv.y + pv.h / 2 + 18);
+      const wx = pv.x + k * (pv.w + 80) - 40;
+      const wg = ctx.createLinearGradient(wx - 40, 0, wx + 40, 0);
+      wg.addColorStop(0, 'rgba(255,255,255,0)');
+      wg.addColorStop(0.5, `rgba(255,240,210,${0.35 * (1 - k)})`);
+      wg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = wg;
+      ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
+    }
+    // cinematic grade: bottom fade + soft vignette
+    const bg = ctx.createLinearGradient(0, pv.y + pv.h * 0.55, 0, pv.y + pv.h);
+    bg.addColorStop(0, 'rgba(0,0,0,0)');
+    bg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = bg;
+    ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
+
+    if (this.isRandom) {
+      ctx.fillStyle = 'rgba(6,6,10,0.55)';
+      ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
+      const bob = Math.sin(t * 0.08) * 3;
+      drawText(ctx, '?', pv.x + pv.w / 2, pv.y + pv.h / 2 + 26 + bob, {
+        font: FONTS.display(84), color: COLORS.gold, align: 'center', outline: 6
+      });
+      drawText(ctx, 'FATE WILL DECIDE', pv.x + pv.w / 2, pv.y + pv.h / 2 + 50, {
+        font: FONTS.ui(9, 800), color: COLORS.goldPale, align: 'center', letterSpacing: 3
+      });
     }
 
-    // ---- Info panel -----------------------------------------------------
-    const ip = L.info;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.fillRect(ip.x, ip.y, ip.w, ip.h);
-    ctx.strokeStyle = '#7f1d1d';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(ip.x, ip.y, ip.w, ip.h);
-    ctx.strokeStyle = '#facc15';
+    // live tag
+    const tagA = 0.6 + Math.sin(t * 0.08) * 0.4;
+    ctx.fillStyle = `rgba(229,36,59,${tagA})`;
+    ctx.beginPath();
+    ctx.arc(pv.x + 12, pv.y + 12, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    drawText(ctx, this.isRandom ? 'SHUFFLE' : 'LIVE', pv.x + 19, pv.y + 15, { font: FONTS.ui(8, 800), color: COLORS.text, letterSpacing: 1.5, outline: 2 });
+    ctx.restore();
+
+    // frame
+    ctx.strokeStyle = hexToRgba(accent, 0.55);
     ctx.lineWidth = 1;
-    ctx.strokeRect(ip.x + 3, ip.y + 3, ip.w - 6, ip.h - 6);
+    ctx.strokeRect(pv.x - 0.5, pv.y - 0.5, pv.w + 1, pv.h + 1);
+    drawCornerBrackets(ctx, pv.x - 4, pv.y - 4, pv.w + 8, pv.h + 8, { color: COLORS.gold, len: 10, lw: 2 });
+  }
 
-    ctx.textAlign = 'left';
+  drawInfo(ctx, W, H, entry, accent) {
+    const ip = this.layout.info;
+    const t = this.tick;
+    const k = ease.outCubic((t - this._swapT) / 14);
+    drawPanel(ctx, ip.x, ip.y, ip.w, ip.h, { fill: 'rgba(12, 11, 18, 0.9)', stroke: 'rgba(255,255,255,0.08)' });
+    const tg = ctx.createLinearGradient(ip.x, 0, ip.x + ip.w, 0);
+    tg.addColorStop(0, accent);
+    tg.addColorStop(1, hexToRgba(accent, 0));
+    ctx.fillStyle = tg;
+    ctx.fillRect(ip.x, ip.y, ip.w, 2);
+
+    const x = ip.x + 14;
+    const maxW = ip.w - 28;
+    ctx.save();
+    ctx.globalAlpha = this.isRandom ? 1 : 0.3 + 0.7 * k;
+    const ox = this.isRandom ? 0 : (1 - k) * 10;
+    drawLabel(ctx, this.isRandom ? 'FATE DECIDES' : `ARENA ${String(this.index + 1).padStart(2, '0')} / ${String(this.catalog.length).padStart(2, '0')}`,
+      x, ip.y + 20, { color: accent, size: 8 });
+    drawText(ctx, this.isRandom ? 'RANDOM ARENA' : entry.name, x + ox, ip.y + 44, {
+      font: FONTS.display(20), color: '#fff', outline: 3, maxWidth: maxW
+    });
+    drawText(ctx, this.isRandom ? 'Unknown Location' : entry.location, x + ox, ip.y + 57, {
+      font: FONTS.ui(9, 700), color: COLORS.gold, maxWidth: maxW
+    });
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(x, ip.y + 66, maxW, 1);
     ctx.fillStyle = accent;
-    ctx.font = 'bold 8px monospace';
-    ctx.fillText(this.isRandom ? 'FATE DECIDES' : `ARENA ${String(this.index + 1).padStart(2, '0')} / ${String(this.catalog.length).padStart(2, '0')}`, ip.x + 12, ip.y + 20);
+    ctx.fillRect(x, ip.y + 66, 36, 1);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 18px monospace';
-    ctx.fillText(this.isRandom ? 'RANDOM ARENA' : entry.name, ip.x + 12, ip.y + 42);
-
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText(this.isRandom ? 'Unknown Location' : entry.location, ip.x + 12, ip.y + 58);
-
-    // Divider
-    ctx.fillStyle = '#7f1d1d';
-    ctx.fillRect(ip.x + 12, ip.y + 66, ip.w - 24, 2);
-    ctx.fillStyle = accent;
-    ctx.fillRect(ip.x + 12, ip.y + 66, 46, 2);
-
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '10px monospace';
     const blurb = this.isRandom
       ? 'Let the tournament gods choose. Any arena can be drawn - you will not know until the fight begins!'
       : entry.blurb;
-    this.wrapText(ctx, blurb, ip.w - 28).slice(0, 4).forEach((ln, i) => {
-      ctx.fillText(ln, ip.x + 12, ip.y + 84 + i * 13);
+    ctx.font = FONTS.ui(9, 600);
+    this.wrapText(ctx, blurb, maxW).slice(0, 4).forEach((ln, i) => {
+      drawText(ctx, ln, x + ox, ip.y + 83 + i * 12, { font: FONTS.ui(9, 600), color: COLORS.textDim });
     });
+    ctx.restore();
 
-    // Matchup block
-    ctx.fillStyle = 'rgba(127, 29, 29, 0.45)';
-    ctx.fillRect(ip.x + 10, ip.y + 134, ip.w - 20, 32);
-    ctx.fillStyle = '#facc15';
-    ctx.font = 'bold 8px monospace';
-    ctx.fillText(MODE_LABELS[this.mode] || 'MATCH', ip.x + 16, ip.y + 146);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${this.p1Name}  VS  ${this.p2Name}`, ip.x + ip.w / 2, ip.y + 160);
+    // Matchup
+    const my = ip.y + 148;
+    drawLabel(ctx, 'MATCHUP', x, my, { color: COLORS.textDim, size: 8 });
+    const p1 = String(this.p1Name || 'P1').toUpperCase();
+    const p2 = String(this.p2Name || 'CPU').toUpperCase();
+    ctx.font = FONTS.display(13);
+    const vsW = 22;
+    const half = (maxW - vsW) / 2;
+    drawText(ctx, p1, x + half, my + 19, { font: FONTS.display(13), color: COLORS.p1, align: 'right', maxWidth: half - 2 });
+    drawText(ctx, 'VS', x + half + vsW / 2, my + 19, { font: FONTS.display(11), color: COLORS.gold, align: 'center' });
+    drawText(ctx, p2, x + half + vsW, my + 19, { font: FONTS.display(13), color: COLORS.p2, maxWidth: half - 2 });
 
-    // ---- Arena tile strip ----------------------------------------------
+    // Confirm button / waiting status
+    const b = this.layout.btn;
+    const bx = W - (640 - b.x);
+    if (this.canChoose) {
+      drawActionButton(ctx, bx, b.y, b.w, b.h, 'FIGHT HERE', { key: this.hasGamepad() ? 'A' : 'ENTER', time: t, size: 12 });
+    } else {
+      const dots = '.'.repeat(1 + Math.floor(t / 20) % 3);
+      drawStatusBar(ctx, bx, b.y, b.w, b.h, 'HOST IS CHOOSING' + dots, { color: COLORS.p1, time: t, size: 8 });
+    }
+  }
+
+  drawFilmstrip(ctx, W, H) {
+    const L = this.layout;
+    const t = this.tick;
+    const selX = this.getTileX(this.index, W);
+    this._hiX = approach(this._hiX, selX, 0.3);
+
     for (let i = 0; i < this.count; i++) {
       const tx = this.getTileX(i, W);
       const ty = L.tileY;
       const isSel = i === this.index;
       const isRandTile = i === this.catalog.length;
       const tEntry = isRandTile ? null : this.catalog[i];
+      const lift = isSel ? -3 : 0;
 
       ctx.save();
-      if (isSel) {
-        const lift = Math.sin(this.tick * 0.2) * 1.5 - 3;
-        ctx.translate(0, lift);
-      }
-
-      // Thumbnail
-      ctx.fillStyle = '#000';
+      ctx.translate(0, lift);
+      ctx.beginPath();
+      ctx.rect(tx, ty, L.tileW, L.tileH);
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = '#0b0a10';
       ctx.fillRect(tx, ty, L.tileW, L.tileH);
       if (isRandTile) {
-        const cyc = this.catalog[Math.floor(this.tick / 12) % this.catalog.length];
+        const cyc = this.catalog[Math.floor(t / 12) % this.catalog.length];
         const th = cyc && this.thumbs[cyc.id];
         if (th) {
-          ctx.globalAlpha = 0.45;
+          ctx.globalAlpha = 0.35;
           ctx.drawImage(th, tx, ty, L.tileW, L.tileH);
           ctx.globalAlpha = 1;
         }
-        ctx.fillStyle = '#fde047';
-        ctx.font = '900 26px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('?', tx + L.tileW / 2, ty + L.tileH / 2 + 9);
+        drawText(ctx, '?', tx + L.tileW / 2, ty + L.tileH / 2 + 8, { font: FONTS.display(24), color: COLORS.gold, align: 'center', outline: 3 });
       } else {
         const th = this.thumbs[tEntry.id];
-        if (th) {
-          ctx.drawImage(th, tx, ty, L.tileW, L.tileH);
-        } else {
-          ctx.fillStyle = '#1f2937';
-          ctx.fillRect(tx, ty, L.tileW, L.tileH);
-        }
+        if (th) ctx.drawImage(th, tx, ty, L.tileW, L.tileH);
       }
-
+      // name strip
+      const ng = ctx.createLinearGradient(0, ty + L.tileH - 16, 0, ty + L.tileH);
+      ng.addColorStop(0, 'rgba(0,0,0,0)');
+      ng.addColorStop(1, 'rgba(0,0,0,0.85)');
+      ctx.fillStyle = ng;
+      ctx.fillRect(tx, ty + L.tileH - 16, L.tileW, 16);
       if (!isSel) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillStyle = 'rgba(6,6,10,0.45)';
         ctx.fillRect(tx, ty, L.tileW, L.tileH);
       }
-
-      // Frame
-      const col = isSel ? (isRandTile ? '#fde047' : tEntry.accent) : '#44403c';
-      ctx.lineWidth = isSel ? 3 : 1;
-      ctx.strokeStyle = '#000';
-      ctx.strokeRect(tx - 1, ty - 1, L.tileW + 2, L.tileH + 2);
-      ctx.strokeStyle = col;
-      ctx.strokeRect(tx, ty, L.tileW, L.tileH);
-      if (isSel) {
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(tx - 3, ty - 3, L.tileW + 6, L.tileH + 6);
-      }
+      drawText(ctx, isRandTile ? 'RANDOM' : tEntry.name, tx + L.tileW / 2, ty + L.tileH - 4, {
+        font: FONTS.ui(8, 800), color: isSel ? '#fff' : COLORS.textDim, align: 'center', maxWidth: L.tileW - 6
+      });
       ctx.restore();
-
-      // Label
-      ctx.textAlign = 'center';
-      ctx.fillStyle = isSel ? '#ffffff' : '#78716c';
-      ctx.font = `${isSel ? 'bold ' : ''}7px monospace`;
-      ctx.fillText(isRandTile ? 'RANDOM' : tEntry.name, tx + L.tileW / 2, ty + L.tileH + 12);
+      ctx.strokeStyle = isSel ? hexToRgba(isRandTile ? COLORS.gold : tEntry.accent, 0.9) : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tx + 0.5, ty + 0.5, L.tileW - 1, L.tileH - 1);
+      ctx.restore();
     }
 
-    // Selection arrows
+    // gliding selection brackets
+    const pad = 3 + Math.sin(t * 0.15) * 1;
+    drawCornerBrackets(ctx, this._hiX - pad, L.tileY - 3 - pad, L.tileW + pad * 2, L.tileH + pad * 2, {
+      color: COLORS.gold, len: 8, lw: 2, glow: hexToRgba(COLORS.gold, 0.6)
+    });
+
     if (this.canChoose) {
-      const arrowPulse = Math.sin(this.tick * 0.2) * 3;
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 18px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('◀', 7 - arrowPulse * 0.4, L.tileY + 30);
-      ctx.fillText('▶', W - 7 + arrowPulse * 0.4, L.tileY + 30);
+      const nudge = Math.sin(t * 0.15) * 2;
+      const first = this.getTileX(0, W);
+      const last = this.getTileX(this.count - 1, W) + L.tileW;
+      drawText(ctx, '◀', first - 12 - nudge, L.tileY + L.tileH / 2 + 3, { font: FONTS.ui(10, 800), color: COLORS.gold, align: 'center' });
+      drawText(ctx, '▶', last + 12 + nudge, L.tileY + L.tileH / 2 + 3, { font: FONTS.ui(10, 800), color: COLORS.gold, align: 'center' });
     }
+  }
 
-    // ---- Footer button --------------------------------------------------
-    const btnX = (W - L.btn.w) / 2;
-    const btnY = H - 34;
-    ctx.textAlign = 'center';
-    if (!this.canChoose) {
-      const blink = Math.floor(this.tick / 18) % 2 === 0;
-      ctx.fillStyle = blink ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.9)';
-      ctx.fillRect(btnX, btnY, L.btn.w, L.btn.h);
-      ctx.strokeStyle = '#0284c7';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(btnX, btnY, L.btn.w, L.btn.h);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText('⏳ HOST IS CHOOSING THE BATTLEFIELD...', W / 2, btnY + 17);
-    } else {
-      ctx.fillStyle = 'rgba(127, 29, 29, 0.92)';
-      ctx.fillRect(btnX, btnY, L.btn.w, L.btn.h);
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(btnX, btnY, L.btn.w, L.btn.h);
-      ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText('⚔️ FIGHT HERE [ENTER]   ◀ ▶ CHOOSE   [B] BACK', W / 2, btnY + 17);
+  render(ctx, W, H) {
+    this.bakeNextThumb();
+    if (this.index !== this._lastIndex) {
+      const d = this.index - this._lastIndex;
+      this._swapDir = (d > 0 && d < this.count / 2) || d < -this.count / 2 ? 1 : -1;
+      this._lastIndex = this.index;
     }
+    const entry = this.isRandom ? null : this.catalog[this.index];
+    const previewEntry = this.catalog[this.getPreviewCatalogIndex()];
+    const accent = this.isRandom ? COLORS.gold : (entry || previewEntry || { accent: COLORS.gold }).accent;
+    const gp = this.hasGamepad();
+
+    this.drawBackground(ctx, W, H);
+    const glow = ctx.createRadialGradient(208, 160, 10, 208, 160, 300);
+    glow.addColorStop(0, hexToRgba(accent, 0.12));
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    drawScreenHeader(ctx, W, 'SELECT STAGE', MODE_LABELS[this.mode] || 'CHOOSE YOUR BATTLEFIELD', this.tick);
+    const back = this.layout.back;
+    drawChip(ctx, W - (640 - back.x), back.y, back.w, back.h, gp ? 'B' : 'ESC', 'BACK');
+
+    this.drawPreview(ctx, W, H, accent);
+    this.drawInfo(ctx, W, H, entry, accent);
+    this.drawFilmstrip(ctx, W, H);
+
+    const items = this.canChoose
+      ? (gp
+        ? [{ key: 'D-PAD', label: 'SELECT' }, { key: 'A', label: 'FIGHT' }, { key: 'B', label: 'BACK' }]
+        : [{ key: 'A/D', label: 'SELECT' }, { key: 'ENTER', label: 'FIGHT' }, { key: 'ESC', label: 'BACK' }])
+      : [{ key: gp ? 'B' : 'ESC', label: 'LEAVE' }];
+    drawPromptBar(ctx, items, W / 2, H - 8);
 
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 }
