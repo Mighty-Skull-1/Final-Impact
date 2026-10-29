@@ -5,6 +5,7 @@
 import { soundFX } from '../audio/SoundFX.js';
 import { announcer } from '../audio/Announcer.js';
 import { EconomyManager } from '../shop/SkinCatalog.js';
+import { COLORS, FONTS, hexToRgba, slantPath, drawText, drawTitleText, drawBackdrop, drawVignette, drawPromptBar } from '../ui/Theme.js';
 
 export class EldenRingManager {
   constructor() {
@@ -212,92 +213,140 @@ export class EldenRingManager {
   // Render Site of Grace Rest Screen
   renderSiteOfGrace(ctx, W, H) {
     if (!this.graceActive) return;
+    this._graceT = (this._graceT || 0) + 1;
+    const t = this._graceT;
+    const time = t * 0.05;
 
-    // Atmospheric Dusk background
-    ctx.fillStyle = '#0a0808';
+    drawBackdrop(ctx, W, H, t, { tint: '#6b4a0c' });
+
+    // ---- The grace: a golden spire of light on the left ----
+    const spireX = 168;
+    const baseY = 286;
+    const pulse = 0.5 + Math.sin(t * 0.05) * 0.5;
+    const halo = ctx.createRadialGradient(spireX, baseY - 80, 4, spireX, baseY - 80, 170);
+    halo.addColorStop(0, hexToRgba(COLORS.gold, 0.32 + pulse * 0.1));
+    halo.addColorStop(0.5, hexToRgba(COLORS.goldDeep, 0.12));
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
     ctx.fillRect(0, 0, W, H);
-
-    // Glowing Golden Grace Spire in center
-    const spireX = W / 2;
-    const spireY = H - 80;
-    const grad = ctx.createRadialGradient(spireX, spireY - 60, 5, spireX, spireY - 60, 140);
-    grad.addColorStop(0, 'rgba(250, 204, 21, 0.45)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = grad;
+    // light column
+    const col = ctx.createLinearGradient(0, baseY - 230, 0, baseY);
+    col.addColorStop(0, 'rgba(255, 240, 190, 0)');
+    col.addColorStop(0.6, hexToRgba(COLORS.goldPale, 0.55));
+    col.addColorStop(1, hexToRgba(COLORS.goldPale, 0.95));
+    ctx.fillStyle = col;
+    ctx.fillRect(spireX - 2, baseY - 230, 4, 230);
+    const beam = ctx.createLinearGradient(spireX - 14, 0, spireX + 14, 0);
+    beam.addColorStop(0, 'rgba(0,0,0,0)');
+    beam.addColorStop(0.5, hexToRgba(COLORS.gold, 0.22 + pulse * 0.08));
+    beam.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = beam;
+    ctx.fillRect(spireX - 14, baseY - 200, 28, 200);
+    // ground disc
+    ctx.save();
+    ctx.translate(spireX, baseY);
+    ctx.scale(1, 0.22);
+    const disc = ctx.createRadialGradient(0, 0, 2, 0, 0, 80);
+    disc.addColorStop(0, hexToRgba(COLORS.goldPale, 0.9));
+    disc.addColorStop(0.3, hexToRgba(COLORS.gold, 0.35));
+    disc.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = disc;
     ctx.beginPath();
-    ctx.ellipse(spireX, spireY - 60, 140, 100, 0, 0, Math.PI * 2);
+    ctx.arc(0, 0, 80, 0, Math.PI * 2);
     ctx.fill();
-
-    // Golden Ray Spire
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(spireX - 3, spireY - 120, 6, 120);
-
-    // Golden site base
-    ctx.fillStyle = '#eab308';
-    ctx.beginPath();
-    ctx.arc(spireX, spireY, 14, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Floating Grace particles
-    const time = Date.now() * 0.003;
-    for (let i = 0; i < 24; i++) {
-      const a = i * 0.4 + time;
-      const r = 20 + (i % 6) * 12;
+    ctx.restore();
+    // drifting grace motes
+    for (let i = 0; i < 30; i++) {
+      const a = i * 0.7 + time * (0.4 + (i % 3) * 0.15);
+      const r = 14 + (i % 7) * 9;
+      const rise = (t * (0.3 + (i % 4) * 0.1) + i * 23) % 200;
       const gx = spireX + Math.cos(a) * r;
-      const gy = spireY - 60 + Math.sin(a) * (r * 0.6) - (i % 8) * 8;
-      ctx.fillStyle = i % 2 === 0 ? '#fef08a' : '#f59e0b';
-      ctx.fillRect(gx, gy, 2.5, 2.5);
+      const gy = baseY - rise;
+      ctx.globalAlpha = Math.max(0, 1 - rise / 200) * 0.9;
+      ctx.fillStyle = i % 2 === 0 ? COLORS.goldPale : COLORS.gold;
+      ctx.fillRect(gx, gy, i % 5 === 0 ? 2 : 1.5, i % 5 === 0 ? 2 : 1.5);
     }
+    ctx.globalAlpha = 1;
+    drawVignette(ctx, W, H, 0.55);
 
-    // Title
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fde047';
-    ctx.font = '900 16px serif';
-    ctx.fillText('S I T E   O F   G R A C E', W / 2, 34);
+    // ---- Title ----
+    drawTitleText(ctx, 'SITE OF GRACE', spireX, 52, 26, { outline: 4 });
+    drawText(ctx, 'REST  ·  GROW STRONGER  ·  VENTURE FORTH', spireX, 66, {
+      font: FONTS.ui(8, 800), color: COLORS.textDim, align: 'center', letterSpacing: 1.5
+    });
 
-    ctx.font = '7px "Press Start 2P"';
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText('REST, LEVEL UP ATTRIBUTES, AND PREPARE FOR THE NEXT TRIAL', W / 2, 48);
-
-    // Wallet display
+    // ---- Wallet ----
     const coins = EconomyManager.getCoins();
-    ctx.fillStyle = '#facc15';
-    ctx.font = '8px "Press Start 2P"';
-    ctx.fillText(`RUNES / COINS: 🪙 ${coins.toLocaleString()}`, W / 2, 66);
+    const wx = W - 16 - 120, wy = 16;
+    slantPath(ctx, wx, wy, 120, 18, 5);
+    ctx.fillStyle = 'rgba(10,10,16,0.8)';
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(COLORS.gold, 0.5);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = COLORS.gold;
+    ctx.beginPath();
+    ctx.arc(wx + 15, wy + 9, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    drawText(ctx, coins.toLocaleString(), wx + 25, wy + 13.5, { font: FONTS.display(12), color: COLORS.goldPale });
+    drawText(ctx, 'RUNES', wx + 110, wy + 12.5, { font: FONTS.ui(8, 800), color: COLORS.textDim, align: 'right', letterSpacing: 1 });
 
-    // Menu options
+    // ---- Menu ----
+    const vigorCost = this.getUpgradeCost('vigor');
+    const strCost = this.getUpgradeCost('strength');
     const options = [
-      { id: 'rest', label: `REST & REFILL FLASK (${this.flaskCharges}/${this.maxFlaskCharges} CHARGES)` },
-      { id: 'vigor', label: `LEVEL UP VIGOR (HP +100) — [🪙 ${this.getUpgradeCost('vigor')} COINS]` },
-      { id: 'strength', label: `LEVEL UP STRENGTH (DMG +8%) — [🪙 ${this.getUpgradeCost('strength')} COINS]` },
-      { id: 'venture', label: `VENTURE FORTH (ENTER NEXT ARENA)` }
+      { title: 'REST', desc: 'Refill your Crimson Flasks', right: `${this.flaskCharges}/${this.maxFlaskCharges} FLASKS`, rightColor: COLORS.crimson },
+      { title: 'LEVEL UP VIGOR', desc: `Max HP +100  ·  currently LV ${this.upgrades.vigor || 0}`, cost: vigorCost },
+      { title: 'LEVEL UP STRENGTH', desc: `Damage +8%  ·  currently LV ${this.upgrades.strength || 0}`, cost: strCost },
+      { title: 'VENTURE FORTH', desc: 'Leave the grace and enter the next arena', right: '▶', rightColor: COLORS.gold }
     ];
+    const mx = 318, mw = W - mx - 18, my0 = 92, rowH = 44, gap = 8;
+    const targetY = my0 + this.graceMenuIndex * (rowH + gap);
+    this._graceSelY = this._graceSelY === undefined ? targetY : this._graceSelY + (targetY - this._graceSelY) * 0.3;
 
-    const menuY0 = 100;
-    const itemH = 26;
-    for (let i = 0; i < options.length; i++) {
-      const opt = options[i];
-      const isSel = (i === this.graceMenuIndex);
-      const iy = menuY0 + i * itemH;
-
-      if (isSel) {
-        ctx.fillStyle = 'rgba(234, 179, 8, 0.25)';
-        ctx.fillRect(W / 2 - 200, iy, 400, 20);
-        ctx.strokeStyle = '#facc15';
-        ctx.strokeRect(W / 2 - 200, iy, 400, 20);
-        ctx.fillStyle = '#fde047';
-        ctx.font = '8px "Press Start 2P"';
-        ctx.fillText(`▶ ${opt.label}`, W / 2, iy + 14);
-      } else {
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = '7.5px "Press Start 2P"';
-        ctx.fillText(`  ${opt.label}`, W / 2, iy + 14);
-      }
+    options.forEach((opt, i) => {
+      const y = my0 + i * (rowH + gap);
+      slantPath(ctx, mx, y, mw, rowH, 10);
+      ctx.fillStyle = 'rgba(12, 11, 18, 0.82)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+    // gliding selection
+    {
+      const sy = this._graceSelY;
+      const g = ctx.createLinearGradient(mx, 0, mx + mw, 0);
+      g.addColorStop(0, hexToRgba(COLORS.goldDeep, 0.6));
+      g.addColorStop(1, hexToRgba(COLORS.goldDeep, 0.08));
+      slantPath(ctx, mx, sy, mw, rowH, 10);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(COLORS.gold, 0.8);
+      ctx.stroke();
     }
+    options.forEach((opt, i) => {
+      const y = my0 + i * (rowH + gap);
+      const sel = i === this.graceMenuIndex;
+      drawText(ctx, opt.title, mx + 22, y + 19, { font: FONTS.display(14), color: sel ? '#fff' : COLORS.textDim });
+      drawText(ctx, opt.desc, mx + 22, y + 33, { font: FONTS.ui(8, 600), color: sel ? COLORS.text : COLORS.textMute, maxWidth: mw - 120 });
+      if (opt.cost !== undefined) {
+        const afford = coins >= opt.cost;
+        drawText(ctx, opt.cost.toLocaleString(), mx + mw - 18, y + 26, { font: FONTS.display(13), color: afford ? COLORS.goldPale : COLORS.bad, align: 'right' });
+        ctx.font = FONTS.display(13);
+        const cw = ctx.measureText(opt.cost.toLocaleString()).width;
+        ctx.fillStyle = afford ? COLORS.gold : COLORS.bad;
+        ctx.beginPath();
+        ctx.arc(mx + mw - 18 - cw - 8, y + 22, 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (opt.right) {
+        drawText(ctx, opt.right, mx + mw - 18, y + 26, { font: FONTS.ui(9, 800), color: opt.rightColor || COLORS.text, align: 'right', letterSpacing: 1 });
+      }
+    });
 
-    ctx.fillStyle = '#64748b';
-    ctx.font = '6px "Press Start 2P"';
-    ctx.fillText('[W/S or UP/DOWN] SELECT  |  [ENTER/SPACE] CONFIRM', W / 2, H - 16);
+    drawPromptBar(ctx, [{ key: 'W/S', label: 'SELECT' }, { key: 'ENTER', label: 'CONFIRM' }], W / 2, H - 8);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   handleGraceInput(inputState) {

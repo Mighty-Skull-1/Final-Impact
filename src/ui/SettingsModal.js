@@ -1,6 +1,7 @@
 // Final Impact - Settings Engine & Customizable Controls Modal Controller
 import { soundFX } from '../audio/SoundFX.js';
 import { input } from '../engine/Input.js';
+import { FIGHTER_CATALOG, ALL_FIGHTERS_CATALOG, getFighterCatalogEntry } from '../fighters/FighterCatalog.js';
 
 export function formatKey(code) {
   if (!code) return 'NONE';
@@ -125,7 +126,9 @@ export class SettingsManager {
   constructor(game) {
     this.game = game;
     this.isOpen = false;
-    this.currentTab = 'general'; // 'general' | 'keyboard' | 'gamepad'
+    this.currentTab = 'general'; // 'movelist' | 'general' | 'keyboard' | 'gamepad'
+    this.moveListFighterId = 'kazuki';
+    this.moveListPlayerSlot = 1; // 1 (P1) | 2 (P2) | 0 (Custom selection)
     this.selectedPlayer = 1;      // 1 (P1) | 2 (P2)
     this.selectedGamepadPlayer = 1; // 1 (P1) | 2 (P2)
     this.isRebinding = false;
@@ -142,7 +145,9 @@ export class SettingsManager {
       gameSpeed: 100, // 50, 75, 100, 125
       difficulty: 'normal', // 'easy', 'normal', 'hard'
       screenShake: 'full', // 'off', 'low', 'full'
-      easyInputs: false
+      cameraZoom: 'dynamic', // 'dynamic', 'far', 'off'
+      easyInputs: false,
+      controlsHelper: true
     };
 
     // Load saved settings if present
@@ -191,6 +196,9 @@ export class SettingsManager {
     if (this.game && this.game.ai) {
       this.game.ai.setDifficulty(this.settings.difficulty);
     }
+    if (this.game && this.game.hud) {
+      this.game.hud.showControlsHelper = this.settings.controlsHelper !== false;
+    }
   }
 
   setGameSpeed(speed) {
@@ -202,13 +210,55 @@ export class SettingsManager {
     if (this.listenersInitialized) return;
     this.listenersInitialized = true;
 
-    // Tab switching (General, Keyboard, Controller)
+    // Tab switching (Move List, General, Keyboard, Controller)
+    const tabMlBtn = document.getElementById('tabMoveListBtn');
     const tabGenBtn = document.getElementById('tabGeneralBtn');
     const tabCtrlBtn = document.getElementById('tabControlsBtn');
     const tabGpBtn = document.getElementById('tabGamepadBtn');
+    if (tabMlBtn) tabMlBtn.addEventListener('click', () => this.switchTab('movelist'));
     if (tabGenBtn) tabGenBtn.addEventListener('click', () => this.switchTab('general'));
     if (tabCtrlBtn) tabCtrlBtn.addEventListener('click', () => this.switchTab('keyboard'));
     if (tabGpBtn) tabGpBtn.addEventListener('click', () => this.switchTab('gamepad'));
+
+    // Move List Action Buttons
+    const mlResumeBtn = document.getElementById('moveListResumeBtn');
+    if (mlResumeBtn) mlResumeBtn.addEventListener('click', () => {
+      try { soundFX.playMenuSelect(); } catch (e) {}
+      this.close();
+    });
+
+    const mlRestartBtn = document.getElementById('moveListRestartBtn');
+    if (mlRestartBtn) mlRestartBtn.addEventListener('click', () => {
+      try { soundFX.playGong(); } catch (e) {}
+      this.close();
+      if (this.game && typeof this.game.startMatch === 'function') {
+        this.game.startMatch(true);
+      }
+    });
+
+    // Leave game / return to menu handlers
+    const handleLeave = (target) => {
+      if (this.game && typeof this.game.leaveGame === 'function') {
+        this.game.leaveGame(target);
+      } else {
+        this.close();
+      }
+    };
+
+    const mlCharBtn = document.getElementById('moveListCharSelectBtn');
+    if (mlCharBtn) mlCharBtn.addEventListener('click', () => handleLeave('CHAR_SELECT'));
+
+    const mlLeaveBtn = document.getElementById('moveListLeaveBtn');
+    if (mlLeaveBtn) mlLeaveBtn.addEventListener('click', () => handleLeave('MODE_SELECT'));
+
+    const mlP1Btn = document.getElementById('mlTabP1Btn');
+    if (mlP1Btn) mlP1Btn.addEventListener('click', () => this.selectMoveListSlot(1));
+
+    const mlP2Btn = document.getElementById('mlTabP2Btn');
+    if (mlP2Btn) mlP2Btn.addEventListener('click', () => this.selectMoveListSlot(2));
+
+    const mlSelect = document.getElementById('moveListFighterSelect');
+    if (mlSelect) mlSelect.addEventListener('change', (e) => this.selectMoveListFighter(e.target.value));
 
     // Keyboard Player subtabs
     const p1Btn = document.getElementById('p1ControlsBtn');
@@ -237,15 +287,6 @@ export class SettingsManager {
     if (resetBtn) {
       resetBtn.addEventListener('click', () => this.resetKeybinds());
     }
-
-    // Leave game / return to menu handlers
-    const handleLeave = (target) => {
-      if (this.game && typeof this.game.leaveGame === 'function') {
-        this.game.leaveGame(target);
-      } else {
-        this.close();
-      }
-    };
 
     const leaveFightBtn = document.getElementById('leaveFightBtn');
     if (leaveFightBtn) leaveFightBtn.addEventListener('click', () => handleLeave('MODE_SELECT'));
@@ -328,6 +369,14 @@ export class SettingsManager {
       });
     }
 
+    const camSelect = document.getElementById('cameraZoomSelect');
+    if (camSelect) {
+      camSelect.addEventListener('change', (e) => {
+        this.settings.cameraZoom = e.target.value;
+        this.save();
+      });
+    }
+
     // Easy inputs toggle
     const easyCheck = document.getElementById('easyInputsCheck');
     if (easyCheck) {
@@ -335,6 +384,20 @@ export class SettingsManager {
         this.settings.easyInputs = e.target.checked;
         this.applySettings();
         this.save();
+      });
+    }
+
+    // On-screen beginner controls HUD helper toggle
+    const helperCheck = document.getElementById('controlsHelperCheck');
+    if (helperCheck) {
+      helperCheck.addEventListener('change', (e) => {
+        const isChecked = e && e.target ? !!e.target.checked : !!helperCheck.checked;
+        this.settings.controlsHelper = isChecked;
+        this.applySettings();
+        this.save();
+        try {
+          localStorage.setItem('final_impact_controls_helper', isChecked ? 'true' : 'false');
+        } catch (err) {}
       });
     }
 
@@ -618,23 +681,190 @@ export class SettingsManager {
     const tabGenBtn = document.getElementById('tabGeneralBtn');
     const tabCtrlBtn = document.getElementById('tabControlsBtn');
     const tabGpBtn = document.getElementById('tabGamepadBtn');
+    const tabMlBtn = document.getElementById('tabMoveListBtn');
     const genPane = document.getElementById('tabGeneralContent');
     const ctrlPane = document.getElementById('tabControlsContent');
     const gpPane = document.getElementById('tabGamepadContent');
+    const mlPane = document.getElementById('tabMoveListContent');
 
     if (tabGenBtn) tabGenBtn.classList.toggle('active', tab === 'general');
     if (tabCtrlBtn) tabCtrlBtn.classList.toggle('active', tab === 'keyboard');
     if (tabGpBtn) tabGpBtn.classList.toggle('active', tab === 'gamepad');
+    if (tabMlBtn) tabMlBtn.classList.toggle('active', tab === 'movelist');
 
     if (genPane) genPane.style.display = tab === 'general' ? 'flex' : 'none';
     if (ctrlPane) ctrlPane.style.display = tab === 'keyboard' ? 'flex' : 'none';
     if (gpPane) gpPane.style.display = tab === 'gamepad' ? 'flex' : 'none';
+    if (mlPane) mlPane.style.display = tab === 'movelist' ? 'flex' : 'none';
 
     if (tab === 'keyboard') {
       this.renderKeybinds();
     } else if (tab === 'gamepad') {
       this.renderGamepadBinds();
+    } else if (tab === 'movelist') {
+      this.renderMoveList();
     }
+  }
+
+  renderMoveList() {
+    const banner = document.getElementById('mlFighterBanner');
+    const specialsCont = document.getElementById('mlSpecialsContainer');
+    const ultimatesCont = document.getElementById('mlUltimatesContainer');
+    const p1TabBtn = document.getElementById('mlTabP1Btn');
+    const p2TabBtn = document.getElementById('mlTabP2Btn');
+    const selectEl = document.getElementById('moveListFighterSelect');
+
+    const catalogList = (typeof ALL_FIGHTERS_CATALOG !== 'undefined' && ALL_FIGHTERS_CATALOG.length)
+      ? ALL_FIGHTERS_CATALOG
+      : FIGHTER_CATALOG;
+
+    if (selectEl && selectEl.options.length === 0) {
+      catalogList.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name} (${f.title})${f.isBoss ? ' [BOSS]' : ''}`;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    const p1Id = this.game?.f1?.id || this.game?.charSelect?.characters?.[this.game?.charSelect?.p1Index]?.id || 'kazuki';
+    const p2Id = this.game?.f2?.id || this.game?.charSelect?.characters?.[this.game?.charSelect?.p2Index]?.id || 'raven';
+
+    const p1Cat = getFighterCatalogEntry(p1Id);
+    const p2Cat = getFighterCatalogEntry(p2Id);
+
+    if (p1TabBtn) {
+      p1TabBtn.textContent = `P1: ${p1Cat ? p1Cat.name : 'P1'}`;
+      p1TabBtn.classList.toggle('active', this.moveListPlayerSlot === 1);
+    }
+    if (p2TabBtn) {
+      p2TabBtn.textContent = `P2: ${p2Cat ? p2Cat.name : 'OPPONENT'}`;
+      p2TabBtn.classList.toggle('active', this.moveListPlayerSlot === 2);
+    }
+
+    let targetId = this.moveListFighterId;
+    if (this.moveListPlayerSlot === 1) targetId = p1Id;
+    else if (this.moveListPlayerSlot === 2) targetId = p2Id;
+
+    if (selectEl) {
+      selectEl.value = targetId;
+    }
+
+    const cat = getFighterCatalogEntry(targetId) || catalogList[0];
+    if (!cat) return;
+
+    if (banner) {
+      const renderPips = (val) => {
+        let pips = '';
+        for (let i = 1; i <= 5; i++) {
+          pips += `<span class="ml-stat-pip ${i <= val ? 'filled' : ''}"></span>`;
+        }
+        return pips;
+      };
+
+      banner.innerHTML = `
+        <div class="ml-fighter-header">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span class="ml-fighter-name">${cat.name}</span>
+            <span class="ml-fighter-kanji">${cat.kanji || ''}</span>
+          </div>
+          <span style="font-size: 8px; color: #38bdf8; font-weight: bold;">${cat.title}${cat.isBoss ? ' [ARCADE BOSS]' : ''}</span>
+        </div>
+        <div class="ml-fighter-meta">
+          <span>🥋 STYLE: <strong style="color: #f1f5f9;">${cat.style}</strong></span>
+          <span>📍 ORIGIN: <strong style="color: #f1f5f9;">${cat.origin}</strong></span>
+        </div>
+        ${cat.quote ? `<div class="ml-fighter-quote">${cat.quote}</div>` : ''}
+        <div class="ml-stats-row">
+          <div>POWER: <span class="ml-stat-bar">${renderPips(cat.power || 3)}</span></div>
+          <div>SPEED: <span class="ml-stat-bar">${renderPips(cat.speed || 3)}</span></div>
+          <div>DEFENSE: <span class="ml-stat-bar">${renderPips(cat.defense || 3)}</span></div>
+        </div>
+      `;
+    }
+
+    if (specialsCont) {
+      specialsCont.innerHTML = '';
+      (cat.specials || []).forEach(sp => {
+        const card = document.createElement('div');
+        card.className = 'move-card';
+        card.tabIndex = 0;
+        if (typeof card.setAttribute === 'function') card.setAttribute('tabindex', '0');
+        card.innerHTML = `
+          <div class="move-card-header">
+            <span class="move-name">${sp.name}</span>
+            <div class="move-inputs">
+              <span class="input-pill keyboard">⌨️ ${sp.cmdKeyboard || sp.cmd}</span>
+              <span class="input-pill gamepad">🎮 ${sp.cmdGamepad || sp.cmd}</span>
+            </div>
+          </div>
+          <p class="move-desc">${sp.desc}</p>
+        `;
+        specialsCont.appendChild(card);
+      });
+    }
+
+    if (ultimatesCont) {
+      ultimatesCont.innerHTML = '';
+
+      if (cat.ultimate) {
+        const ultCard = document.createElement('div');
+        ultCard.className = 'ultimate-card';
+        ultCard.tabIndex = 0;
+        if (typeof ultCard.setAttribute === 'function') ultCard.setAttribute('tabindex', '0');
+        ultCard.innerHTML = `
+          <div class="move-card-header">
+            <div style="display: flex; align-items: baseline; gap: 6px;">
+              <span class="move-name" style="color: #f87171;">★ ${cat.ultimate.name}</span>
+              <span style="font-size: 8px; color: #fca5a5; font-family: serif;">${cat.ultimate.kanji || ''}</span>
+            </div>
+            <div class="move-inputs">
+              <span class="input-pill keyboard" style="border-color: #ef4444; color: #fca5a5;">⌨️ ${cat.ultimate.cmdKeyboard}</span>
+              <span class="input-pill gamepad" style="border-color: #ef4444; color: #fca5a5;">🎮 ${cat.ultimate.cmdGamepad}</span>
+            </div>
+          </div>
+          <p class="move-desc" style="color: #fecdd3;">${cat.ultimate.desc}</p>
+        `;
+        ultimatesCont.appendChild(ultCard);
+      }
+
+      if (cat.fatality) {
+        const fatCard = document.createElement('div');
+        fatCard.className = 'move-card';
+        fatCard.tabIndex = 0;
+        if (typeof fatCard.setAttribute === 'function') fatCard.setAttribute('tabindex', '0');
+        fatCard.style.borderLeftColor = '#dc2626';
+        fatCard.style.background = '#140608';
+        fatCard.innerHTML = `
+          <div class="move-card-header">
+            <span class="move-name" style="color: #ef4444;">💀 FATALITY: ${cat.fatality.name}</span>
+            <div class="move-inputs">
+              <span class="input-pill keyboard" style="border-color: #dc2626; color: #ef4444;">⌨️ ${cat.fatality.cmdKeyboard}</span>
+              <span class="input-pill gamepad" style="border-color: #dc2626; color: #ef4444;">🎮 ${cat.fatality.cmdGamepad}</span>
+            </div>
+          </div>
+          <p class="move-desc" style="color: #cbd5e1;">${cat.fatality.desc}</p>
+        `;
+        ultimatesCont.appendChild(fatCard);
+      }
+    }
+  }
+
+  selectMoveListSlot(slot) {
+    this.moveListPlayerSlot = slot;
+    try { soundFX.playWhoosh('light'); } catch (e) {}
+    this.renderMoveList();
+  }
+
+  selectMoveListFighter(fighterId) {
+    this.moveListPlayerSlot = 0;
+    this.moveListFighterId = fighterId;
+    const p1TabBtn = document.getElementById('mlTabP1Btn');
+    const p2TabBtn = document.getElementById('mlTabP2Btn');
+    if (p1TabBtn) p1TabBtn.classList.remove('active');
+    if (p2TabBtn) p2TabBtn.classList.remove('active');
+    try { soundFX.playWhoosh('light'); } catch (e) {}
+    this.renderMoveList();
   }
 
   switchPlayer(playerNum) {
@@ -819,25 +1049,34 @@ export class SettingsManager {
     }
   }
 
-  open() {
+  open(preferredTab = null) {
     this.isOpen = true;
+    this.initDomListeners();
     const modal = document.getElementById('settingsModal');
     if (modal) {
       modal.style.display = 'flex';
       this.cancelRebinding();
       this.syncUI();
+      const inFight = this.game && (this.game.screen === 'FIGHT' || this.game.screen === 'ROUND_OVER');
+      const headerTitle = modal.querySelector('.modal-header h2');
+      if (headerTitle) {
+        headerTitle.textContent = inFight ? '⏸️ PAUSE & MOVE LIST' : '⚙️ ARCADE SETTINGS';
+      }
+      if (preferredTab) {
+        this.switchTab(preferredTab);
+      } else if (inFight) {
+        this.switchTab('movelist');
+      } else {
+        this.switchTab(this.currentTab || 'general');
+      }
     }
   }
 
   toggle() {
-    this.isOpen = !this.isOpen;
-    const modal = document.getElementById('settingsModal');
-    if (modal) {
-      modal.style.display = this.isOpen ? 'flex' : 'none';
-      if (this.isOpen) {
-        this.cancelRebinding();
-        this.syncUI();
-      }
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
     }
   }
 
@@ -926,7 +1165,11 @@ export class SettingsManager {
     if (speedSelect) speedSelect.value = this.settings.gameSpeed;
     if (diffSelect) diffSelect.value = this.settings.difficulty;
     if (shakeSelect) shakeSelect.value = this.settings.screenShake;
+    const camSel = document.getElementById('cameraZoomSelect');
+    if (camSel) camSel.value = this.settings.cameraZoom || 'dynamic';
     if (easyToggle) easyToggle.checked = this.settings.easyInputs;
+    const helperToggle = document.getElementById('controlsHelperCheck');
+    if (helperToggle) helperToggle.checked = this.settings.controlsHelper !== false;
 
     const scaleSelect = document.getElementById('screenScaleSelect');
     if (scaleSelect) {
@@ -1049,12 +1292,31 @@ export class SettingsManager {
 
   getFocusableElements() {
     const list = [];
-    if (this.currentTab === 'general') {
+    if (this.currentTab === 'movelist') {
       const ids = [
-        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
+        'tabMoveListBtn', 'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
+        'moveListResumeBtn', 'moveListRestartBtn', 'moveListCharSelectBtn', 'moveListLeaveBtn',
+        'mlTabP1Btn', 'mlTabP2Btn', 'moveListFighterSelect'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.offsetParent !== null && el.style.display !== 'none') {
+          list.push(el);
+        }
+      });
+      const cards = document.querySelectorAll('#tabMoveListContent .move-card, #tabMoveListContent .ultimate-card, #tabMoveListContent .mech-card');
+      cards.forEach(card => {
+        if (card && card.offsetParent !== null && card.style.display !== 'none') {
+          list.push(card);
+        }
+      });
+      return list;
+    } else if (this.currentTab === 'general') {
+      const ids = [
+        'tabMoveListBtn', 'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
         'masterVol', 'musicVol', 'sfxVol',
         'gameSpeedSelect', 'aiDiffSelect', 'shakeSelect', 'screenScaleSelect',
-        'easyInputsCheck',
+        'easyInputsCheck', 'controlsHelperCheck',
         'generalLeaveMatchBtn', 'generalCharSelectBtn',
         'closeSettingsBtn'
       ];
@@ -1066,7 +1328,7 @@ export class SettingsManager {
       });
     } else if (this.currentTab === 'gamepad') {
       const ids = [
-        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
+        'tabMoveListBtn', 'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
         'p1GamepadBtn', 'p2GamepadBtn',
         'gpPresetArcadeBtn', 'gpPresetBrawlerBtn', 'gpPresetShouldersBtn', 'gpResetBindsBtn',
         'leaveFightBtn', 'closeSettingsBtn'
@@ -1085,7 +1347,7 @@ export class SettingsManager {
       }
     } else {
       const ids = [
-        'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
+        'tabMoveListBtn', 'tabGeneralBtn', 'tabControlsBtn', 'tabGamepadBtn',
         'p1ControlsBtn', 'p2ControlsBtn',
         'resetKeybindsBtn',
         'leaveFightBtn', 'closeSettingsBtn'
@@ -1191,6 +1453,21 @@ export class SettingsManager {
       return;
     }
 
+    // Shoulder bumpers (LB / RB) or triggers (LT / RT) cycle tabs anywhere in modal
+    if (nav.prevTab || nav.nextTab) {
+      const tabs = ['movelist', 'general', 'keyboard', 'gamepad'];
+      const currentMapped = (this.currentTab === 'controls' ? 'keyboard' : this.currentTab);
+      const curIdx = Math.max(0, tabs.indexOf(currentMapped));
+      const delta = nav.nextTab ? 1 : -1;
+      const nextIdx = (curIdx + delta + tabs.length) % tabs.length;
+      this.switchTab(tabs[nextIdx]);
+      this.focusIndex = 0;
+      const newFocusable = this.getFocusableElements();
+      this.highlightFocused(newFocusable);
+      try { soundFX.playWhoosh('light'); } catch (e) {}
+      return;
+    }
+
     const focusable = this.getFocusableElements();
     if (focusable.length === 0) return;
 
@@ -1218,8 +1495,8 @@ export class SettingsManager {
     // Left / Right adjustments
     if (nav.left || nav.right) {
       const delta = nav.right ? 1 : -1;
-      if (curEl.id === 'tabGeneralBtn' || curEl.id === 'tabControlsBtn' || curEl.id === 'tabGamepadBtn') {
-        const tabs = ['general', 'keyboard', 'gamepad'];
+      if (curEl.id === 'tabGeneralBtn' || curEl.id === 'tabControlsBtn' || curEl.id === 'tabGamepadBtn' || curEl.id === 'tabMoveListBtn') {
+        const tabs = ['movelist', 'general', 'keyboard', 'gamepad'];
         const currentMapped = (this.currentTab === 'controls' ? 'keyboard' : this.currentTab);
         const curIdx = Math.max(0, tabs.indexOf(currentMapped));
         const nextIdx = (curIdx + delta + tabs.length) % tabs.length;
@@ -1230,6 +1507,9 @@ export class SettingsManager {
         try { soundFX.playWhoosh('light'); } catch (e) {}
       } else if (curEl.id === 'p1ControlsBtn' || curEl.id === 'p2ControlsBtn') {
         this.switchPlayer(this.selectedPlayer === 1 ? 2 : 1);
+        try { soundFX.playWhoosh('light'); } catch (e) {}
+      } else if (curEl.id === 'mlTabP1Btn' || curEl.id === 'mlTabP2Btn') {
+        this.selectMoveListSlot(this.moveListPlayerSlot === 1 ? 2 : 1);
         try { soundFX.playWhoosh('light'); } catch (e) {}
       } else if (curEl.type === 'range') {
         const step = 5;
@@ -1244,6 +1524,15 @@ export class SettingsManager {
           curEl.dispatchEvent(new Event('change', { bubbles: true }));
           try { soundFX.playWhoosh('light'); } catch (e) {}
         }
+      }
+    }
+
+    // Right analog stick vertical scrolling for comfortable reading
+    if (gp0 && gp0.axes && gp0.axes[3] !== undefined) {
+      const rsY = gp0.axes[3];
+      if (Math.abs(rsY) > 0.25) {
+        const modalCard = document.querySelector('.modal-card');
+        if (modalCard) modalCard.scrollTop += rsY * 10;
       }
     }
 

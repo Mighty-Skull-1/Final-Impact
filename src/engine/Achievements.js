@@ -162,72 +162,47 @@ export class Achievements {
     if (!this.activeToast || this.toastSlide <= 0) return;
 
     ctx.save();
-
-    const toastW = 230;
-    const toastH = 46;
-    const margin = 12;
-
-    // Slide in from bottom right
+    const toastW = 196;
+    const toastH = 34;
+    const margin = 10;
+    // Slides in from the right, just under the P2 name plate (clear of meters and the guide)
     const targetX = W - toastW - margin;
     const offscreenX = W + 10;
-    const currentX = offscreenX + (targetX - offscreenX) * this.toastSlide;
-    const currentY = H - toastH - margin;
+    const x = offscreenX + (targetX - offscreenX) * this.toastSlide;
+    const y = 64;
+    const UI = '"Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
 
-    // Toast Shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.fillRect(currentX + 3, currentY + 3, toastW, toastH);
-
-    // Dark Carbon Steel Body
-    const grad = ctx.createLinearGradient(currentX, currentY, currentX, currentY + toastH);
-    grad.addColorStop(0, '#1c1917');
-    grad.addColorStop(1, '#0c0a09');
-    ctx.fillStyle = grad;
-    ctx.fillRect(currentX, currentY, toastW, toastH);
-
-    // Steam Golden Border Glow
-    ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(currentX, currentY, toastW, toastH);
-
-    // Left Icon Badge Box
-    const iconBoxSize = 34;
-    const iconBoxX = currentX + 6;
-    const iconBoxY = currentY + 6;
-
-    ctx.fillStyle = '#292524';
-    ctx.fillRect(iconBoxX, iconBoxY, iconBoxSize, iconBoxSize);
-    ctx.strokeStyle = '#fde047';
+    ctx.globalAlpha = Math.min(1, this.toastSlide * 1.5);
+    ctx.fillStyle = 'rgba(8, 7, 12, 0.92)';
+    ctx.beginPath();
+    ctx.moveTo(x + 8, y); ctx.lineTo(x + toastW, y); ctx.lineTo(x + toastW - 8, y + toastH); ctx.lineTo(x, y + toastH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(245, 197, 66, 0.7)';
     ctx.lineWidth = 1;
-    ctx.strokeRect(iconBoxX, iconBoxY, iconBoxSize, iconBoxSize);
+    ctx.stroke();
+    ctx.fillStyle = '#f5c542';
+    ctx.fillRect(x + 4, y + 4, 2, toastH - 8);
 
-    // Emoji / Icon
-    ctx.font = '16px "Press Start 2P", monospace';
-    ctx.fillStyle = '#fef08a';
+    // Icon
+    ctx.font = '15px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.activeToast.icon || '🏆', iconBoxX + iconBoxSize / 2, iconBoxY + iconBoxSize / 2);
+    ctx.fillText(this.activeToast.icon || '🏆', x + 22, y + toastH / 2 + 1);
 
-    // Header label: ACHIEVEMENT UNLOCKED
-    const textX = currentX + iconBoxSize + 14;
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillStyle = '#fde047';
+    const textX = x + 38;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('STEAM ACHIEVEMENT UNLOCKED', textX, currentY + 8);
-
-    // Achievement Title
-    ctx.font = 'bold 8px "Press Start 2P", monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.activeToast.title, textX, currentY + 18);
-
-    // Achievement Description
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillStyle = '#a8a29e';
-    const cleanDesc = this.activeToast.desc.length > 32 
-      ? this.activeToast.desc.substring(0, 30) + '...' 
-      : this.activeToast.desc;
-    ctx.fillText(cleanDesc, textX, currentY + 30);
-
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `800 6.5px ${UI}`;
+    ctx.fillStyle = '#f5c542';
+    ctx.fillText('ACHIEVEMENT UNLOCKED', textX, y + 11);
+    ctx.font = `900 10px ${UI}`;
+    ctx.fillStyle = '#f4efe4';
+    ctx.fillText(this.activeToast.title, textX, y + 22, toastW - 50);
+    ctx.font = `600 6.5px ${UI}`;
+    ctx.fillStyle = '#a7a1b3';
+    const desc = this.activeToast.desc.length > 44 ? this.activeToast.desc.substring(0, 42) + '…' : this.activeToast.desc;
+    ctx.fillText(desc, textX, y + 30, toastW - 50);
     ctx.restore();
   }
 }

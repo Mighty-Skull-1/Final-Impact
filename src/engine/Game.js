@@ -35,6 +35,7 @@ import { VersusScreen } from '../ui/VersusScreen.js';
 import { FinishHim } from '../ui/FinishHim.js';
 import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 import { ROSTER_CLASSES, ROSTER_QUOTES } from '../fighters/RosterFighters.js';
+import { getFighterCatalogEntry } from '../fighters/FighterCatalog.js';
 import { ShopScreen } from '../ui/ShopScreen.js';
 import { AdminModal } from '../ui/AdminModal.js';
 import { EconomyManager } from '../shop/SkinCatalog.js';
@@ -43,6 +44,9 @@ import { announcer } from '../audio/Announcer.js';
 import { eldenManager } from '../elden/EldenRingMechanics.js';
 import { CampaignDialogue } from '../combat/CampaignDialogue.js';
 import { achievements } from './Achievements.js';
+import { CombatDirector } from '../combat/CombatSystem.js';
+import { vfx } from '../graphics/VFX.js';
+import { COLORS as THEME_COLORS, FONTS, ease, drawBackdrop, drawSlantPanel, drawText, drawTitleText, drawKeyCap, drawPromptBar, hexToRgba } from '../ui/Theme.js';
 
 export const GAME_SCREENS = {
   TITLE: 'TITLE',
@@ -91,16 +95,36 @@ export class Game {
     this.zoomTimer = 0;
     this.elden = eldenManager;
     this.announcer = announcer;
+    this.combat = new CombatDirector(this);
+    this.vfx = vfx;
+    this.camZoom = 1.0;
+    this.camTop = 0;
+    this.slowMoElapsed = 0;
     this.syncStealthUI();
 
     if (typeof window !== 'undefined') {
       window.addEventListener('ultimate-activated', (e) => {
         try {
-          this.achievements.unlock('ULTIMATE_JUTSU');
-          if (e.detail && e.detail.fighter === 'mighty') {
+          let f = e.detail && e.detail.fighter;
+          if (typeof f === 'string') {
+            const pn = e.detail.playerNum;
+            f = (this.allFighters || []).find(x => x && x.id === f && (pn === undefined || x.playerNum === pn)) || null;
+            if (f && e.detail) e.detail.fighter = f;
+          }
+          if (f && f.playerNum === 1) this.achievements.unlock('ULTIMATE_JUTSU');
+          if (f && f.id === 'mighty') {
             this.achievements.unlock('VOID_AWAKENING');
           }
-          this.triggerCameraZoom(1.22, 60);
+          const cat = f ? getFighterCatalogEntry(f.id) : null;
+          const detail = { ...(e.detail || {}), fighter: f };
+          if (cat && cat.ultimate) {
+            detail.ultimateName = String(cat.ultimate.name || '').toUpperCase();
+            detail.kanji = cat.ultimate.kanji || detail.kanji;
+            detail.subtitle = detail.subtitle || (cat.title ? `${cat.title} // SECRET ART` : 'SECRET ART');
+          }
+          if (this.hud && typeof this.hud.triggerUltimateCinematic === 'function') this.hud.triggerUltimateCinematic(detail);
+          if (this.screen === GAME_SCREENS.FIGHT) this.combat.onUltimate(f);
+          this.triggerCameraZoom(1.18, 70);
         } catch (err) {}
       });
     }
@@ -260,6 +284,24 @@ export class Game {
         if (this.campaignDialogue) {
           this.campaignDialogue.handleClick(x, y, GAME_WIDTH, GAME_HEIGHT);
         }
+      } else if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.ROUND_OVER) {
+        // Bottom Center Pill: [TAB] GUIDE (x: 210..325, y: 338..358) | [P] MOVE LIST (x: 326..440, y: 338..358)
+        if (y >= 336 && y <= 358) {
+          if (x >= 210 && x <= 325) {
+            if (this.hud && typeof this.hud.toggleControlsHelper === 'function') {
+              this.hud.toggleControlsHelper();
+            }
+          } else if (x >= 326 && x <= 440) {
+            if (this.settingsManager) {
+              this.settingsManager.toggle();
+            }
+          }
+        } else if (this.hud && this.hud.showControlsHelper && y >= 305 && y <= 335 && x >= 20 && x <= 620) {
+          // Clicking on the helper ribbon opens the Move List
+          if (this.settingsManager) {
+            this.settingsManager.toggle();
+          }
+        }
       }
     });
     }
@@ -378,7 +420,19 @@ export class Game {
         if (soundFX.musicPlaying) soundFX.stopMusic();
         else soundFX.startMusic('fight');
       }
-      const isBackKey = e.code === 'Escape' || e.code === 'Tab' || e.code === 'Backquote' || (e.code === 'KeyB' && this.screen !== GAME_SCREENS.FIGHT && (this.screen !== GAME_SCREENS.ONLINE_LOBBY || this.onlineLobby.subState !== 'JOINING'));
+      // Tab key toggles Beginner Controls Helper in fight
+      if (e.code === 'Tab') {
+        if (this.screen === GAME_SCREENS.FIGHT || this.screen === GAME_SCREENS.ROUND_OVER) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this.hud && typeof this.hud.toggleControlsHelper === 'function') {
+            this.hud.toggleControlsHelper();
+          }
+          return;
+        }
+      }
+
+      const isBackKey = e.code === 'Escape' || (e.code === 'Tab' && this.screen !== GAME_SCREENS.FIGHT && this.screen !== GAME_SCREENS.ROUND_OVER) || e.code === 'Backquote' || (e.code === 'KeyB' && this.screen !== GAME_SCREENS.FIGHT && (this.screen !== GAME_SCREENS.ONLINE_LOBBY || this.onlineLobby.subState !== 'JOINING'));
       if (isBackKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -447,6 +501,11 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.MODE_SELECT) {
       soundFX.playGong();
+      if (this.modeSelect.selectedMode === 'movelist') {
+        this.settingsManager.open('movelist');
+        soundFX.playMenuSelect();
+        return;
+      }
       if (this.modeSelect.selectedMode === 'settings') {
         this.settingsManager.open();
         soundFX.playMenuSelect();
@@ -639,6 +698,7 @@ export class Game {
     if (this.finish) this.finish.reset();
     soundFX.stopMusic();
     this.screen = GAME_SCREENS.VICTORY;
+    this.victoryAnim = 0;
     this.victoryMenuIndex = 0;
     this.onlineRematchOption = 0;
     this.myRematchVote = null;
@@ -684,9 +744,7 @@ export class Game {
   }
 
   handleVictoryClick(x, y) {
-    const W = this.canvas.width;
-
-    // Top-Left Back Button Check
+    // Top-Left Back Button
     if (x >= 12 && x <= 110 && y >= 10 && y <= 34) {
       if (this.isOnline) {
         this.voteRematch('no');
@@ -698,35 +756,17 @@ export class Game {
       }
       return true;
     }
-
+    const rx = 330;
     if (this.isOnline) {
-      if (this.myRematchVote === null) {
-        // YES Button
-        if (x >= W / 2 - 195 && x <= W / 2 - 10 && y >= 262 && y <= 296) {
-          this.onlineRematchOption = 0;
-          this.voteRematch('yes');
-          return true;
-        }
-        // NO Button
-        if (x >= W / 2 + 10 && x <= W / 2 + 195 && y >= 262 && y <= 296) {
-          this.onlineRematchOption = 1;
-          this.voteRematch('no');
-          return true;
-        }
+      if (this.myRematchVote === null && y >= 214 && y <= 244) {
+        if (x >= rx && x <= rx + 135) { this.onlineRematchOption = 0; this.voteRematch('yes'); return true; }
+        if (x >= rx + 145 && x <= rx + 280) { this.onlineRematchOption = 1; this.voteRematch('no'); return true; }
       }
-    } else {
-      // Offline 3 Options
-      if (x >= W / 2 - 130 && x <= W / 2 + 130) {
-        if (y >= 224 && y <= 248) {
-          this.victoryMenuIndex = 0;
-          this.handleConfirmPress();
-          return true;
-        } else if (y >= 254 && y <= 278) {
-          this.victoryMenuIndex = 1;
-          this.handleConfirmPress();
-          return true;
-        } else if (y >= 284 && y <= 308) {
-          this.victoryMenuIndex = 2;
+    } else if (x >= rx && x <= rx + 268) {
+      for (let i = 0; i < 3; i++) {
+        const by = 206 + i * 30;
+        if (y >= by && y <= by + 24) {
+          this.victoryMenuIndex = i;
           this.handleConfirmPress();
           return true;
         }
@@ -788,6 +828,7 @@ export class Game {
 
   startMatch(isRematch = false) {
     soundFX.stopMusic();
+    if (this.combat) this.combat.resetMatchStats();
     const p1Id = this.charSelect.characters[this.charSelect.p1Index].id;
     const stageId = this.charSelect.stages[this.charSelect.stageIndex].id;
     const mode = this.charSelect.gameMode;
@@ -816,10 +857,10 @@ export class Game {
       const enemy1Id = this.charSelect.characters[this.charSelect.p2Index].id;
       const enemy2Id = enemy1Id === 'kagura' ? 'raven' : 'kagura';
 
-      this.f1 = this.createFighter(p1Id, 180, true, 1, false);
-      this.f3 = this.createFighter(p1AllyId, 100, true, 3, true); // Team 1 Ally
-      this.f2 = this.createFighter(enemy1Id, 720, false, 2, true);
-      this.f4 = this.createFighter(enemy2Id, 810, false, 4, true);
+      this.f1 = this.createFighter(p1Id, 300, true, 1, false);
+      this.f3 = this.createFighter(p1AllyId, 220, true, 3, true); // Team 1 Ally
+      this.f2 = this.createFighter(enemy1Id, 580, false, 2, true);
+      this.f4 = this.createFighter(enemy2Id, 660, false, 4, true);
 
       this.ai.setDifficulty('normal');
       this.ai2.setDifficulty('normal');
@@ -831,14 +872,14 @@ export class Game {
       const p2Id = this.charSelect.characters[this.charSelect.p2Index].id;
       const isCpu = !this.isOnline && (mode !== '2p');
 
-      this.f1 = this.createFighter(p1Id, 220, true, 1, false);
-      this.f2 = this.createFighter(p2Id, 700, false, 2, isCpu);
+      this.f1 = this.createFighter(p1Id, 330, true, 1, false);
+      this.f2 = this.createFighter(p2Id, 550, false, 2, isCpu);
       this.f3 = null;
       this.f4 = null;
       this.allFighters = [this.f1, this.f2];
 
       if (this.isTraining) {
-        this.ai.setDifficulty('easy');
+        this.ai.setDifficulty('dummy');
       } else if (!this.isOnline) {
         this.ai.setDifficulty(this.charSelect.cpuDifficulty || 'normal');
       }
@@ -891,6 +932,10 @@ export class Game {
 
   startFight() {
     this.screen = GAME_SCREENS.FIGHT;
+    this.combat.resetRound();
+    this.cameraZoom = 1.0;
+    this.targetCameraZoom = 1.0;
+    this.updateCamera(true);
     soundFX.startMusic('fight');
     soundFX.playAnnouncer('ROUND1');
     try { this.announcer.round1(); } catch (e) {}
@@ -960,7 +1005,7 @@ export class Game {
     this.ai.setDifficulty('campaign', stageNum);
     this.ai3.setDifficulty('campaign', stageNum);
 
-    const p1StartX = currentBossId === 'bouncer_twins' ? (isCoop ? 160 : 200) : (isCoop ? 180 : 220);
+    const p1StartX = currentBossId === 'bouncer_twins' ? (isCoop ? 230 : 280) : (isCoop ? 290 : 320);
     const p3StartX = isCoop ? (p1StartX - 90) : 100;
 
     // Always create a fresh P1 instance if starting anew, on stage 1, or after defeat
@@ -997,11 +1042,11 @@ export class Game {
 
     if (currentBossId === 'bouncer_twins') {
       // Stage 3: Bouncer Twins Encounter! Boris & Viktor
-      this.f2 = this.createFighter('boris', 680, false, 2, true);
-      this.f4 = this.createFighter('viktor', 780, false, 4, true);
+      this.f2 = this.createFighter('boris', 580, false, 2, true);
+      this.f4 = this.createFighter('viktor', 670, false, 4, true);
       this.allFighters = isCoop ? [this.f1, this.f3, this.f2, this.f4] : [this.f1, this.f2, this.f4];
     } else {
-      this.f2 = this.createFighter(currentBossId, 700, false, 2, true);
+      this.f2 = this.createFighter(currentBossId, 560, false, 2, true);
       this.f4 = null;
 
       // Progressive Boss Stat Scaling for each level
@@ -1131,6 +1176,18 @@ export class Game {
     fighter.spawnProjectile = (proj) => {
       this.projectiles.push(proj);
     };
+    // Scripted hits (cinematic ultimates) go through the same combat rules as normal hits
+    fighter.combatHit = (target, data, pos) => this.combat.applyHit(fighter, target, data, pos || { x: target.x + 40, y: target.y - 48 });
+
+    // Universal mechanics (throws, breaker, dirty cooldown, intro lock) run before every
+    // character's own input code, whichever path (local, CPU, online) drives it.
+    const ownHandleInput = fighter.handleInput.bind(fighter);
+    fighter.handleInput = (state, inputManager, opponent) => {
+      const res = this.combat.preInput(fighter, state || {}, inputManager, opponent);
+      if (res.consumed) return;
+      ownHandleInput(res.input, inputManager, opponent);
+    };
+    this.combat.resetFighter(fighter);
 
     return fighter;
   }
@@ -1158,23 +1215,26 @@ export class Game {
     input.consumeBuffer(2);
 
     if (this.is2v2) {
-      this.f1.x = 180;
-      this.f3.x = 100;
-      this.f2.x = 720;
-      this.f4.x = 810;
+      this.f1.x = 300;
+      this.f3.x = 220;
+      this.f2.x = 580;
+      this.f4.x = 660;
     } else if (this.isCoopCampaign) {
-      this.f1.x = 180;
-      if (this.f3) this.f3.x = 90;
-      this.f2.x = 700;
-      if (this.f4) this.f4.x = 790;
+      this.f1.x = 290;
+      if (this.f3) this.f3.x = 200;
+      this.f2.x = 560;
+      if (this.f4) this.f4.x = 650;
     } else if (this.isCampaign && this.bossQueue[this.bossIndex] === 'bouncer_twins') {
-      this.f1.x = 200;
-      this.f2.x = 680;
-      if (this.f4) this.f4.x = 780;
+      this.f1.x = 280;
+      this.f2.x = 580;
+      if (this.f4) this.f4.x = 670;
     } else {
-      this.f1.x = 220;
-      this.f2.x = 700;
+      this.f1.x = 330;
+      this.f2.x = 550;
     }
+    this.allFighters.forEach(f => { f.facingRight = f.team === 1; });
+    this.combat.resetRound();
+    this.updateCamera(true);
 
     this.projectiles = [];
     this.spawnDefaultPickups();
@@ -1182,6 +1242,14 @@ export class Game {
     this.slowMotion = false;
     this.screen = GAME_SCREENS.FIGHT;
     soundFX.playAnnouncer(this.round === 2 ? 'ROUND2' : 'FINALROUND');
+  }
+
+  getAIFor(fighter) {
+    if (!fighter) return null;
+    if (fighter === this.f2) return this.ai;
+    if (fighter === this.f3) return this.ai2;
+    if (fighter === this.f4) return this.ai3;
+    return null;
   }
 
   getNearestOpponent(fighter) {
@@ -1572,9 +1640,30 @@ export class Game {
     }
 
     // FIGHT & ROUND_OVER states
+    // Always animate world FX (they keep moving during hit-stop, like real fighting games)
+    vfx.update();
+    this.hud.updateFx && this.hud.updateFx();
+
+    // Hit-stop / super freeze: the whole fight pauses for a few frames on impact.
+    // Inputs are still read so presses made during the freeze are buffered.
+    if (this.combat.isFrozen()) {
+      input.update(this.f1.facingRight, this.f2 ? this.f2.facingRight : false);
+      this.combat.tickFreeze();
+      this.updateCamera();
+      input.endFrame();
+      return;
+    }
+
     if (this.slowMotion) {
-      this.slowMotionCounter++;
-      if (this.slowMotionCounter % 3 !== 0) return; // 1/3 speed during slow-mo KO
+      this.slowMoElapsed++;
+      if (this.slowMoElapsed > 48) {
+        this.slowMotion = false; // short dramatic KO slow-mo, then normal speed for the victory pose
+      } else {
+        this.slowMotionCounter++;
+        if (this.slowMotionCounter % 3 !== 0) return; // 1/3 speed during slow-mo KO
+      }
+    } else {
+      this.slowMoElapsed = 0;
     }
 
     // 1. Update Input Manager
@@ -1676,6 +1765,9 @@ export class Game {
     // 9. Check Attacks & Hit Collisions
     this.checkAttacks();
 
+    // 9b. Throws, cooldowns, ability FX
+    this.combat.postUpdate();
+
     // 10. Update Projectiles & Pickups
     this.updateProjectiles();
     this.updatePickups();
@@ -1686,7 +1778,7 @@ export class Game {
     // 12. Update Stage & HUD
     this.stage.update();
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
-    this.hud.update(this.f1, primaryEnemy);
+    this.hud.update(this.f1, primaryEnemy, this);
 
     // 13. Check Match End / Round Over / Campaign
     this.checkMatchEnd();
@@ -2143,7 +2235,7 @@ export class Game {
             const fInput = input.getState(f.playerNum, f.facingRight);
             wantsPickup = isP1
               ? ((input.isDown('KeyS') && input.isJustPressed('KeyC')) || (fInput.down && fInput.dirtyJust))
-              : (f.isCpu ? Math.random() < 0.04 : ((input.isDown('Numpad2') && input.isJustPressed('Numpad3')) || (fInput.down && fInput.dirtyJust)));
+              : (f.isCpu ? (!(this.getAIFor(f) && this.getAIFor(f).profile && this.getAIFor(f).profile.passive) && Math.random() < 0.008) : ((input.isDown('Numpad2') && input.isJustPressed('Numpad3')) || (fInput.down && fInput.dirtyJust)));
           }
 
           if (wantsPickup) {
@@ -2211,16 +2303,18 @@ export class Game {
                        fighter.state === FIGHTER_STATE.HIT_AIR ||
                        fighter.state === FIGHTER_STATE.HIT_CROUCH;
 
-    if ((isLeftWall || isRightWall) && inHitState && fighter.state !== FIGHTER_STATE.WALL_REBOUND) {
+    if ((isLeftWall || isRightWall) && inHitState && fighter.state !== FIGHTER_STATE.WALL_REBOUND && !fighter.wallBouncedInCombo) {
       if ((isLeftWall && fighter.vx < -1.0) || (isRightWall && fighter.vx > 1.0)) {
         fighter.changeState(FIGHTER_STATE.WALL_REBOUND);
+        fighter.wallBouncedInCombo = true;
         fighter.isInvincible = false;
         fighter.isGrounded = false;
         fighter.vx = isLeftWall ? 6.5 : -6.5;
         fighter.vy = -5.0;
-        this.hud.triggerShake(8);
-        this.hud.addHitSpark(fighter.x + 40, fighter.y - 45, 'hit');
-        this.hud.showCrowdBanner('CROWD SHOVE!');
+        this.hud.triggerShake(8 * this.combat.shakeMult());
+        vfx.hitSpark(isLeftWall ? fighter.x + 20 : fighter.x + 60, fighter.y - 45, { dir: isLeftWall ? 1 : -1, heavy: true, color: '#ffffff' });
+        vfx.popup(fighter.x + 40, fighter.y - 105, 'WALL BOUNCE', { color: '#4ade80', size: 12 });
+        this.combat.addFreeze(8);
         soundFX.playCrowdCheer();
       }
     }
@@ -2234,44 +2328,30 @@ export class Game {
             const hitResult = HitboxSystem.checkAttackHit(attacker, defender);
             if (hitResult) {
               attacker.hasHitThisAttack = true;
-
-              const attackData = attacker.isRageMode
-                ? { ...hitResult.attack, damage: Math.round(hitResult.attack.damage * 1.25) }
-                : hitResult.attack;
-
-              attacker.addSuper(attackData.damage * 0.08);
               const wasStanceBroken = defender.isStanceBroken;
-              const hitType = defender.takeHit(attackData, attacker.facingRight ? 1 : -1);
-
-              if (attacker.state === FIGHTER_STATE.DIRTY_TACTIC || attackData.hitType === HIT_TYPE.DIRTY_STUN) {
-                this.hud.showDirtyBanner(attacker.name);
-              }
-
+              const hitType = this.combat.resolveMelee(attacker, defender, hitResult);
+              const attackData = hitResult.attack || {};
               const isHeavy = attackData.hitType === HIT_TYPE.HEAVY || attackData.hitType === HIT_TYPE.KNOCKDOWN;
-              attacker.hitStop = isHeavy ? 5 : 2;
 
-              this.hud.addHitSpark(hitResult.hitX, hitResult.hitY, hitType === 'blocked' ? 'block' : 'hit');
-              if (hitType !== 'blocked') {
-                this.hud.recordHit(attacker.playerNum);
-                const shakeMult = this.settingsManager.settings.screenShake === 'off' ? 0 : (this.settingsManager.settings.screenShake === 'low' ? 0.4 : 1.0);
-                this.hud.triggerShake((attackData.damage > 80 ? 7 : 3) * shakeMult);
-
+              if (hitType && hitType !== 'blocked' && hitType !== 'armored') {
                 if (attacker.playerNum === 1) {
                   try { this.achievements.unlock('FIRST_BLOOD'); } catch (e) {}
                 }
-
-                if (this.elden) {
-                  const broke = this.elden.checkStanceBreak(defender, attackData.damage);
+                if (this.elden && !defender.isDead && hitType !== 'ko') {
+                  const broke = !wasStanceBroken && this.elden.checkStanceBreak(defender, attackData.damage || 0);
                   if (broke) {
-                    try { this.achievements.unlock('STANCE_BREAKER'); } catch (e) {}
-                    attacker.hitStop = 7;
-                    this.triggerCameraZoom(1.22, 50);
-                    this.hud.triggerShake(9 * shakeMult);
-                  } else if (wasStanceBroken && isHeavy) {
-                    try { this.achievements.unlock('CRITICAL_RIPOSTE'); } catch (e) {}
-                    attacker.hitStop = 8;
-                    this.triggerCameraZoom(1.26, 60);
-                    this.hud.triggerShake(12 * shakeMult);
+                    try { if (attacker.playerNum === 1) this.achievements.unlock('STANCE_BREAKER'); } catch (e) {}
+                    // Dazed: a short stagger window to land a Critical Riposte (2× heavy hit)
+                    if (defender.state !== FIGHTER_STATE.KNOCKDOWN && defender.isGrounded) {
+                      defender.hitStun = 0;
+                      defender.blindTimer = 48;
+                      defender.changeState(FIGHTER_STATE.BLIND_STUN, true);
+                    }
+                    this.combat.addFreeze(14);
+                    this.triggerCameraZoom(1.16, 50);
+                    this.hud.triggerShake(9 * this.combat.shakeMult());
+                    vfx.popup(defender.x + 40, defender.y - 104, 'STANCE BREAK', { color: '#ffe066', size: 13, life: 45, rise: 0.35 });
+                    vfx.burst(defender.x + 40, defender.y - 50, { color: '#ffe066', count: 22, speed: 6 });
                   }
                 }
               }
@@ -2304,20 +2384,7 @@ export class Game {
               hitTarget = true;
               p.destroy();
 
-              const hitType = target.takeHit({
-                damage: p.damage,
-                hitStun: 22,
-                blockStun: 14,
-                pushback: 5,
-                height: p.attackHeight,
-                hitType: 'HEAVY',
-                chipDamage: 12,
-                isProjectile: true
-              }, p.vx > 0 ? 1 : -1);
-
-              this.hud.addHitSpark(p.x + p.width / 2, p.y + p.height / 2, hitType === 'blocked' ? 'block' : 'hit');
-              this.hud.recordHit(p.owner.playerNum);
-              this.hud.triggerShake(5);
+              this.combat.resolveProjectile(p, target);
               break;
             }
           }
@@ -2332,7 +2399,10 @@ export class Game {
           if (HitboxSystem.testOverlap(pHit, other.getHitbox())) {
             p.destroy();
             other.destroy();
-            this.hud.addHitSpark((p.x + other.x) / 2, (p.y + other.y) / 2, 'hit');
+            const cx = (p.x + p.width / 2 + other.x + other.width / 2) / 2;
+            const cy = (p.y + p.height / 2 + other.y + other.height / 2) / 2;
+            vfx.hitSpark(cx, cy, { dir: 1, heavy: true, color: '#ffffff' });
+            vfx.burst(cx, cy, { color: '#ffe066', count: 14, speed: 5 });
             soundFX.playNoiseCrack(0.2, 800, 0.4);
             break;
           }
@@ -2341,14 +2411,45 @@ export class Game {
     }
   }
 
-  updateCamera() {
-    const living = this.allFighters.filter(f => !f.isDead);
+  // Dynamic fighting-game camera: frames the fighters, zooms in when they are close,
+  // lifts to follow jumps, and folds in event zooms (ultimates, stance breaks, KOs).
+  updateCamera(snap = false) {
+    const living = this.allFighters.filter(f => f && (!f.isDead || f.state === FIGHTER_STATE.KNOCKDOWN));
     if (living.length === 0) return;
-    const minX = Math.min(...living.map(f => f.x));
-    const maxX = Math.max(...living.map(f => f.x));
+    const centers = living.map(f => f.x + 40);
+    const minX = Math.min(...centers);
+    const maxX = Math.max(...centers);
     const midX = (minX + maxX) / 2;
-    const targetCamX = Math.max(0, Math.min(STAGE_WIDTH - GAME_WIDTH, midX - GAME_WIDTH / 2));
-    this.cameraX += (targetCamX - this.cameraX) * 0.15;
+    const dist = maxX - minX;
+
+    const zoomSetting = this.settingsManager && this.settingsManager.settings ? this.settingsManager.settings.cameraZoom : undefined;
+    const maxBaseZoom = zoomSetting === 'off' ? 1.0 : (zoomSetting === 'far' ? 1.18 : 1.34);
+    let baseZoom = maxBaseZoom - Math.max(0, dist - 110) * ((maxBaseZoom - 1.0) / 330);
+    baseZoom = Math.min(baseZoom, GAME_WIDTH / (dist + 150));
+    baseZoom = Math.max(1.0, Math.min(maxBaseZoom, baseZoom));
+
+    this.baseZoom = snap || !this.baseZoom ? baseZoom : this.baseZoom + (baseZoom - this.baseZoom) * 0.06;
+    const z = Math.max(1.0, Math.min(1.7, this.baseZoom * (this.cameraZoom || 1)));
+    this.camZoom = z;
+
+    const viewW = GAME_WIDTH / z;
+    const viewH = GAME_HEIGHT / z;
+    const targetCamX = Math.max(0, Math.min(STAGE_WIDTH - viewW, midX - viewW / 2));
+    this.cameraX = snap ? targetCamX : this.cameraX + (targetCamX - this.cameraX) * 0.18;
+    this.cameraX = Math.max(0, Math.min(STAGE_WIDTH - viewW, this.cameraX));
+
+    // Vertical: anchor to the bottom of the stage, rise to keep jumpers in frame
+    let targetTop = GAME_HEIGHT - viewH;
+    const highest = Math.min(...living.map(f => f.y - 100));
+    if (highest < targetTop + 6) targetTop = Math.max(0, highest - 6);
+    this.camTop = snap ? targetTop : this.camTop + (targetTop - this.camTop) * 0.2;
+    this.camTop = Math.max(0, Math.min(GAME_HEIGHT - viewH, this.camTop));
+  }
+
+  // Convert a world position to logical screen coordinates (used by HUD effects)
+  worldToScreen(x, y) {
+    const z = this.camZoom || 1;
+    return { x: (x - this.cameraX) * z, y: (y - (this.camTop || 0)) * z };
   }
 
   checkMatchEnd() {
@@ -2505,8 +2606,10 @@ export class Game {
       this.screen = GAME_SCREENS.ROUND_OVER;
       this.slowMotion = true;
       this.roundOverTimer = 160;
-      this.hud.setAnnouncement('K.O.', 120);
-      this.hud.triggerShake(14);
+      const timeUp = !this.f1.isDead && !this.f2.isDead;
+      this.hud.setAnnouncement(timeUp ? (this.f1.health === this.f2.health ? 'DRAW' : 'TIME') : 'K.O.', 120);
+      if (timeUp) soundFX.playAnnouncer('TIME_OVER');
+      this.hud.triggerShake(timeUp ? 4 : 14);
 
       if (this.f1.health > this.f2.health) {
         this.f1.roundsWon++;
@@ -2732,14 +2835,21 @@ export class Game {
     const shake = this.hud.getShakeOffset();
     ctx.translate(shake.x, shake.y);
 
-    if (this.cameraZoom && this.cameraZoom !== 1.0) {
-      ctx.translate(W / 2, H / 2);
-      ctx.scale(this.cameraZoom, this.cameraZoom);
-      ctx.translate(-W / 2, -H / 2);
-    }
+    // Camera: zoom + vertical follow (the stage is drawn in "screen" space under this transform)
+    const z = this.camZoom || 1;
+    ctx.scale(z, z);
+    ctx.translate(0, -(this.camTop || 0));
 
     // 1. Render Parallax Stage
     this.stage.render(ctx, this.cameraX, W, H);
+
+    // Super freeze darkens the arena so the ultimate pops
+    if (this.combat && this.combat.superFreeze > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(4, 2, 10, ${Math.min(0.62, this.combat.superFreeze / 40 * 0.9)})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
 
     // 2. Render Fighters & Pickups with camera offset
     ctx.save();
@@ -2754,6 +2864,9 @@ export class Game {
     // Projectiles
     this.projectiles.forEach(p => p.render(ctx));
 
+    // Hit sparks, dust, shockwaves, ability trails
+    vfx.render(ctx);
+
     // Finisher world-space FX (aura, shockwaves, sparks)
     if (this.finish && this.finish.active) {
       this.finish.renderWorld(ctx);
@@ -2766,9 +2879,14 @@ export class Game {
 
     ctx.restore();
 
+    // End of camera transform: everything below is screen space (never cropped by zoom)
+    ctx.restore();
+    ctx.save();
+    vfx.renderScreen(ctx, W, H);
+
     // 3. Render HUD (Health, Stamina, Timer, Super, Announcements)
     const primaryEnemy = (this.f2 && !this.f2.isDead) ? this.f2 : (this.f4 || this.f2);
-    this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4);
+    this.hud.render(ctx, this.f1, primaryEnemy, W, H, this.f3, this.f4, this);
 
     // 4. FINISH HIM overlay (text, letterbox, impact flash)
     if (this.finish && this.finish.active) {
@@ -2857,211 +2975,172 @@ export class Game {
     const { ctx } = this;
     const W = GAME_WIDTH;
     const H = GAME_HEIGHT;
+    this.victoryAnim = (this.victoryAnim || 0) + 1;
+    const t = this.victoryAnim;
+    const winner = this.winner;
+    const playerWon = winner && winner === this.f1;
+    const glow = (winner && winner._glow) || THEME_COLORS.gold;
 
-    ctx.fillStyle = '#08051a';
-    ctx.fillRect(0, 0, W, H);
+    drawBackdrop(ctx, W, H, t, { tint: playerWon ? '#7a4a06' : THEME_COLORS.crimsonDeep });
 
-    // Retro Grid
-    ctx.strokeStyle = '#181232';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 32) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
-    }
+    // Diagonal light shaft behind the winner
+    ctx.save();
+    const shaft = ctx.createLinearGradient(80, 0, 260, H);
+    shaft.addColorStop(0, hexToRgba(glow, 0.0));
+    shaft.addColorStop(0.5, hexToRgba(glow, 0.22));
+    shaft.addColorStop(1, hexToRgba(glow, 0.0));
+    ctx.fillStyle = shaft;
+    ctx.beginPath();
+    ctx.moveTo(110, 0); ctx.lineTo(250, 0); ctx.lineTo(300, H); ctx.lineTo(40, H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
-    // Top-Left Back Button: [ ⬅️ LOBBY (B) ] or [ ⬅️ MODES (B) ]
-    ctx.fillStyle = 'rgba(30, 27, 75, 0.85)';
-    ctx.fillRect(12, 10, 95, 22);
-    ctx.strokeStyle = '#6366f1';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(12, 10, 95, 22);
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(this.isOnline ? '⬅️ LOBBY [B]' : '⬅️ MODES [B]', 60, 24);
+    // Back button (click area 12..110 × 10..34)
+    drawSlantPanel(ctx, 12, 10, 96, 22, { fill: 'rgba(0,0,0,0.6)', stroke: 'rgba(255,255,255,0.18)', slant: 6 });
+    drawText(ctx, this.isOnline ? 'LOBBY' : 'MODES', 66, 25, { font: FONTS.ui(9, 800), color: THEME_COLORS.textDim, align: 'center' });
+    drawKeyCap(ctx, 'B', 22, 15, { h: 12 });
 
-    // Victory Banner
-    ctx.fillStyle = '#17113b';
-    ctx.fillRect(0, 16, W, 46);
-    ctx.fillStyle = '#facc15';
-    ctx.fillRect(0, 15, W, 2);
-    ctx.fillRect(0, 62, W, 2);
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 18px monospace';
-
-    if (this.isCampaign && this.winner === this.f1) {
-      if (this.isCoopCampaign) {
-        ctx.fillText('🐉 DRAGON SLAYER DUO! 🐉', W / 2, 38);
-        ctx.fillStyle = '#c084fc';
-        ctx.font = 'bold 9px monospace';
-        ctx.fillText('CO-OP RAID COMPLETE: THE ANCIENT VOID EMPEROR HAS FALLEN!', W / 2, 52);
-      } else {
-        ctx.fillText('🏆 CAMPAIGN CONQUEROR! 🏆', W / 2, 38);
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = '9px monospace';
-        ctx.fillText('ALL 8 BOSSES & THE ENDLESS DRAGON FELLED', W / 2, 52);
-      }
-    } else {
-      ctx.fillText(`${this.winner ? this.winner.name : 'PLAYER'} WINS!`, W / 2, 38);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '9px monospace';
-      ctx.fillText('FINAL IMPACT CHAMPION', W / 2, 52);
-    }
-
-    // Winner Sprite Display
-    if (this.winner) {
-      const sprites = this.winner.sprites?.VICTORY || this.winner.sprites?.IDLE || [];
-      const winImg = sprites[0];
-      if (winImg) {
-        ctx.drawImage(winImg, W / 2 - 45, 68, 90, 105);
-      }
-
-      // Victory Quote
-      const quote = this.victoryQuotes[this.winner.id] || '"Victory belongs to the swift and disciplined!"';
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = 'italic 10px monospace';
-      ctx.fillText(quote, W / 2, 180);
-
-      if (typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_beaten_dragon') === 'true') {
-        ctx.fillStyle = '#fde047';
-        ctx.font = 'bold 8.5px monospace';
-        ctx.fillText('✨ UNLOCKED: PLAYABLE ENDLESS DRAGON & [🐉 DRAGON SLAYER] TITLE ✨', W / 2, 192);
-      }
-    }
-
-    // Interactive Menu Area
-    if (this.isOnline) {
-      // Online Rematch Voting UI Card
-      const cardW = 440;
-      const cardH = 150;
-      const cardX = (W - cardW) / 2;
-      const cardY = 196;
-
-      ctx.fillStyle = 'rgba(15, 12, 32, 0.95)';
-      ctx.fillRect(cardX, cardY, cardW, cardH);
-      ctx.strokeStyle = '#6366f1';
+    // Winner render on a lit platform
+    const enter = ease.outCubic(Math.min(1, t / 22));
+    if (winner) {
+      const sprites = winner.sprites?.VICTORY || winner.sprites?.IDLE || [];
+      const frame = sprites.length ? sprites[Math.floor(t / 10) % sprites.length] : null;
+      const cx = 170;
+      const baseY = 300;
+      ctx.save();
+      const plat = ctx.createRadialGradient(cx, baseY, 4, cx, baseY, 110);
+      plat.addColorStop(0, hexToRgba(glow, 0.55));
+      plat.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = plat;
+      ctx.beginPath(); ctx.ellipse(cx, baseY, 110, 20, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = hexToRgba(glow, 0.8);
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(cardX, cardY, cardW, cardH);
-
-      // Card Header
-      ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 12px monospace';
-      ctx.fillText('⚔️ ONLINE REMATCH VOTE ⚔️', W / 2, cardY + 18);
-
-      // Status Notification Banner
-      if (this.rematchStatusMessage) {
-        let statusColor = '#38bdf8';
-        if (this.rematchStatusMessage.includes('ACCEPTED')) statusColor = '#22c55e';
-        else if (this.rematchStatusMessage.includes('DECLINED') || this.rematchStatusMessage.includes('DISCONNECTED')) statusColor = '#ef4444';
-        else if (this.rematchStatusMessage.includes('WANTS A REMATCH')) statusColor = '#facc15';
-
-        ctx.fillStyle = statusColor;
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(this.rematchStatusMessage, W / 2, cardY + 36);
-      } else {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '10px monospace';
-        ctx.fillText('WOULD YOU LIKE TO REMATCH YOUR OPPONENT?', W / 2, cardY + 36);
+      ctx.beginPath(); ctx.ellipse(cx, baseY, 70, 11, 0, 0, Math.PI * 2); ctx.stroke();
+      if (frame) {
+        const sc = 2.5;
+        const iw = 80 * sc, ih = 90 * sc;
+        ctx.globalAlpha = enter;
+        ctx.imageSmoothingEnabled = false;
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 22;
+        ctx.drawImage(frame, cx - iw / 2 - (1 - enter) * 60, baseY - ih + 8, iw, ih);
       }
-
-      // YES / NO Buttons
-      const btnW = 195;
-      const btnH = 34;
-      const btnY = cardY + 46;
-      const yesX = W / 2 - btnW - 8;
-      const noX = W / 2 + 8;
-
-      // Option 0: YES
-      const isYesHighlighted = this.onlineRematchOption === 0;
-      const hasVotedYes = this.myRematchVote === 'yes';
-      ctx.fillStyle = hasVotedYes ? 'rgba(22, 101, 52, 0.9)' : (isYesHighlighted ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.8)');
-      ctx.fillRect(yesX, btnY, btnW, btnH);
-      ctx.strokeStyle = isYesHighlighted ? '#fde047' : (hasVotedYes ? '#22c55e' : '#15803d');
-      ctx.lineWidth = isYesHighlighted ? 2 : 1;
-      ctx.strokeRect(yesX, btnY, btnW, btnH);
-
-      ctx.fillStyle = hasVotedYes ? '#4ade80' : (isYesHighlighted ? '#ffffff' : '#cbd5e1');
-      ctx.font = 'bold 11px monospace';
-      const yesPrefix = isYesHighlighted ? '► ' : '';
-      const yesSuffix = hasVotedYes ? ' [✓ VOTED]' : '';
-      ctx.fillText(`${yesPrefix}YES - REMATCH${yesSuffix}`, yesX + btnW / 2, btnY + 21);
-
-      // Option 1: NO
-      const isNoHighlighted = this.onlineRematchOption === 1;
-      const hasVotedNo = this.myRematchVote === 'no';
-      ctx.fillStyle = hasVotedNo ? 'rgba(153, 27, 27, 0.9)' : (isNoHighlighted ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.8)');
-      ctx.fillRect(noX, btnY, btnW, btnH);
-      ctx.strokeStyle = isNoHighlighted ? '#fde047' : (hasVotedNo ? '#ef4444' : '#991b1b');
-      ctx.lineWidth = isNoHighlighted ? 2 : 1;
-      ctx.strokeRect(noX, btnY, btnW, btnH);
-
-      ctx.fillStyle = hasVotedNo ? '#f87171' : (isNoHighlighted ? '#ffffff' : '#cbd5e1');
-      ctx.font = 'bold 11px monospace';
-      const noPrefix = isNoHighlighted ? '► ' : '';
-      const noSuffix = hasVotedNo ? ' [✗ VOTED]' : '';
-      ctx.fillText(`${noPrefix}NO - RETURN TO LOBBY${noSuffix}`, noX + btnW / 2, btnY + 21);
-
-      // Live Player Vote Status Indicators
-      const p1VoteText = this.myRematchVote ? (this.myRematchVote === 'yes' ? 'READY (YES)' : 'DECLINED (NO)') : 'DECIDING...';
-      const p2VoteText = this.oppRematchVote ? (this.oppRematchVote === 'yes' ? 'READY (YES)' : 'DECLINED (NO)') : 'DECIDING...';
-      const p1Color = this.myRematchVote === 'yes' ? '#22c55e' : (this.myRematchVote === 'no' ? '#ef4444' : '#94a3b8');
-      const p2Color = this.oppRematchVote === 'yes' ? '#22c55e' : (this.oppRematchVote === 'no' ? '#ef4444' : '#94a3b8');
-
-      ctx.font = 'bold 10px monospace';
-      ctx.fillStyle = p1Color;
-      ctx.fillText(`YOU: [ ${p1VoteText} ]`, W / 2 - 105, cardY + 104);
-
-      ctx.fillStyle = '#64748b';
-      ctx.fillText('|', W / 2, cardY + 104);
-
-      ctx.fillStyle = p2Color;
-      ctx.fillText(`OPPONENT: [ ${p2VoteText} ]`, W / 2 + 105, cardY + 104);
-
-      // Controls Footer inside card
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px monospace';
-      ctx.fillText('◄/► [A/D] SELECT  |  [ENTER] VOTE  |  [Y] YES  |  [N / B / ESC] NO', W / 2, cardY + 130);
-
-    } else {
-      // Offline 3-Option Interactive Menu
-      const menuOptions = [
-        { label: '⚔️ REMATCH', desc: 'Restart match immediately' },
-        { label: '🥋 CHARACTER SELECT', desc: 'Return to character select' },
-        { label: '🏆 MAIN MENU', desc: 'Return to Mode Select' }
-      ];
-
-      const btnW = 280;
-      const btnH = 26;
-      const startY = 208;
-      const gapY = 32;
-
-      menuOptions.forEach((opt, idx) => {
-        const isSelected = this.victoryMenuIndex === idx;
-        const y = startY + idx * gapY;
-        const x = (W - btnW) / 2;
-
-        ctx.fillStyle = isSelected ? 'rgba(30, 27, 75, 0.95)' : 'rgba(15, 23, 42, 0.75)';
-        ctx.fillRect(x, y, btnW, btnH);
-        ctx.strokeStyle = isSelected ? '#fde047' : '#334155';
-        ctx.lineWidth = isSelected ? 2 : 1;
-        ctx.strokeRect(x, y, btnW, btnH);
-
-        ctx.fillStyle = isSelected ? '#ffffff' : '#94a3b8';
-        ctx.font = isSelected ? 'bold 12px monospace' : '11px monospace';
-        const cursor = isSelected ? '► ' : '';
-        ctx.fillText(`${cursor}${opt.label}`, W / 2, y + 17);
-      });
-
-      // Controls Footer
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '10px monospace';
-      ctx.fillText('▲/▼ [W/S] SELECT  |  [ENTER / SPACE] CONFIRM  |  [B / ESC] BACK', W / 2, H - 12);
+      ctx.restore();
     }
 
+    // Right column: result + quote + stats
+    const rx = 330;
+    const titleIn = ease.outBack(Math.min(1, Math.max(0, (t - 6) / 18)));
+    let headline;
+    let sub;
+    if (this.isCampaign && playerWon) {
+      headline = this.isCoopCampaign ? 'DRAGON SLAYERS' : 'CONQUEROR';
+      sub = this.isCoopCampaign ? 'CO-OP RAID COMPLETE — THE ANCIENT DRAGON HAS FALLEN' : 'ALL 8 BOSSES & THE ENDLESS DRAGON FELLED';
+    } else if (this.isCampaign) {
+      headline = 'DEFEATED';
+      sub = `FELL TO ${winner ? winner.name : 'THE BOSS'} — STAGE ${(this.bossIndex || 0) + 1}`;
+    } else {
+      headline = winner ? winner.name : 'PLAYER';
+      sub = playerWon || this.charSelect.gameMode === '2p' || this.isOnline ? 'WINS THE MATCH' : 'CPU WINS THE MATCH';
+    }
+    ctx.save();
+    ctx.translate(rx + (1 - titleIn) * 40, 0);
+    ctx.globalAlpha = Math.min(1, titleIn);
+    drawText(ctx, sub, 0, 62, { font: FONTS.ui(9, 800), color: THEME_COLORS.gold, letterSpacing: 2 });
+    const hlSize = headline.length > 12 ? 30 : 42;
+    drawTitleText(ctx, headline, 0, 62 + hlSize + 4, hlSize, { align: 'left' });
+    ctx.restore();
+
+    if (winner) {
+      const quote = this.victoryQuotes[winner.id] || '"Victory belongs to the swift and disciplined!"';
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(0, (t - 14) / 16));
+      ctx.fillStyle = hexToRgba(glow, 0.9);
+      ctx.fillRect(rx, 124, 2, 26);
+      wrapText(ctx, quote, rx + 10, 134, 280, 12, { font: `italic 600 10px ${'"Bahnschrift", "Segoe UI", "Inter", sans-serif'}`, color: THEME_COLORS.text });
+      ctx.restore();
+    }
+
+    // Match stats chips
+    const chips = [];
+    if (!this.isCampaign && this.f1 && this.f2) chips.push(`ROUNDS ${this.f1.roundsWon || 0} – ${this.f2.roundsWon || 0}`);
+    const best = this.combat && this.combat.matchStats ? this.combat.matchStats.bestCombo[1] : 0;
+    if (best >= 2) chips.push(`BEST COMBO ${best} HITS`);
+    if (this.koFlawless && playerWon) chips.push('FLAWLESS');
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('final_impact_beaten_dragon') === 'true' && this.isCampaign) chips.push('DRAGON UNLOCKED');
+    let cx2 = rx;
+    chips.forEach(c => {
+      ctx.font = FONTS.ui(8, 800);
+      const w = ctx.measureText(c).width + 16;
+      drawSlantPanel(ctx, cx2, 164, w, 16, { fill: 'rgba(255,255,255,0.07)', stroke: 'rgba(255,255,255,0.15)', slant: 4 });
+      drawText(ctx, c, cx2 + w / 2, 175, { font: FONTS.ui(8, 800), color: c === 'FLAWLESS' ? THEME_COLORS.gold : THEME_COLORS.textDim, align: 'center' });
+      cx2 += w + 6;
+    });
+
+    if (this.isOnline) {
+      // Online rematch vote (click areas: YES rx..rx+135, NO rx+145..rx+280, y 214..244)
+      drawText(ctx, 'REMATCH?', rx, 204, { font: FONTS.display(16), color: THEME_COLORS.text });
+      const opts = [
+        { label: 'YES — REMATCH', voted: this.myRematchVote === 'yes', col: THEME_COLORS.good },
+        { label: 'NO — LOBBY', voted: this.myRematchVote === 'no', col: THEME_COLORS.bad }
+      ];
+      opts.forEach((o, i) => {
+        const bx = rx + i * 145;
+        const sel = this.onlineRematchOption === i;
+        drawSlantPanel(ctx, bx, 214, 135, 30, {
+          fill: o.voted ? hexToRgba(o.col, 0.35) : (sel ? 'rgba(245, 197, 66, 0.16)' : 'rgba(0,0,0,0.55)'),
+          stroke: sel ? THEME_COLORS.gold : (o.voted ? o.col : 'rgba(255,255,255,0.15)'), slant: 8, lineWidth: sel ? 1.5 : 1
+        });
+        drawText(ctx, o.label + (o.voted ? '  ✓' : ''), bx + 67, 233, { font: FONTS.ui(10, 900), color: sel || o.voted ? THEME_COLORS.text : THEME_COLORS.textDim, align: 'center' });
+      });
+      const vote = v => (v ? (v === 'yes' ? 'READY' : 'DECLINED') : 'DECIDING…');
+      const vcol = v => (v === 'yes' ? THEME_COLORS.good : (v === 'no' ? THEME_COLORS.bad : THEME_COLORS.textDim));
+      drawText(ctx, `YOU: ${vote(this.myRematchVote)}`, rx, 262, { font: FONTS.ui(9, 800), color: vcol(this.myRematchVote) });
+      drawText(ctx, `OPPONENT: ${vote(this.oppRematchVote)}`, rx + 145, 262, { font: FONTS.ui(9, 800), color: vcol(this.oppRematchVote) });
+      if (this.rematchStatusMessage) {
+        drawText(ctx, this.rematchStatusMessage, rx, 282, { font: FONTS.ui(9, 900), color: THEME_COLORS.meter });
+      }
+      drawPromptBar(ctx, [{ key: 'A/D', label: 'Select' }, { key: 'ENTER', label: 'Vote' }, { key: 'Y', label: 'Yes' }, { key: 'N', label: 'No' }], W / 2, H - 10);
+    } else {
+      // Offline menu (click areas: x rx..rx+260, rows y = 206 + i*30, h 24)
+      const menuOptions = ['REMATCH', 'CHARACTER SELECT', 'MAIN MENU'];
+      menuOptions.forEach((label, idx) => {
+        const sel = this.victoryMenuIndex === idx;
+        const y = 206 + idx * 30;
+        const slideIn = ease.outCubic(Math.min(1, Math.max(0, (t - 18 - idx * 4) / 14)));
+        const x = rx + (1 - slideIn) * 50 + (sel ? 8 : 0);
+        ctx.save();
+        ctx.globalAlpha = slideIn;
+        drawSlantPanel(ctx, x, y, 250, 24, {
+          fill: sel ? 'rgba(245, 197, 66, 0.95)' : 'rgba(0,0,0,0.55)',
+          stroke: sel ? THEME_COLORS.goldPale : 'rgba(255,255,255,0.14)', slant: 8
+        });
+        drawText(ctx, label, x + 18, y + 16.5, { font: FONTS.display(12, 900), color: sel ? '#120c04' : THEME_COLORS.textDim });
+        if (sel) drawText(ctx, '▶', x + 236, y + 16, { font: FONTS.ui(9, 900), color: '#120c04', align: 'right' });
+        ctx.restore();
+      });
+      drawPromptBar(ctx, [{ key: 'W/S', label: 'Select' }, { key: 'ENTER', label: 'Confirm' }, { key: 'ESC', label: 'Back' }], W / 2, H - 10);
+    }
     ctx.textAlign = 'left';
   }
 }
+
+function wrapText(ctx, text, x, y, maxW, lineH, { font, color }) {
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  const words = String(text).split(' ');
+  let line = '';
+  let yy = y;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, yy);
+      line = w;
+      yy += lineH;
+    } else line = test;
+  }
+  if (line) ctx.fillText(line, x, yy);
+}
+

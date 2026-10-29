@@ -12,6 +12,8 @@ export class Raven extends Fighter {
       id: 'raven',
       name: 'RAVEN'
     });
+    this.ultimateStyle = 'orbital';
+    this.damageMult = 0.88;
     this.walkSpeed = 3.4;
     this.dashSpeed = 7.5;
     this.jumpForce = -13.0;

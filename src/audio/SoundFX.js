@@ -173,6 +173,82 @@ class SoundFX {
     osc2.stop(now + 0.18);
   }
 
+  // Short upward "hop" blip for jumps
+  playJump() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(420, now + 0.09);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  // Soft tick for menu / dialogue navigation
+  playMenuMove() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(660, now);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  // Deep ominous gong (YOU DIED, fatality banners)
+  playLowGong() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(110, now);
+    osc1.frequency.exponentialRampToValueAtTime(70, now + 2.2);
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(165, now);
+    osc2.frequency.exponentialRampToValueAtTime(105, now + 2.2);
+    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 2.4);
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.sfxGain);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 2.4);
+    osc2.stop(now + 2.4);
+  }
+
+  // Bright glassy chime (stance break / parry)
+  playParryChime() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    [1320, 1980, 2640].forEach((f, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + i * 0.02);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.14 / (i + 1), now + i * 0.02 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(now + i * 0.02);
+      osc.stop(now + 0.62);
+    });
+  }
+
   // Quick Snappy Dash Whoosh
   playDash() {
     if (!this.ctx) return;

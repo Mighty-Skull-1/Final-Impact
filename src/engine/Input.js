@@ -231,7 +231,8 @@ export class InputManager {
 
   onKeyUp(e) {
     this.keys[e.code] = false;
-    this.justPressed[e.code] = false;
+    // NOTE: justPressed is intentionally NOT cleared here — a quick tap that is pressed and
+    // released between two game frames must still register (it is cleared in endFrame()).
   }
 
   isDown(code) {
@@ -300,7 +301,7 @@ export class InputManager {
     }
 
     this.gamepads = active;
-    const DEADZONE = 0.20;
+    const DEADZONE = 0.16;
 
     for (let pIdx = 0; pIdx < active.length; pIdx++) {
       const gp = active[pIdx];
@@ -319,7 +320,7 @@ export class InputManager {
       const numButtons = gp.buttons ? gp.buttons.length : 0;
       for (let b = 0; b < Math.max(numButtons, 16); b++) {
         const btn = gp.buttons ? gp.buttons[b] : null;
-        const isPressed = !!btn && (btn.pressed || (typeof btn.value === 'number' && btn.value > 0.25));
+        const isPressed = !!btn && (btn.pressed || (typeof btn.value === 'number' && btn.value > 0.18));
         currButtons[b] = isPressed;
 
         const wasPressed = !!prev.buttons[b];
@@ -328,20 +329,38 @@ export class InputManager {
         }
       }
 
-      // 2. Process Analog Sticks with Deadzone
+      // 2. Process Analog Sticks with Radial Deadzone & Smooth 8-Way Angular Cones
       const ax0 = gp.axes && gp.axes[0] !== undefined ? gp.axes[0] : 0; // Left Stick X
       const ax1 = gp.axes && gp.axes[1] !== undefined ? gp.axes[1] : 0; // Left Stick Y
+      const stickDist = Math.hypot(ax0, ax1);
 
-      const stickLeft = ax0 < -DEADZONE;
-      const stickRight = ax0 > DEADZONE;
-      const stickUp = ax1 < -DEADZONE;
-      const stickDown = ax1 > DEADZONE;
+      let stickLeft = false;
+      let stickRight = false;
+      let stickUp = false;
+      let stickDown = false;
+
+      if (stickDist >= DEADZONE) {
+        const deg = Math.atan2(ax1, ax0) * (180 / Math.PI); // -180 to 180
+        stickRight = deg >= -67.5 && deg <= 67.5;
+        stickDown = deg >= 22.5 && deg <= 157.5;
+        stickLeft = deg >= 112.5 || deg <= -112.5;
+        stickUp = deg >= -157.5 && deg <= -22.5;
+      }
 
       const prevAxes = prev.axes || [0, 0];
-      const prevStickLeft = prevAxes[0] < -DEADZONE;
-      const prevStickRight = prevAxes[0] > DEADZONE;
-      const prevStickUp = prevAxes[1] < -DEADZONE;
-      const prevStickDown = prevAxes[1] > DEADZONE;
+      const prevDist = Math.hypot(prevAxes[0], prevAxes[1]);
+      let prevStickLeft = false;
+      let prevStickRight = false;
+      let prevStickUp = false;
+      let prevStickDown = false;
+
+      if (prevDist >= DEADZONE) {
+        const prevDeg = Math.atan2(prevAxes[1], prevAxes[0]) * (180 / Math.PI);
+        prevStickRight = prevDeg >= -67.5 && prevDeg <= 67.5;
+        prevStickDown = prevDeg >= 22.5 && prevDeg <= 157.5;
+        prevStickLeft = prevDeg >= 112.5 || prevDeg <= -112.5;
+        prevStickUp = prevDeg >= -157.5 && prevDeg <= -22.5;
+      }
 
       if (stickLeft && !prevStickLeft) this.gamepadJustPressed[idx]['STICK_LEFT'] = true;
       if (stickRight && !prevStickRight) this.gamepadJustPressed[idx]['STICK_RIGHT'] = true;
@@ -394,14 +413,23 @@ export class InputManager {
     const idx = gp.index !== undefined ? gp.index : playerIndex;
     const just = this.gamepadJustPressed[idx] || {};
 
-    const DEADZONE = 0.20;
+    const DEADZONE = 0.16;
     const ax0 = gp.axes && gp.axes[0] !== undefined ? gp.axes[0] : 0;
     const ax1 = gp.axes && gp.axes[1] !== undefined ? gp.axes[1] : 0;
+    const stickDist = Math.hypot(ax0, ax1);
 
-    const stickLeft = ax0 < -DEADZONE;
-    const stickRight = ax0 > DEADZONE;
-    const stickUp = ax1 < -DEADZONE;
-    const stickDown = ax1 > DEADZONE;
+    let stickLeft = false;
+    let stickRight = false;
+    let stickUp = false;
+    let stickDown = false;
+
+    if (stickDist >= DEADZONE) {
+      const deg = Math.atan2(ax1, ax0) * (180 / Math.PI);
+      stickRight = deg >= -67.5 && deg <= 67.5;
+      stickDown = deg >= 22.5 && deg <= 157.5;
+      stickLeft = deg >= 112.5 || deg <= -112.5;
+      stickUp = deg >= -157.5 && deg <= -22.5;
+    }
 
     const dpadUp = !!gp.buttons[12]?.pressed;
     const dpadDown = !!gp.buttons[13]?.pressed;
@@ -424,7 +452,7 @@ export class InputManager {
     const isBtnDown = (btnIdx) => {
       if (btnIdx === undefined || btnIdx === null) return false;
       const b = gp.buttons ? gp.buttons[btnIdx] : null;
-      return !!b && (b.pressed || (typeof b.value === 'number' && b.value > 0.25));
+      return !!b && (b.pressed || (typeof b.value === 'number' && b.value > 0.18));
     };
 
     const isBtnJust = (btnIdx) => {
@@ -515,12 +543,12 @@ export class InputManager {
       const nextKey = `${dir}_next`;
       if (isJust) {
         ht[dir] = now;
-        ht[nextKey] = now + 230; // Snappy initial delay before repeat
+        ht[nextKey] = now + 190; // Snappy initial delay before repeat
         return true;
       }
       if (isHeld) {
         if (now >= (ht[nextKey] || 0)) {
-          ht[nextKey] = now + 120; // Smooth repeat interval
+          ht[nextKey] = now + 95; // Ultra-smooth repeat interval
           return true;
         }
       } else {
@@ -535,6 +563,17 @@ export class InputManager {
     const left = checkRepeat('left', gp.left, gp.leftJust);
     const right = checkRepeat('right', gp.right, gp.rightJust);
 
+    const just = this.gamepadJustPressed[gp.index] || {};
+    const rawLB = !!just[4];
+    const rawRB = !!just[5];
+    const rawLT = !!just[6];
+    const rawRT = !!just[7];
+
+    const lb = !!gp.sp3Just || rawLB;
+    const rb = !!gp.sp1Just || rawRB;
+    const lt = !!gp.dirtyJust || rawLT;
+    const rt = !!gp.sp2Just || rawRT;
+
     return {
       up,
       down,
@@ -544,12 +583,12 @@ export class InputManager {
       back: gp.bJust,
       extra: gp.xJust || gp.yJust,
       start: gp.startJust,
-      lb: !!gp.sp3Just,
-      rb: !!gp.sp1Just,
-      lt: !!gp.dirtyJust,
-      rt: !!gp.sp2Just,
-      prevTab: !!gp.sp3Just || !!gp.dirtyJust,
-      nextTab: !!gp.sp1Just || !!gp.sp2Just
+      lb,
+      rb,
+      lt,
+      rt,
+      prevTab: lb || lt,
+      nextTab: rb || rt
     };
   }
 
@@ -705,14 +744,14 @@ export class InputManager {
 
     if (p1FwdJust) {
       const now = performance.now();
-      if (now - this.p1LastFwdTap < 220) {
+      if (now - this.p1LastFwdTap < 280) {
         this.p1DashFwd = true;
       }
       this.p1LastFwdTap = now;
     }
     if (p1BackJust) {
       const now = performance.now();
-      if (now - this.p1LastBackTap < 220) {
+      if (now - this.p1LastBackTap < 280) {
         this.p1DashBack = true;
       }
       this.p1LastBackTap = now;
@@ -729,14 +768,14 @@ export class InputManager {
 
     if (p2FwdJust) {
       const now = performance.now();
-      if (now - this.p2LastFwdTap < 220) {
+      if (now - this.p2LastFwdTap < 280) {
         this.p2DashFwd = true;
       }
       this.p2LastFwdTap = now;
     }
     if (p2BackJust) {
       const now = performance.now();
-      if (now - this.p2LastBackTap < 220) {
+      if (now - this.p2LastBackTap < 280) {
         this.p2DashBack = true;
       }
       this.p2LastBackTap = now;

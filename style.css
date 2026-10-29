@@ -173,9 +173,6 @@ body.screen-size-max .screen-container {
 body.screen-size-max .crt-bezel {
   border-width: 3px;
 }
-body.screen-size-max .controls-drawer {
-  display: none;
-}
 
 /* Mode 4: True Edge-to-Edge Fullscreen */
 :fullscreen,
@@ -268,82 +265,6 @@ body.is-fullscreen:hover .fs-floating-exit {
   color: #ffffff !important;
 }
 
-/* Collapsible controls drawer */
-.controls-drawer {
-  width: 100%;
-  max-width: min(96vw, calc((100vh - 95px) * 16 / 9));
-  min-width: 320px;
-  background: rgba(20, 6, 6, 0.85);
-  border: 1px solid #3f1d1d;
-  border-radius: 8px;
-  font-size: 8px;
-  line-height: 1.8;
-  transition: max-width 0.2s ease;
-}
-
-.controls-drawer summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 12px 16px;
-  color: #facc15;
-  font-size: 9px;
-  letter-spacing: 2px;
-  text-align: center;
-}
-
-.controls-drawer summary::-webkit-details-marker {
-  display: none;
-}
-
-.controls-drawer summary::after {
-  content: '  ▼';
-  color: #b91c1c;
-}
-
-.controls-drawer[open] summary::after {
-  content: '  ▲';
-}
-
-.controls-drawer summary:hover {
-  color: #fef08a;
-}
-
-.controls-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-  padding: 4px 16px 12px;
-}
-
-.ctrl-card {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid #2a1212;
-  border-top: 2px solid #b91c1c;
-  border-radius: 6px;
-  padding: 10px 12px;
-}
-
-.ctrl-card h3 {
-  color: #facc15;
-  font-size: 8px;
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-
-.ctrl-card ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  color: #d6d3d1;
-}
-
-.ctrl-card em {
-  color: #78716c;
-  font-style: normal;
-  font-size: 7px;
-}
-
 kbd {
   display: inline-block;
   min-width: 18px;
@@ -355,13 +276,6 @@ kbd {
   border-radius: 4px;
   color: #fde68a;
   font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
-  text-align: center;
-}
-
-.tip {
-  padding: 0 16px 14px;
-  color: #86efac;
   font-size: 7px;
   text-align: center;
 }
@@ -412,8 +326,10 @@ kbd {
 }
 
 .modal-card {
-  width: 90%;
-  max-width: 520px;
+  width: 92%;
+  max-width: 660px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: #0f111a;
   border: 4px solid #facc15;
   border-radius: 8px;
@@ -425,12 +341,30 @@ kbd {
   font-family: 'Press Start 2P', monospace;
 }
 
+.modal-card::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-card::-webkit-scrollbar-track {
+  background: #090a10;
+}
+.modal-card::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+.modal-card::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 2px solid #1e293b;
   padding-bottom: 12px;
+  position: sticky;
+  top: 0;
+  background: #0f111a;
+  z-index: 20;
 }
 
 .modal-header h2 {
@@ -536,6 +470,10 @@ kbd {
   gap: 8px;
   border-bottom: 2px solid #1e293b;
   padding-bottom: 8px;
+  position: sticky;
+  top: 44px;
+  background: #0f111a;
+  z-index: 19;
 }
 
 .tab-btn {
@@ -830,5 +768,193 @@ kbd {
     outline-color: #38bdf8;
     box-shadow: 0 0 18px rgba(56, 189, 248, 0.85);
   }
+}
+
+/* Move List Styles */
+.move-list-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fighter-bio-card {
+  background: linear-gradient(135deg, #181d2f 0%, #0f121d 100%);
+  border: 2px solid #38bdf8;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ml-fighter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ml-fighter-name {
+  font-size: 13px;
+  color: #facc15;
+  letter-spacing: 2px;
+}
+
+.ml-fighter-kanji {
+  font-size: 11px;
+  color: #f87171;
+  font-family: serif;
+}
+
+.ml-fighter-meta {
+  font-size: 7.5px;
+  color: #94a3b8;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ml-fighter-quote {
+  font-size: 7px;
+  color: #cbd5e1;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #facc15;
+  padding-left: 8px;
+}
+
+.ml-stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 7.5px;
+  color: #cbd5e1;
+  margin-top: 4px;
+}
+
+.ml-stat-bar {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.ml-stat-pip {
+  display: inline-block;
+  width: 8px;
+  height: 6px;
+  background: #334155;
+  border-radius: 1px;
+}
+
+.ml-stat-pip.filled {
+  background: #38bdf8;
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.6);
+}
+
+.move-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-left: 3px solid #facc15;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.move-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.move-name {
+  font-size: 8.5px;
+  color: #fef08a;
+  font-weight: bold;
+}
+
+.move-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.input-pill {
+  font-size: 6.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.input-pill.keyboard {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+}
+
+.input-pill.gamepad {
+  background: #1e293b;
+  border: 1px solid #4ade80;
+  color: #4ade80;
+}
+
+.move-desc {
+  font-size: 7px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.ultimate-card {
+  background: #180d1e;
+  border: 1px solid #701a75;
+  border-left: 3px solid #ef4444;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mech-card {
+  background: #090d16;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.mech-title {
+  font-size: 7.5px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.move-card,
+.ultimate-card,
+.mech-card {
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.move-card:hover,
+.ultimate-card:hover,
+.mech-card:hover {
+  border-color: #38bdf8;
+  background: #182038;
+}
+
+.move-card:focus,
+.move-card.arcade-focus,
+.ultimate-card:focus,
+.ultimate-card.arcade-focus,
+.mech-card:focus,
+.mech-card.arcade-focus {
+  outline: 2px solid #facc15;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.65);
+  transform: scale(1.01);
 }
 

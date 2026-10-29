@@ -1,6 +1,8 @@
 // Final Impact - Projectiles Engine (Hadouken, Sonic Blade, Ki Kunai)
 import { Box } from './Hitbox.js';
 import { ATTACK_HEIGHT } from './Constants.js';
+import { vfx } from '../graphics/VFX.js';
+import { FIGHTER_DESIGNS } from '../graphics/FighterDesigns.js';
 
 export class Projectile {
   constructor({
@@ -44,10 +46,25 @@ export class Projectile {
     this.y += this.vy;
     this.frame++;
 
+    // Energy trail
+    if (this.active && this.frame % 2 === 0) {
+      const glow = this.getGlow();
+      vfx.motes(this.x + this.width / 2 - Math.sign(this.vx) * 10, this.y + this.height / 2 - 6, 8, 12, { color: glow, count: 2, rise: 0.4, size: 2.2 });
+    }
+
     // Despawn if out of stage bounds
     if (this.x < -100 || this.x > 1100 || this.y > 400) {
       this.destroy();
     }
+  }
+
+  getGlow() {
+    if (this._glow) return this._glow;
+    const o = this.owner;
+    const d = o && FIGHTER_DESIGNS[o.id];
+    const byType = { hadouken: '#38bdf8', sonic_blade: '#facc15', ki_kunai: '#22d3ee', god_palm: '#fbbf24' };
+    this._glow = (d && d.glow) || byType[this.type] || this.color || '#38bdf8';
+    return this._glow;
   }
 
   getHitbox() {
@@ -56,101 +73,94 @@ export class Projectile {
 
   render(ctx) {
     if (!this.active) return;
+    const glow = this.getGlow();
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const dir = this.vx >= 0 ? 1 : -1;
     ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
 
-    if (this.type === 'hadouken') {
-      // Swirling blue Ki Fireball with bright white core
-      const pulse = Math.sin(this.frame * 0.4) * 2;
-      const trail = this.vx > 0 ? -1 : 1;
-
-      // Outer energy aura
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-      ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 16 + pulse, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Middle blue Ki core
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 11, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Bright white blazing center
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Trailing Ki flame particles
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(this.x + (trail * 12), this.y + 4, 8, 4);
-      ctx.fillRect(this.x + (trail * 18), this.y + 12, 10, 5);
-      ctx.fillRect(this.x + (trail * 10), this.y + 16, 6, 4);
-
-    } else if (this.type === 'sonic_blade') {
-      // Spinning golden sonic razor crescent
-      const rot = this.frame * 0.35;
-      ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-      ctx.rotate(rot);
-
-      // Outer sonic glow
-      ctx.fillStyle = '#fde047';
-      ctx.fillRect(-16, -16, 32, 32);
-
-      // Slicing golden blades
-      ctx.fillStyle = '#eab308';
-      ctx.fillRect(-18, -4, 36, 8);
-      ctx.fillRect(-4, -18, 8, 36);
-
-      // Intense white core
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-6, -6, 12, 12);
-
+    if (this.type === 'sonic_blade') {
+      // Spinning razor crescent
+      ctx.translate(cx, cy);
+      ctx.rotate(this.frame * 0.45 * dir);
+      for (let i = 0; i < 2; i++) {
+        ctx.rotate(Math.PI);
+        ctx.strokeStyle = glow;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, -0.2, 1.6);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0.1, 1.3);
+        ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.4, hexA(glow, 0.5));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
     } else if (this.type === 'ki_kunai') {
-      // Twin cyan glowing kunai
-      ctx.fillStyle = '#06b6d4';
-      ctx.fillRect(this.x, this.y, 16, 5);
-      ctx.fillRect(this.x + 4, this.y + 8, 16, 5);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(this.x + 8, this.y + 1, 8, 3);
-      ctx.fillRect(this.x + 12, this.y + 9, 8, 3);
-    } else if (this.type === 'god_palm') {
-      // Massive radiating golden beam & palm blast with divine spark particles
-      const pulse = Math.sin(this.frame * 0.5) * 4;
-      const trail = this.vx > 0 ? -1 : 1;
-
-      // Radiant God Aura
-      ctx.fillStyle = 'rgba(250, 204, 21, 0.45)';
+      // Twin glowing kunai with streaks
+      for (let k = 0; k < 2; k++) {
+        const ky = this.y + 2 + k * 8;
+        const tail = ctx.createLinearGradient(this.x - dir * 26, 0, this.x + this.width / 2, 0);
+        tail.addColorStop(0, 'rgba(0,0,0,0)');
+        tail.addColorStop(1, hexA(glow, 0.8));
+        ctx.fillStyle = tail;
+        ctx.fillRect(Math.min(this.x - dir * 26, this.x), ky, 30, 3);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        const tipX = cx + dir * 10;
+        ctx.moveTo(tipX, ky + 1.5);
+        ctx.lineTo(tipX - dir * 10, ky - 1.5);
+        ctx.lineTo(tipX - dir * 10, ky + 4.5);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else {
+      // Energy orb (hadouken / god palm / generic)
+      const big = this.type === 'god_palm' ? 1.5 : 1;
+      const pulse = Math.sin(this.frame * 0.5) * 2;
+      // Comet tail
+      for (let i = 1; i <= 5; i++) {
+        ctx.globalAlpha = 0.22 * (1 - i / 6);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx - dir * i * 7, cy + Math.sin(this.frame * 0.6 + i) * 1.5, (13 - i * 1.4) * big, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const r = (17 + pulse) * big;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.3, '#ffffff');
+      g.addColorStop(0.55, hexA(glow, 0.9));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      // Swirl
+      ctx.strokeStyle = hexA('#ffffff', 0.6);
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 28 + pulse, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Blazing Solar Core
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 18, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Pure White Divine Energy
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 10, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Trailing holy beams
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(this.x + (trail * 16), this.y - 2, 24, 6);
-      ctx.fillRect(this.x + (trail * 24), this.y + 10, 30, 8);
-      ctx.fillRect(this.x + (trail * 14), this.y + 22, 20, 6);
-
-      // Divine rays
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(this.x + (trail * 8), this.y + 6, 12, 14);
+      ctx.arc(cx, cy, 9 * big, this.frame * 0.4, this.frame * 0.4 + 2.2);
+      ctx.stroke();
     }
 
     ctx.restore();
   }
+}
+
+function hexA(hex, a) {
+  if (!hex || hex[0] !== '#') return hex;
+  let h = hex.slice(1);
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
 export class AlleyPickup {

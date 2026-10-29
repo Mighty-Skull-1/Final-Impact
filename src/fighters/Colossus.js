@@ -12,6 +12,8 @@ export class Colossus extends Fighter {
       id: 'colossus',
       name: 'COLOSSUS'
     });
+    this.ultimateStyle = 'beatdown';
+    this.damageMult = 1.12;
     this.walkSpeed = 2.8;
     this.dashSpeed = 6.5;
     this.jumpForce = -11.5;

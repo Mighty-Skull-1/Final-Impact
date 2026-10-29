@@ -12,6 +12,8 @@ export class Kazuki extends Fighter {
       id: 'kazuki',
       name: 'KAZUKI'
     });
+    this.ultimateStyle = 'dragon';
+    this.damageMult = 0.95;
     this.spawnProjectile = null;
     this.ultimateTarget = null;
   }
@@ -524,6 +526,8 @@ export class Kazuki extends Fighter {
 
       case FIGHTER_STATE.SPECIAL_3:
         this.animFrame = (Math.floor(this.stateTimer / 4)) % 4;
+        // 6-frame start-up so the hurricane kick can be seen and reacted to
+        if (this.stateTimer < 6) { this.activeHitbox = null; break; }
         this.activeHitbox = new Box(10, 26, 85, 26);
         this.currentAttackData = {
           damage: 40,
