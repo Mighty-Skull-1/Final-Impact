@@ -22,6 +22,10 @@ export const ENDINGS = {
   vagabond: ['The Vagabond plants his greatsword where the dragon fell.', 'Around it, the ruins of his fallen kingdom slowly begin to rebuild.', 'He will not stay to see it finished. There is always another road.'],
   warden: ['The Warden stands guard over the dragon\'s grave for seven days and seven nights.', 'When he finally leaves, the Sand Citadel\'s gates are open to all travellers.', '"The wall does not break," he says. "But it can open."'],
   wretch: ['Nobody bet on the Wretch. Nobody.', 'Now every gutter in the city has a crude drawing of a scrawny kid standing on a dragon.', 'He sleeps in a real bed. He still keeps a knife under the pillow.'],
+  echo: ['ECHO watches the dragon fall — then watches it fall again, and again, from every angle at once.', 'Somewhere in 2091, a lab that built her finally gets the message she sent back.', '"Same time next year," she says. She already knows how it goes.'],
+  glitch: ['The dragon\'s data is corrupted beyond repair. GLITCH saves a copy anyway.', 'Every screen in the city flickers green for one second. Nobody can explain it.', 'Patch notes, v1.0.1: "Fixed an issue where the final boss could win."'],
+  tempo: ['TEMPO drops the beat on the dragon\'s last breath, and the arena erupts.', 'The fight goes viral before he\'s out of the ring — remixed a thousand times by morning.', 'He plays the victory party himself. The bass is still going.'],
+  atlas: ['ATLAS clears the rubble of the arena with his bare hands.', 'Where the dragon fell, he builds a gym, a clinic and a rooftop park — in that order.', 'The plaque at the door reads: "Built to last. Like me."'],
   mighty: ['Reality reboots itself around M1GHTY with a polite cough.', 'The Endless Dragon is now the Ended Dragon. The arena is now a crater.', 'Somewhere, an announcer quietly updates his résumé.']
 };
 

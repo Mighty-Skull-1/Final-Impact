@@ -6,6 +6,7 @@ import { AlleyPickup } from '../engine/Projectiles.js';
 import { EconomyManager, AURA_CATALOG } from '../shop/SkinCatalog.js';
 import { vfx } from '../graphics/VFX.js';
 import { FIGHTER_DESIGNS } from '../graphics/FighterDesigns.js';
+import { arena } from '../engine/Arena.js';
 
 export class Fighter {
   constructor({
@@ -421,11 +422,13 @@ export class Fighter {
 
     // 6. Handle Wall Rebound (Crowd Shove Bounce)
     if (this.state === FIGHTER_STATE.WALL_REBOUND) {
+      const prevY = this.y;
       this.vy += this.gravity * 0.75;
       this.y += this.vy;
       this.x += this.vx;
-      if (this.y >= GROUND_Y) {
-        this.y = GROUND_Y;
+      const floor = arena.floorFor(this, prevY);
+      if (this.y >= floor) {
+        this.y = floor;
         this.vy = 0;
         this.vx = 0;
         this.isGrounded = true;
@@ -446,12 +449,15 @@ export class Fighter {
       }
     } else if (!this.isGrounded) {
       // Airborne Physics
+      const prevY = this.y;
       this.vy += this.gravity;
       this.y += this.vy;
       this.x += this.vx;
 
-      if (this.y >= GROUND_Y) {
-        this.y = GROUND_Y;
+      // Land on the floor, or on a platform / wall top built into the arena
+      const floor = arena.floorFor(this, prevY);
+      if (this.y >= floor) {
+        this.y = floor;
         this.vy = 0;
         this.vx = 0;
         this.isGrounded = true;
@@ -467,6 +473,19 @@ export class Fighter {
 
     // Enforce Boundaries
     this.x = Math.max(30, Math.min(stageWidth - 110, this.x));
+
+    // Standing on a platform: walk off the edge (or hold DOWN) to drop back down
+    if (this.isGrounded && this.y < GROUND_Y - 0.5) {
+      this._downHeld = this.isCrouching && !this.isAttacking() ? (this._downHeld || 0) + 1 : 0;
+      if (this._downHeld >= 12) { this.dropThrough = 14; this._downHeld = 0; }
+      if (!arena.supports(this)) {
+        this.isGrounded = false;
+        this.vy = Math.max(this.vy, 0.5);
+        if (this.canTurnAround() || this.state === FIGHTER_STATE.DASH_FWD || this.state === FIGHTER_STATE.DASH_BACK || this.state === FIGHTER_STATE.BLOCK || this.state === FIGHTER_STATE.CROUCH_BLOCK) {
+          this.changeState(FIGHTER_STATE.JUMP);
+        }
+      }
+    }
 
     // Update Afterimages
     for (let i = this.afterImages.length - 1; i >= 0; i--) {

@@ -68,6 +68,30 @@ export function getGlow(f) {
 const center = f => f.x + 40;
 const COLOR_EFFECT = { burn: '#ff8a3d', bleed: '#ff4d4d', chill: '#9be7ff', crush: '#fbbf24' };
 
+// Swapped controls (GLITCH's ultimate): mirror directions, punches <-> kicks, SP1 <-> SP3
+const SWAP_PAIRS = [['fwd', 'back'], ['left', 'right'], ['dashFwd', 'dashBack'], ['lp', 'lk'], ['hp', 'hk'],
+  ['lpJust', 'lkJust'], ['hpJust', 'hkJust'], ['sp1', 'sp3'], ['sp1Just', 'sp3Just']];
+export function scrambleInput(st) {
+  const out = { ...st };
+  for (const [a, b] of SWAP_PAIRS) { out[a] = st[b]; out[b] = st[a]; }
+  return out;
+}
+const ACTION_SWAP = { LP: 'LK', LK: 'LP', HP: 'HK', HK: 'HP', SP1: 'SP3', SP3: 'SP1' };
+function scrambleManager(im) {
+  const over = {
+    peekAction: (p) => { const a = im.peekAction(p); return ACTION_SWAP[a] || a; },
+    checkQCF: (p) => im.checkQCB(p),
+    checkQCB: (p) => im.checkQCF(p)
+  };
+  return new Proxy(im, {
+    get(t, k) {
+      if (k in over) return over[k];
+      const v = t[k];
+      return typeof v === 'function' ? v.bind(t) : v;
+    }
+  });
+}
+
 export class CombatDirector {
   constructor(game) {
     this.game = game;
@@ -114,6 +138,8 @@ export class CombatDirector {
     f.hitFlash = 0;
     if (f._baseWalk !== undefined) { f.walkSpeed = f._baseWalk; f.dashSpeed = f._baseDash; f._baseWalk = undefined; }
     f.chillTimer = 0;
+    f.scrambleTimer = 0;
+    f.lastSpecialSlot = 0;
     f._prevState = f.state;
     f._prevGrounded = f.isGrounded;
   }
@@ -181,6 +207,13 @@ export class CombatDirector {
       }
     }
 
+    // GLITCH's Blue Screen: directions, punches/kicks and SP1/SP3 are swapped while it lasts
+    let manager = null;
+    if (f.scrambleTimer > 0) {
+      state = scrambleInput(state);
+      if (inputManager) manager = scrambleManager(inputManager);
+    }
+
     // Throw: LP + LK together (either pressed this frame while the other is held)
     const throwPressed = (state.lpJust && state.lk) || (state.lkJust && state.lp) || state.throwJust;
     if (throwPressed && opponent && this.canStartThrow(f, opponent)) {
@@ -189,11 +222,12 @@ export class CombatDirector {
       return { consumed: true, input: state };
     }
 
-    return { consumed: false, input: state };
+    return { consumed: false, input: state, manager };
   }
 
   canStartThrow(f, target) {
     if (!f.isGrounded || !target.isGrounded) return false;
+    if (f.y < 299 || target.y < 299) return false; // no throws up on platforms
     const okState = NEUTRAL_STATES.has(f.state) || (LIGHT_NORMALS.has(f.state) && f.stateTimer <= 3 && !f.hasHitThisAttack);
     if (!okState) return false;
     if (target.isDead || target.isInvincible || target.hitStun > 0 || target.blockStun > 0) return false;
@@ -642,6 +676,11 @@ export class CombatDirector {
         if (f.chillTimer <= 0) { f.walkSpeed = f._baseWalk; f.dashSpeed = f._baseDash; f._baseWalk = undefined; }
       }
       if (f.throwProtect > 0) f.throwProtect--;
+      if (f.scrambleTimer > 0) {
+        f.scrambleTimer--;
+        if (f.scrambleTimer % 10 === 0) vfx.motes(f.x + 24, f.y - 100, 32, 14, { color: f.scrambleTimer % 20 ? '#60a5fa' : '#a3e635', count: 2, rise: 0.4, size: 2 });
+        if (f.scrambleTimer === 0) vfx.popup(center(f), f.y - 108, 'CONTROLS RESTORED', { color: '#cbd5e1', size: 9, life: 30 });
+      }
       if (f.hitFlash > 0) f.hitFlash--;
       if (f.invulnTimer > 0) {
         f.invulnTimer--;
@@ -697,6 +736,8 @@ export class CombatDirector {
       case FIGHTER_STATE.SPECIAL_1:
       case FIGHTER_STATE.SPECIAL_2:
       case FIGHTER_STATE.SPECIAL_3:
+        // Remembered so GLITCH knows which move to copy
+        f.lastSpecialSlot = cur === FIGHTER_STATE.SPECIAL_1 ? 1 : (cur === FIGHTER_STATE.SPECIAL_2 ? 2 : 3);
         // Charge flash at the hands + a ring so every special "reads" instantly
         vfx.push({ kind: 'flash', x: cx + dir * 18, y: f.y - 58, r: 18, life: 8, color: '#ffffff', glow });
         vfx.push({ kind: 'ring', x: cx, y: f.y - 46, r: 12, vr: 2.6, life: 12, color: glow, w: 2 });

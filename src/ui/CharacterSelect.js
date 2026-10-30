@@ -488,6 +488,13 @@ export class CharacterSelect {
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
+    if (char.isNew && !locked) {
+      ctx.save();
+      ctx.fillStyle = COLORS.gold;
+      ctx.fillRect(r.x + 2, r.y + 2, 15, 6);
+      drawText(ctx, 'NEW', r.x + 9.5, r.y + 7, { font: FONTS.ui(5, 900), color: '#1a1206', align: 'center' });
+      ctx.restore();
+    }
   }
 
   drawCursor(ctx, pn, r, color, label, t, inner = false) {
@@ -608,6 +615,15 @@ export class CharacterSelect {
       lines.forEach((ln, i) => {
         drawText(ctx, ln, W / 2, gridBottom + 18 + i * 11, { font: 'italic ' + FONTS.ui(8, 600), color: COLORS.textDim, align: 'center' });
       });
+      // Signature fighters: one line on what makes them different
+      if (fc.mechanic) {
+        ctx.font = FONTS.ui(7.5, 800);
+        const mLines = wrapLines(ctx, fc.mechanic, 220).slice(0, 3);
+        const y0 = gridBottom + 22 + lines.length * 11;
+        mLines.forEach((ln, i) => {
+          drawText(ctx, ln, W / 2, y0 + i * 10, { font: FONTS.ui(7.5, 800), color: COLORS.gold, align: 'center' });
+        });
+      }
     }
 
     // ---- Feedback toast ----------------------------------------------------

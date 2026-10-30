@@ -297,6 +297,76 @@ export const SKIN_CATALOG = [
     }
   },
 
+  // ===== SIGNATURE FIGHTER SKINS =====
+  {
+    id: 'echo_redshift',
+    fighterId: 'echo',
+    name: 'REDSHIFT',
+    tier: 'EPIC',
+    tierColor: '#c084fc',
+    price: 650,
+    desc: 'A version of ECHO from a timeline that went very wrong.',
+    designOverrides: {
+      hair: { style: 'long', color: '#1f1f23' },
+      top: { style: 'jacket', color: '#7f1d1d', trim: '#fb7185', under: '#1c0a0a' },
+      bottom: { style: 'pants', color: '#450a0a', trim: '#fb7185' },
+      head: { type: 'band', color: '#fb7185', trim: '#ffffff', tails: true },
+      scarf: '#fda4af',
+      belt: { color: '#fb7185', tails: true },
+      glow: '#fb7185'
+    }
+  },
+  {
+    id: 'glitch_bluescreen',
+    fighterId: 'glitch',
+    name: 'BLUESCREEN',
+    tier: 'EPIC',
+    tierColor: '#c084fc',
+    price: 650,
+    desc: 'Fatal exception chic. Comes with a free crash report.',
+    designOverrides: {
+      head: { type: 'hood', color: '#1d4ed8', cowl: '#172554' },
+      top: { style: 'jacket', color: '#1e40af', trim: '#ffffff', under: '#172554' },
+      bottom: { style: 'pants', color: '#172554', trim: '#93c5fd' },
+      gloves: { style: 'glove', color: '#ffffff' },
+      belt: { color: '#93c5fd', tails: true },
+      glow: '#60a5fa'
+    }
+  },
+  {
+    id: 'tempo_neon',
+    fighterId: 'tempo',
+    name: 'NEON NIGHTS',
+    tier: 'RARE',
+    tierColor: '#38bdf8',
+    price: 400,
+    desc: 'Glow-in-the-dark club fit for the 3 AM set.',
+    designOverrides: {
+      top: { style: 'tank', color: '#22d3ee' },
+      bottom: { style: 'pants', color: '#0f172a', trim: '#a3e635' },
+      head: { type: 'band', color: '#a3e635', trim: '#22d3ee', tails: false },
+      gloves: { style: 'wraps', color: '#a3e635' },
+      belt: { color: '#a3e635', buckle: '#22d3ee' },
+      glow: '#22d3ee'
+    }
+  },
+  {
+    id: 'atlas_blueprint',
+    fighterId: 'atlas',
+    name: 'BLUEPRINT',
+    tier: 'RARE',
+    tierColor: '#38bdf8',
+    price: 400,
+    desc: 'Drafted in white ink on architect blue.',
+    designOverrides: {
+      head: { type: 'helm', color: '#f8fafc' },
+      top: { style: 'vest', color: '#1d4ed8', trim: '#f8fafc', under: '#1e3a8a' },
+      bottom: { style: 'pants', color: '#172554', trim: '#f8fafc' },
+      arms: { style: 'gauntlet', color: '#93c5fd' },
+      glow: '#93c5fd'
+    }
+  },
+
   // ===== CINDER SKINS =====
   {
     id: 'cinder_ghostfire',
@@ -388,7 +458,7 @@ export const SKIN_CATALOG = [
 
 // ===== CHAMPION REGALIA — earned (not bought) by beating the Campaign with that fighter =====
 export const CAMPAIGN_SKIN_FIGHTERS = ['kazuki', 'raven', 'kagura', 'fang', 'zephyr', 'colossus', 'cinder', 'glacier', 'oracle',
-  'bandit', 'confessor', 'valka', 'convict', 'prophet', 'ronin', 'vagabond', 'warden', 'wretch'];
+  'bandit', 'confessor', 'valka', 'convict', 'prophet', 'ronin', 'vagabond', 'warden', 'wretch', 'echo', 'glitch', 'tempo', 'atlas'];
 CAMPAIGN_SKIN_FIGHTERS.forEach(fid => {
   SKIN_CATALOG.push({
     id: `${fid}_champion`,
