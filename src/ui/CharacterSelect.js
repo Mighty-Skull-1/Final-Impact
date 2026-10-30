@@ -246,7 +246,7 @@ export class CharacterSelect {
             this.codeFeedback = '🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED';
             this.codeFeedbackColor = '#ef4444';
           } else {
-            this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
+            this.codeFeedback = '🔒 M1GHTY IS THE CREATOR\'S PERSONAL FIGHTER';
             this.codeFeedbackColor = '#fbbf24';
             this.openAdminPortal();
           }
@@ -289,7 +289,7 @@ export class CharacterSelect {
               this.codeFeedback = '🔒 CLASSIFIED TOURNAMENT FIGHTER: LOCKED';
               this.codeFeedbackColor = '#ef4444';
             } else {
-              this.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! CLICK ADMIN PORTAL [A] TO LOG IN.';
+              this.codeFeedback = '🔒 M1GHTY IS THE CREATOR\'S PERSONAL FIGHTER';
               this.codeFeedbackColor = '#fbbf24';
               this.openAdminPortal();
             }
@@ -409,7 +409,7 @@ export class CharacterSelect {
       drawText(ctx, 'FINAL BOSS: THE ENDLESS DRAGON', ix, 290, { font: FONTS.ui(8, 800), color: COLORS.crimson, align, letterSpacing: 1, maxWidth: SIDE_W - 20 });
     } else if (locked) {
       const hint = ch.id === 'mighty'
-        ? (isStealth ? 'PRIMORDIAL POWER SEALED' : 'LOG IN VIA ADMIN PORTAL [A]')
+        ? (isStealth ? 'PRIMORDIAL POWER SEALED' : 'CREATOR EXCLUSIVE')
         : 'DEFEAT THE DRAGON TO UNLOCK';
       drawText(ctx, hint, ix, 290, { font: FONTS.ui(8, 800), color: COLORS.crimson, align, letterSpacing: 1, maxWidth: SIDE_W - 20 });
     } else {
@@ -638,7 +638,7 @@ export class CharacterSelect {
     const bR = this.buttonRect(W);
     const currentLocked = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
     if (currentLocked === 'mighty') {
-      drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, isStealth ? 'THIS FIGHTER IS LOCKED' : 'LOCKED · ADMIN PORTAL REQUIRED', { color: isStealth ? '#c084fc' : COLORS.warn, time: t, size: 8 });
+      drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, isStealth ? 'THIS FIGHTER IS LOCKED' : 'LOCKED · CREATOR EXCLUSIVE', { color: isStealth ? '#c084fc' : COLORS.warn, time: t, size: 8 });
     } else if (currentLocked === 'dragon') {
       drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, 'LOCKED · BEAT THE DRAGON IN CAMPAIGN', { color: '#c084fc', time: t, size: 8 });
     } else if (this.gameMode === 'online' && this.localPlayerNum === 2) {

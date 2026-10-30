@@ -32,7 +32,7 @@ global.document = {
   getElementById: () => null
 };
 
-import { computeSha256, verifyAdminPassword, isMightyUnlocked, setMightyUnlocked, getAdminCheats, setAdminCheats } from './src/utils/CryptoAuth.js';
+import { computeSha256, verifyAdminPassword, isMightyUnlocked, setMightyUnlocked, unlockMightyWithKey, sha256Sync, getAdminCheats, setAdminCheats } from './src/utils/CryptoAuth.js';
 import { SKIN_CATALOG, EconomyManager, getSkinDesign } from './src/shop/SkinCatalog.js';
 import { ModeSelect } from './src/ui/ModeSelect.js';
 import { ShopScreen } from './src/ui/ShopScreen.js';
@@ -57,15 +57,25 @@ async function runTests() {
   assert.strictEqual(invalid3, false, 'Empty password must be rejected');
   console.log('✓ Cryptographic SHA-256 password verification passed.');
 
-  // Test 2: M1GHTY Lock/Unlock State Management
-  console.log('[Test 2] Testing M1GHTY lock/unlock toggle...');
+  // Test 2: M1GHTY is owner-only
+  console.log('[Test 2] Testing M1GHTY owner lock...');
   localStorage.clear();
+  assert.strictEqual(sha256Sync('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', 'sync SHA-256 must be correct');
   assert.strictEqual(isMightyUnlocked(), false, 'M1GHTY should be locked by default');
+  localStorage.setItem('final_impact_unlocked_mighty', 'true');
+  assert.strictEqual(isMightyUnlocked(), false, 'The old localStorage flag must not unlock M1GHTY');
   setMightyUnlocked(true);
-  assert.strictEqual(isMightyUnlocked(), true, 'M1GHTY should be unlocked after setMightyUnlocked(true)');
+  assert.strictEqual(isMightyUnlocked(), false, 'setMightyUnlocked(true) must not unlock M1GHTY in public builds');
+  assert.strictEqual(unlockMightyWithKey('MIGHTY-AAAA-BBBB-CCCC-DDDD'), false, 'A wrong key must be rejected');
+  localStorage.setItem('final_impact_m1ghty_owner_key', 'MIGHTY-AAAA-BBBB-CCCC-DDDD');
+  assert.strictEqual(isMightyUnlocked(), false, 'A forged stored key must not unlock M1GHTY');
+  if (process.env.M1GHTY_TEST_KEY) {
+    assert.strictEqual(unlockMightyWithKey(process.env.M1GHTY_TEST_KEY), true, 'Owner key should unlock M1GHTY');
+    assert.strictEqual(isMightyUnlocked(), true, 'M1GHTY should be unlocked with the owner key');
+  }
   setMightyUnlocked(false);
   assert.strictEqual(isMightyUnlocked(), false, 'M1GHTY should be locked after setMightyUnlocked(false)');
-  console.log('✓ M1GHTY lock/unlock toggle passed.');
+  console.log('✓ M1GHTY owner lock passed.');
 
   // Test 3: Admin Combat Cheats
   console.log('[Test 3] Testing admin combat cheats...');
