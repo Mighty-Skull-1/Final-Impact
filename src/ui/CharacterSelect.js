@@ -19,7 +19,8 @@ const MODE_LABELS = {
   '2p': 'LOCAL VERSUS',
   '2v2': '2V2 TEAM BRAWL',
   online: 'ONLINE VERSUS',
-  training: 'TRAINING DOJO'
+  training: 'TRAINING DOJO',
+  tutorial: 'TUTORIAL · PICK YOUR FIGHTER'
 };
 
 // Panel geometry (640x360 logical canvas)
@@ -545,7 +546,7 @@ export class CharacterSelect {
     if (this.gameMode === 'cpu') modeLabel += ' · ' + (this.cpuDifficulty || 'normal').toUpperCase();
     if (hasBeatenDragon) modeLabel += '  ★';
 
-    const showP2 = ['2p', 'online', 'coop_campaign', 'cpu', '2v2', 'training'].includes(this.gameMode);
+    const showP2 = ['2p', 'online', 'coop_campaign', 'cpu', '2v2', 'training', 'tutorial'].includes(this.gameMode);
     const p2Controlled = ['2p', 'online', 'coop_campaign'].includes(this.gameMode);
     const lockedOf = (ch) => (ch.id === 'mighty' && !mightyUnlocked) || (ch.id === 'endless_dragon' && !dragonUnlocked);
     const p2Visible = showP2 && this.gameMode !== 'campaign';
@@ -568,7 +569,7 @@ export class CharacterSelect {
     let p1Tag = 'PLAYER 1', p2Tag = p2Controlled ? 'PLAYER 2' : 'CPU';
     if (this.gameMode === 'online') { p1Tag = this.localPlayerNum === 2 ? 'HOST' : 'YOU'; p2Tag = this.localPlayerNum === 2 ? 'YOU' : 'RIVAL'; }
     if (this.gameMode === 'coop_campaign') { p1Tag = this.localPlayerNum === 2 ? 'HOST' : 'YOU (P1)'; p2Tag = this.localPlayerNum === 2 ? 'YOU (ALLY)' : 'ALLY (P2)'; }
-    if (this.gameMode === 'training' && !p2Controlled) p2Tag = 'DUMMY';
+    if ((this.gameMode === 'training' || this.gameMode === 'tutorial') && !p2Controlled) p2Tag = 'DUMMY';
 
     const c1 = this.characters[this.p1Index];
     this.drawShowcase(ctx, W, 'left', this.p1Index, p1Tag, COLORS.p1, { locked: lockedOf(c1), isStealth });
@@ -589,7 +590,7 @@ export class CharacterSelect {
         t
       });
     });
-    const p2Label = p2Controlled ? '2P' : (this.gameMode === 'training' ? 'DMY' : 'CPU');
+    const p2Label = p2Controlled ? '2P' : ((this.gameMode === 'training' || this.gameMode === 'tutorial') ? 'DMY' : 'CPU');
     if (p2Visible) {
       const same = this.p1Index === this.p2Index;
       this.drawCursor(ctx, 2, rects[this.p2Index], COLORS.p2, p2Label, t, same);
@@ -644,7 +645,7 @@ export class CharacterSelect {
       const dots = '.'.repeat(1 + Math.floor(t / 20) % 3);
       drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, 'WAITING FOR HOST' + dots, { color: COLORS.p1, time: t, size: 8 });
     } else {
-      const label = ['cpu', '2p', '2v2', 'training'].includes(this.gameMode) ? 'CHOOSE STAGE' : 'START BATTLE';
+      const label = this.gameMode === 'tutorial' ? 'START TUTORIAL' : (['cpu', '2p', '2v2', 'training'].includes(this.gameMode) ? 'CHOOSE STAGE' : 'START BATTLE');
       drawActionButton(ctx, bR.x, bR.y, bR.w, bR.h, label, { key: gp ? 'A' : 'ENTER', time: t, size: 12 });
     }
 

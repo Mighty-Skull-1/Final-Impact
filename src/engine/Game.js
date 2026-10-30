@@ -536,7 +536,10 @@ export class Game {
         return;
       }
       if (this.modeSelect.selectedMode === 'tutorial') {
-        this.startTutorial();
+        // Pick your fighter first, then the lessons start with them
+        this.charSelect.setMode('tutorial', 'normal');
+        this.screen = GAME_SCREENS.CHAR_SELECT;
+        soundFX.playMenuSelect();
         return;
       }
       if (this.modeSelect.selectedMode === 'shop') {
@@ -615,6 +618,10 @@ export class Game {
           });
           soundFX.playMenuSelect();
         }
+        return;
+      }
+      if (this.charSelect.gameMode === 'tutorial') {
+        this.startTutorial(this.charSelect.p1Index);
         return;
       }
       if (['cpu', '2p', '2v2', 'training'].includes(this.charSelect.gameMode)) {
@@ -1290,12 +1297,14 @@ export class Game {
     try { this.challenges.record(event, info); } catch (e) {}
   }
 
-  // Guided tutorial: Kazuki vs a training dummy in the Thunder Dojo
-  startTutorial() {
+  // Guided tutorial: your chosen fighter (Kazuki by default) vs a training dummy in the Thunder Dojo
+  startTutorial(p1Index = null) {
     const cs = this.charSelect;
     cs.setMode('training', 'normal');
-    cs.p1Index = Math.max(0, cs.characters.findIndex(c => c.id === 'kazuki'));
-    cs.p2Index = Math.max(0, cs.characters.findIndex(c => c.id === 'raven'));
+    const chosen = p1Index !== null && cs.characters[p1Index] ? p1Index : cs.characters.findIndex(c => c.id === 'kazuki');
+    cs.p1Index = Math.max(0, chosen);
+    const dummyId = cs.characters[cs.p1Index] && cs.characters[cs.p1Index].id === 'raven' ? 'kazuki' : 'raven';
+    cs.p2Index = Math.max(0, cs.characters.findIndex(c => c.id === dummyId));
     const dojo = (cs.stages || []).findIndex(st => st.id === 'thunder_dojo');
     cs.stageIndex = dojo >= 0 ? dojo : 0;
     this.isTutorial = true;

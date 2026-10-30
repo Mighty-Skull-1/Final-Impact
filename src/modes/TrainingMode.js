@@ -76,7 +76,7 @@ const LESSONS = [
     dummy: 'scriptLow', guard: 'none'
   },
   {
-    title: 'COMBOS', text: 'Light attacks cancel into specials when they hit. Try U, U, then E.',
+    title: 'COMBOS', text: 'Light attacks chain and cancel into specials on hit. Try U, U, then a special.',
     keys: [['U', ''], ['U', ''], ['E', 'Combo']], pad: [['X', ''], ['X', ''], ['RT', 'Combo']],
     goals: [['combo3', 1, 'Land a 3-hit combo']],
     dummy: 'stand', guard: 'none'
