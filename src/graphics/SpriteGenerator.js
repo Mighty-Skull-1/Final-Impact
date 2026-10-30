@@ -1,7 +1,7 @@
 // Final Impact - 16-Bit Pixel Art Sprite Engine & Generator
 // Generates authentic retro arcade pixel spritesheets on offscreen canvases
 
-import { buildRigFrames } from './FighterRig.js';
+import { buildRigFrames, stepRigMotion, rigMotionFrameCount, MotionAnimator } from './FighterRig.js';
 import { FIGHTER_DESIGNS } from './FighterDesigns.js';
 import { getSkinDesign } from '../shop/SkinCatalog.js';
 
@@ -24,6 +24,31 @@ export class SpriteGenerator {
   drawPixel(ctx, x, y, w, h, color) {
     ctx.fillStyle = color;
     ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+  }
+
+  // ---- Motion (in-between) frames for rigged fighters ----
+  // Key frames are generated eagerly by generateFighterSprites (menus/previews only need those).
+  // The ~250 extra in-between frames per fighter are only built for fighters that actually fight:
+  // a fighter's renderer calls stepMotion() each frame with a small time budget until its set is complete,
+  // so nothing is generated per-frame once cached and the menus' load time is unaffected.
+
+  /** Build every pending motion frame of a sprite set now. */
+  ensureMotion(sprites) {
+    return stepRigMotion(sprites, Infinity);
+  }
+
+  /** Build pending motion frames for at most `budgetMs`; returns true when the set is complete. */
+  stepMotion(sprites, budgetMs = 4) {
+    return stepRigMotion(sprites, budgetMs);
+  }
+
+  motionFrameCount(sprites) {
+    return rigMotionFrameCount(sprites);
+  }
+
+  /** Per-fighter render-time animator (frame selection + procedural squash/lunge/recoil). */
+  createAnimator() {
+    return new MotionAnimator();
   }
 
   // Pre-generate all sprite frames for a fighter (with optional custom skin override)

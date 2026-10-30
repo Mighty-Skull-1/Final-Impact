@@ -42,9 +42,23 @@ export class Projectile {
   }
 
   update() {
+    // Optional behaviours used by the roster's unique kits
+    if (this.gravity) this.vy += this.gravity;
+    if (this.homing && this.target && !this.target.isDead && this.frame < (this.homingFrames || 40)) {
+      const ty = this.target.y - 50 - (this.y + this.height / 2);
+      this.vy += Math.max(-0.45, Math.min(0.45, ty * 0.02));
+      this.vy *= 0.94;
+    }
+    if (this.grow) { this.width += this.grow; this.height += this.grow * 0.6; this.y -= this.grow * 0.3; }
     this.x += this.vx;
     this.y += this.vy;
     this.frame++;
+    if (this.gravity && this.y + this.height >= 300) {
+      this.destroy();
+      vfx.burst(this.x + this.width / 2, 298, { color: this.getGlow(), count: 10, speed: 3 });
+      return;
+    }
+    if (this.lifetime && this.frame >= this.lifetime) { this.destroy(); return; }
 
     // Energy trail
     if (this.active && this.frame % 2 === 0) {
@@ -80,7 +94,9 @@ export class Projectile {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    if (this.type === 'sonic_blade') {
+    if (this.shape) {
+      this.renderShape(ctx, glow, cx, cy, dir);
+    } else if (this.type === 'sonic_blade') {
       // Spinning razor crescent
       ctx.translate(cx, cy);
       ctx.rotate(this.frame * 0.45 * dir);
@@ -152,6 +168,92 @@ export class Projectile {
     }
 
     ctx.restore();
+  }
+
+  renderShape(ctx, glow, cx, cy, dir) {
+    const f = this.frame;
+    const glowDisc = (r, a = 0.55) => {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.35, hexA(glow, a));
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    };
+    switch (this.shape) {
+      case 'shard': { // ice crystal
+        glowDisc(18, 0.45);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(dir * 0.1);
+        ctx.fillStyle = '#e0f7ff';
+        ctx.beginPath(); ctx.moveTo(dir * 16, 0); ctx.lineTo(0, -6); ctx.lineTo(-dir * 12, 0); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = glow; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'cleaver': { // spinning thrown blade
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(f * 0.55 * dir);
+        ctx.fillStyle = '#d4d4d8';
+        ctx.fillRect(-10, -4, 18, 8);
+        ctx.fillStyle = '#7c2d12';
+        ctx.fillRect(8, -2, 6, 4);
+        ctx.strokeStyle = hexA(glow, 0.9); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 13, 0, 1.4); ctx.stroke();
+        ctx.restore();
+        break;
+      }
+      case 'dart': { // homing star
+        glowDisc(14, 0.6);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(f * 0.3);
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(2, 0); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+        break;
+      }
+      case 'wave': { // ground-hugging blade wave
+        const h = this.height;
+        for (let i = 0; i < 3; i++) {
+          ctx.globalAlpha = 0.9 - i * 0.25;
+          ctx.strokeStyle = i === 0 ? '#ffffff' : glow;
+          ctx.lineWidth = 4 - i;
+          ctx.beginPath();
+          ctx.ellipse(cx - dir * i * 7, cy, 6 + i * 2, h * 0.65, 0, dir > 0 ? -Math.PI / 2 : Math.PI / 2, dir > 0 ? Math.PI / 2 : Math.PI * 1.5);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'flame': { // flickering fireball
+        for (let i = 0; i < 6; i++) {
+          const fx = cx - dir * i * 5 + Math.sin(f * 0.9 + i) * 2;
+          const fy = cy + Math.cos(f * 0.7 + i * 1.3) * 3;
+          ctx.globalAlpha = 0.55 - i * 0.07;
+          ctx.fillStyle = i < 2 ? '#fff2c2' : (i < 4 ? '#ff9a3c' : glow);
+          ctx.beginPath(); ctx.arc(fx, fy, 11 - i * 1.4, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'shock': { // expanding war-cry shockwave
+        const r = Math.max(this.width, this.height) / 2;
+        ctx.strokeStyle = hexA(glow, 0.9); ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(cx, cy, r, dir > 0 ? -1.1 : Math.PI - 1.1, dir > 0 ? 1.1 : Math.PI + 1.1); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx - dir * 6, cy, r * 0.75, dir > 0 ? -1 : Math.PI - 1, dir > 0 ? 1 : Math.PI + 1); ctx.stroke();
+        break;
+      }
+      case 'comet': { // falling comet
+        for (let i = 1; i <= 6; i++) {
+          ctx.globalAlpha = 0.25 * (1 - i / 7);
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(cx - this.vx * i * 1.2, cy - this.vy * i * 1.2, 12 - i, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        glowDisc(16, 0.9);
+        break;
+      }
+      default:
+        glowDisc(16, 0.8);
+    }
   }
 }
 

@@ -24,6 +24,16 @@ export class ShopScreen {
       { id: 'colossus', name: 'COLOSSUS' },
       { id: 'cinder', name: 'CINDER' },
       { id: 'glacier', name: 'GLACIER' },
+      { id: 'oracle', name: 'ORACLE' },
+      { id: 'bandit', name: 'BANDIT' },
+      { id: 'confessor', name: 'CONFESSOR' },
+      { id: 'valka', name: 'VALKA' },
+      { id: 'convict', name: 'CONVICT' },
+      { id: 'prophet', name: 'PROPHET' },
+      { id: 'ronin', name: 'RONIN' },
+      { id: 'vagabond', name: 'VAGABOND' },
+      { id: 'warden', name: 'WARDEN' },
+      { id: 'wretch', name: 'WRETCH' },
       { id: 'mighty', name: 'M1GHTY' }
     ];
 
@@ -244,6 +254,11 @@ export class ShopScreen {
         this.showMessage(`✨ ${skin.name} EQUIPPED! ✨`, '#4ade80');
         soundFX.playUltimateActivation();
       } else {
+        if (skin.unlock === 'campaign') {
+          this.showMessage(`BEAT THE CAMPAIGN AS ${fighter.name || fighter.id.toUpperCase()} TO EARN THIS`, '#ff4d6d');
+          soundFX.playBlock();
+          return;
+        }
         const res = EconomyManager.buySkin(skin.id);
         if (res.success) {
           EconomyManager.equipSkin(fighter.id, skin.id);
@@ -378,8 +393,10 @@ export class ShopScreen {
     }
 
     const rows = this.currentCategory === 'SKINS' ? this.availableFighters().length : this.availableItems.length;
-    for (let i = 0; i < rows; i++) {
-      const r = { x: L.list.x + 4, y: L.list.rowY + i * L.list.rowH, w: L.list.w - 8, h: L.list.rowH - 2 };
+    const scroll = this._listScroll || 0;
+    const visible = this.visibleListRows(L.list);
+    for (let i = scroll; i < Math.min(rows, scroll + visible); i++) {
+      const r = { x: L.list.x + 4, y: L.list.rowY + (i - scroll) * L.list.rowH, w: L.list.w - 8, h: L.list.rowH - 2 };
       if (inR(r)) {
         if (this.currentCategory === 'SKINS') {
           this.selectedFighterIndex = i;
@@ -419,6 +436,10 @@ export class ShopScreen {
     }
 
     return null;
+  }
+
+  visibleListRows(LS) {
+    return Math.max(1, Math.floor((LS.y + LS.h - LS.rowY) / LS.rowH));
   }
 
   availableFighters() {
@@ -519,7 +540,12 @@ export class ShopScreen {
     const selIdx = isSkinCat ? Math.min(this.selectedFighterIndex, rows.length - 1) : Math.min(this.selectedItemIndex, rows.length - 1);
     const cosType = this.currentCategory === 'AURAS' ? 'aura' : (this.currentCategory === 'SPARKS' ? 'spark' : 'title');
     const equippedCos = EconomyManager.getEquippedCosmetics();
-    this._rowY = approach(this._rowY, LS.rowY + selIdx * LS.rowH, 0.3);
+    // Scroll long lists so the selection stays visible
+    const visible = this.visibleListRows(LS);
+    const maxScroll = Math.max(0, rows.length - visible);
+    this._listScroll = Math.max(0, Math.min(maxScroll, Math.max(Math.min(this._listScroll || 0, selIdx - 1), selIdx - visible + 2)));
+    const scroll = this._listScroll;
+    this._rowY = approach(this._rowY, LS.rowY + (selIdx - scroll) * LS.rowH, 0.3);
     {
       const g = ctx.createLinearGradient(LS.x, 0, LS.x + LS.w, 0);
       g.addColorStop(0, hexToRgba(COLORS.crimson, itemsFocus ? 0.9 : 0.35));
@@ -533,7 +559,8 @@ export class ShopScreen {
       }
     }
     rows.forEach((row, i) => {
-      const y = LS.rowY + i * LS.rowH;
+      if (i < scroll || i >= scroll + visible) return;
+      const y = LS.rowY + (i - scroll) * LS.rowH;
       const sel = i === selIdx;
       drawText(ctx, cleanLabel(row.name), LS.x + 14, y + 14, {
         font: FONTS.display(sel ? 11 : 10), color: sel ? '#fff' : COLORS.textDim, maxWidth: LS.w - 36
@@ -546,6 +573,9 @@ export class ShopScreen {
         ctx.fill();
       }
     });
+
+    if (scroll > 0) drawText(ctx, '▲', LS.x + LS.w - 12, LS.y + 14, { font: FONTS.ui(8, 900), color: COLORS.textDim, align: 'center' });
+    if (scroll + visible < rows.length) drawText(ctx, '▼', LS.x + LS.w - 12, LS.y + LS.h - 4, { font: FONTS.ui(8, 900), color: COLORS.textDim, align: 'center' });
 
     // ---- Centre stage ----
     const S = L.stage;
@@ -662,6 +692,8 @@ export class ShopScreen {
       drawStatusBar(ctx, A.x, A.y, A.w, A.h, '✔ EQUIPPED', { color: COLORS.good, time: t, size: 9 });
     } else if (isOwned) {
       drawActionButton(ctx, A.x, A.y, A.w, A.h, 'EQUIP', { key, time: t, size: 12, color: '#2563eb', deep: '#1e3a8a' });
+    } else if (isSkinCat && currentSkin.unlock === 'campaign') {
+      drawStatusBar(ctx, A.x, A.y, A.w, A.h, '🔒 CLEAR CAMPAIGN AS THIS FIGHTER', { color: '#ff4d6d', time: t, size: 8 });
     } else {
       const price = displayItem.price || 0;
       const canAfford = coins >= price;

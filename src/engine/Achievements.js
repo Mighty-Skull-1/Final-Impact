@@ -129,6 +129,12 @@ export class Achievements {
     return true;
   }
 
+  // Generic toast (daily challenges, unlocks) using the same slide-in card
+  toast({ icon = '🏆', title = '', desc = '', header = 'UNLOCKED' } = {}) {
+    this.toastQueue.push({ icon, title, desc, header });
+    try { (soundFX.playUnlock || soundFX.playMenuSelect).call(soundFX); } catch (e) {}
+  }
+
   update() {
     // Process toast queue
     if (!this.activeToast && this.toastQueue.length > 0) {
@@ -165,11 +171,11 @@ export class Achievements {
     const toastW = 196;
     const toastH = 34;
     const margin = 10;
-    // Slides in from the right, just under the P2 name plate (clear of meters and the guide)
+    // Slides in from the right
     const targetX = W - toastW - margin;
     const offscreenX = W + 10;
     const x = offscreenX + (targetX - offscreenX) * this.toastSlide;
-    const y = 64;
+    const y = H - 92; // bottom-right, above the meter & guide row (clear of HUD, tutorial and lab panels)
     const UI = '"Bahnschrift", "Segoe UI", "Inter", Arial, sans-serif';
 
     ctx.globalAlpha = Math.min(1, this.toastSlide * 1.5);
@@ -195,7 +201,7 @@ export class Achievements {
     ctx.textBaseline = 'alphabetic';
     ctx.font = `800 6.5px ${UI}`;
     ctx.fillStyle = '#f5c542';
-    ctx.fillText('ACHIEVEMENT UNLOCKED', textX, y + 11);
+    ctx.fillText(this.activeToast.header || 'ACHIEVEMENT UNLOCKED', textX, y + 11);
     ctx.font = `900 10px ${UI}`;
     ctx.fillStyle = '#f4efe4';
     ctx.fillText(this.activeToast.title, textX, y + 22, toastW - 50);

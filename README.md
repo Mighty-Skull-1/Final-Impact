@@ -9,6 +9,18 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 
 ---
 
+## 🎓 Update 2.1 — Tutorial, Training Lab, Unique Kits, Audio & Unlocks
+
+* **Tutorial** (Mode Select → Tutorial): 11 guided lessons with live checks — movement, attacks, specials, blocking, low blocking, combos, throws, throw tech, Combo Breaker, Ultimate. `ENTER` / `SELECT` skips a lesson.
+* **Practice Mode lab** — press `F` (gamepad `SELECT`) for Training Settings: dummy action (stand / crouch / jump / CPU / playback), dummy guard (none / all / after first hit / random), throw tech, health & meter refill, input display, damage + frame-advantage readout, hitboxes, **record dummy** (10s) and reset positions.
+* **Unique roster kits** — the 12 roster fighters no longer copy their base move-set: burn (Cinder), chill & freeze (Glacier), homing darts & comet (Oracle), arcing bleed cleavers & guard crush (Bandit), posture break & wall splat (Confessor), stunning war-cry wave & sky launcher (Valka), chain pull & armoured rush (Convict), true overheads & blinding slide (Prophet), low ground-wave & bleed (Ronin), clash-winning greatsword wave & armoured shield ram (Vagabond), fortress passive (Warden), early-rage berserker that slides under projectiles (Wretch).
+* **Audio** — new layered impact sound design, reverb bus, deeper announcer with stingers, and procedural music tracks: `menu`, `fight`, `boss`, `victory`. Real samples can be dropped in later via `soundFX.loadSample()`.
+* **Unlockables** — **Daily Challenges** (3 per day, coin rewards), a story **ending** for every fighter after beating the Campaign, and an earnable **Champion Regalia** skin per fighter.
+* **Fixes** — light attacks now combo into uppercuts (rising specials stay grounded for 3 frames), crouch-blocking + punch no longer triggers specials by accident, Breaker works when pressed during hit-stop, Kagura's warp / Zephyr's invincibility no longer depend on wall-clock timers.
+* **Sharing** — `npm run package:web` builds `builds/Final-Impact-web.zip`, ready to upload to itch.io as a browser game.
+
+---
+
 ## 🔥 Overhaul 2.0 — Combat, Abilities & UI
 
 **Combat engine**

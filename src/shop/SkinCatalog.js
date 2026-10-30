@@ -386,6 +386,45 @@ export const SKIN_CATALOG = [
   }
 ];
 
+// ===== CHAMPION REGALIA — earned (not bought) by beating the Campaign with that fighter =====
+export const CAMPAIGN_SKIN_FIGHTERS = ['kazuki', 'raven', 'kagura', 'fang', 'zephyr', 'colossus', 'cinder', 'glacier', 'oracle',
+  'bandit', 'confessor', 'valka', 'convict', 'prophet', 'ronin', 'vagabond', 'warden', 'wretch'];
+CAMPAIGN_SKIN_FIGHTERS.forEach(fid => {
+  SKIN_CATALOG.push({
+    id: `${fid}_champion`,
+    fighterId: fid,
+    name: 'CHAMPION REGALIA',
+    tier: 'CAMPAIGN',
+    tierColor: '#ff4d6d',
+    price: 0,
+    unlock: 'campaign',
+    recolor: 'champion',
+    desc: 'Black-and-gold battle regalia. Earned only by conquering the Campaign with this fighter.'
+  });
+});
+
+// Re-colours any base design into black & gold "champion" regalia, keeping its silhouette
+function championize(design) {
+  const out = JSON.parse(JSON.stringify(design));
+  const DARK = ['#17130d', '#221a10', '#0f0c08'];
+  const GOLD = '#f5c542';
+  let i = 0;
+  for (const part of ['top', 'bottom', 'boots', 'arms', 'gloves', 'head', 'mask', 'belt']) {
+    const p = out[part];
+    if (!p || typeof p !== 'object') continue;
+    if (p.color) p.color = part === 'gloves' || part === 'belt' ? GOLD : DARK[i++ % DARK.length];
+    if (p.trim) p.trim = GOLD;
+    if (p.under) p.under = '#0a0806';
+    if (p.buckle) p.buckle = '#fff1b8';
+  }
+  if (out.cape) out.cape = '#3a0d14';
+  if (out.pauldrons) out.pauldrons = GOLD;
+  if (out.kneePads) out.kneePads = GOLD;
+  out.glow = '#ffd34d';
+  return out;
+}
+
+
 export class EconomyManager {
   static getCoins() {
     try {
@@ -457,6 +496,7 @@ export class EconomyManager {
     const skin = SKIN_CATALOG.find(s => s.id === skinId);
     if (!skin) return { success: false, reason: 'Skin not found' };
     if (this.isSkinOwned(skinId)) return { success: true, alreadyOwned: true };
+    if (skin.unlock === 'campaign') return { success: false, reason: 'Earned by beating the Campaign' };
 
     if (!this.spendCoins(skin.price)) {
       return { success: false, reason: 'Insufficient coins' };
@@ -471,6 +511,17 @@ export class EconomyManager {
     } catch (e) {}
 
     return { success: true, skin };
+  }
+
+  // Grant a skin for free (campaign rewards)
+  static grantSkin(skinId) {
+    const owned = this.getOwnedSkins();
+    if (owned.has(skinId)) return false;
+    owned.add(skinId);
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(OWNED_SKINS_KEY, JSON.stringify(Array.from(owned)));
+    } catch (e) {}
+    return true;
   }
 
   static getEquippedSkin(fighterId) {
@@ -591,6 +642,7 @@ export function getSkinDesign(baseDesign, skinId) {
   if (!skinId || skinId === 'default' || skinId.endsWith('_default')) return baseDesign;
 
   const skin = SKIN_CATALOG.find(s => s.id === skinId);
+  if (skin && skin.recolor === 'champion') return championize(baseDesign);
   if (!skin || !skin.designOverrides) return baseDesign;
 
   // Deep clone and merge overrides
