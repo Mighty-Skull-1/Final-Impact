@@ -3,6 +3,7 @@
 //   health/meter refill, input display, hitboxes, damage & frame-advantage readout, position reset.
 // • Guided tutorial: a short step-by-step lesson that teaches movement, attacks, specials, blocking,
 //   combos, throws, throw techs, Combo Breaker and the Ultimate with live checks.
+import { arena } from '../engine/Arena.js';
 import { FIGHTER_STATE } from '../engine/Constants.js';
 import { input } from '../engine/Input.js';
 import { soundFX } from '../audio/SoundFX.js';
@@ -226,6 +227,7 @@ export class TrainingController {
     f1.facingRight = true; f2.facingRight = false;
     g.projectiles.forEach(p => p.destroy && p.destroy());
     g.projectiles = [];
+    arena.clear();
     if (g.updateCamera) g.updateCamera(true);
   }
 
@@ -449,7 +451,8 @@ export class TrainingController {
     if (type === 'ultimateLock' && actor === g.f1) this.count('ultimateLock');
     if (type === 'dash' && actor === g.f1) this.count('dash');
     if (type === 'jump' && actor === g.f1) this.count('jump');
-    if (type === 'special' && actor === g.f1) this.count(actor.state === FIGHTER_STATE.SPECIAL_1 ? 'sp1' : (actor.state === FIGHTER_STATE.SPECIAL_2 ? 'sp2' : 'sp3'));
+    // (GLITCH's Ctrl+V runs a copied move in that move's own slot, but it was his SP3 button)
+    if (type === 'special' && actor === g.f1) this.count(actor.stolenRun ? 'sp3' : (actor.state === FIGHTER_STATE.SPECIAL_1 ? 'sp1' : (actor.state === FIGHTER_STATE.SPECIAL_2 ? 'sp2' : 'sp3')));
   }
 
   // Throw tech decision for the dummy

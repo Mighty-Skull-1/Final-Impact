@@ -60,6 +60,42 @@ export const FATALITY_CATALOG = {
     secondaryColor: '#fdba74',
     type: 'earth_crush'
   },
+  echo: {
+    id: 'paradox',
+    name: 'PARADOX',
+    japanese: '時 空 断',
+    inputDesc: '← ← HP (or SPACE)',
+    color: '#67e8f9',
+    secondaryColor: '#e0f2fe',
+    type: 'shadow_clone'
+  },
+  glitch: {
+    id: 'delete',
+    name: 'DELETE',
+    japanese: '消 去',
+    inputDesc: '↓ ↓ LP (or SPACE)',
+    color: '#a3e635',
+    secondaryColor: '#f0abfc',
+    type: 'black_hole'
+  },
+  tempo: {
+    id: 'mic_drop',
+    name: 'MIC DROP',
+    japanese: '終 曲',
+    inputDesc: '→ ↓ HK (or SPACE)',
+    color: '#f472b6',
+    secondaryColor: '#facc15',
+    type: 'cyclone'
+  },
+  atlas: {
+    id: 'demolition',
+    name: 'DEMOLITION',
+    japanese: '解 体',
+    inputDesc: '↓ ↓ HK (or SPACE)',
+    color: '#f59e0b',
+    secondaryColor: '#fde047',
+    type: 'earth_crush'
+  },
   cinder: {
     id: 'inferno_eruption',
     name: 'INFERNO ERUPTION',

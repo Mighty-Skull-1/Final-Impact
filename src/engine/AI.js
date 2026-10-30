@@ -29,8 +29,14 @@ const MOVE_HINTS = {
   fang: { rush: 'sp1', antiAir: 'sp2', poke: 'sp3' },
   zephyr: { low: 'sp1', overhead: 'sp2', rush: 'sp3' },
   colossus: { rush: 'sp3', antiAir: 'sp2', armor: 'sp1' },
-  mighty: { projectile: 'sp1', antiAir: 'sp2', rush: 'sp3' }
+  mighty: { projectile: 'sp1', antiAir: 'sp2', rush: 'sp3' },
+  // Signature fighters (their unusual tools are driven by fighter.aiSuggest())
+  echo: { antiAir: 'sp2', rush: 'sp3', reversal: 'sp2' },
+  glitch: { rush: 'sp2', teleport: 'sp1' },
+  tempo: { projectile: 'sp1', antiAir: 'sp2', rush: 'sp3', low: 'sp3' },
+  atlas: { antiAir: 'sp2', rush: 'sp3', reversal: 'sp2' }
 };
+const ATTACK_KEYS = new Set(['lp', 'hp', 'lk', 'hk', 'sp1', 'sp2', 'sp3']);
 const ROSTER_BASE = {
   cinder: 'kagura', glacier: 'kazuki', oracle: 'kagura', bandit: 'raven', confessor: 'fang', valka: 'kazuki',
   convict: 'colossus', prophet: 'zephyr', ronin: 'kazuki', vagabond: 'raven', warden: 'fang', wretch: 'zephyr'
@@ -198,6 +204,7 @@ export class AIController {
 
     // Execute a scheduled action
     if (this.pendingTap && this.tickCount >= this.pendingTap.at) {
+      if (this.holdForBeat(cpu, this.pendingTap.keys, this.pendingTap)) { this.pendingTap.at = this.tickCount + 1; return s; }
       const keys = this.pendingTap.keys;
       this.pendingTap = null;
       keys.forEach(k => this.tap(k));
@@ -291,6 +298,10 @@ export class AIController {
     }
     if (this.crouch && this.moveTimer > 0) s.down = true;
     // merge one-shot taps chosen by decide()
+    if (this.decisionTaps && this.holdForBeat(cpu, this.decisionTaps, this)) {
+      this.nextDecisionTime = Math.max(this.nextDecisionTime, this.tickCount + 2);
+      return s;
+    }
     if (this.decisionTaps) {
       this.decisionTaps.forEach(k => {
         if (k === 'jump') { s.up = true; }
@@ -304,9 +315,25 @@ export class AIController {
     return s;
   }
 
+  // TEMPO: a skilled CPU waits for the beat before starting an attack (never more than a beat)
+  holdForBeat(cpu, keys, holder) {
+    if (!cpu || typeof cpu.beatOffset !== 'function' || !keys || !keys.some(k => ATTACK_KEYS.has(k))) { if (holder) holder._beatWait = 0; return false; }
+    if (cpu.isAttacking && cpu.isAttacking()) { holder._beatWait = 0; return false; } // cancels keep the opener's timing
+    holder._beatWait = (holder._beatWait || 0) + 1;
+    if (holder._beatWait === 1) holder._beatSkill = Math.random() < Math.min(0.95, 0.25 + this.profile.confirm * 0.7);
+    if (!holder._beatSkill || holder._beatWait > 32 || cpu.beatOffset(1) <= 2) { holder._beatWait = 0; return false; }
+    return true;
+  }
+
   decide(cpu, player, dist, toRight, hints, aggression) {
     const P = this.profile;
     const taps = [];
+    // Signature fighters suggest their own tools (ghost replay, copy/paste, walls...)
+    if (typeof cpu.aiSuggest === 'function' && !roll(P.mistake)) {
+      let sug = null;
+      try { sug = cpu.aiSuggest(player, dist, P); } catch (e) { sug = null; }
+      if (sug) { this.decisionTaps = [sug]; return; }
+    }
     const setMove = (dir, frames, crouch = false) => { this.move = dir; this.moveTimer = frames; this.crouch = crouch; };
     const canProjectile = hints.projectile && cpu.projectileCooldown <= 0 && (cpu.activeProjectileCount || 0) < 1;
     const meterFull = cpu.superMeter >= cpu.maxSuperMeter;

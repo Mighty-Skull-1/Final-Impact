@@ -9,6 +9,16 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 
 ---
 
+## ✨ Update 2.2 — Four Signature Fighters
+
+Four new fighters built around mechanics no other fighter on the roster has (marked **NEW** on Fighter Select):
+
+* **ECHO — The Afterimage.** *Echo Step* (SP1) spawns a ghost that replays everything she did in the last 2 seconds, hits included. *Déjà Vu* (SP2) is an invincible rising palm whose hit lands a second time a moment later. *Phase Shift* (SP3) slips through the opponent and strikes from behind. **Ultimate — Time Collapse:** rewinds her 3 seconds (position and lost health), then every hit she landed in that window replays on the opponent at once.
+* **GLITCH — The Corrupted.** *Ctrl+C* (SP2) copies the opponent's last-used special on hit; *Ctrl+V* (SP3) runs it as GLITCH (works on every special of every roster fighter; getting hit wipes the copy). *Lag Spike* (SP1) blinks through the opponent and leaves a detonating packet. **Ultimate — Blue Screen of Death:** scrambles the victim's controls for 5 seconds (directions, punches/kicks and SP1/SP3 swap).
+* **TEMPO — The Beat.** The floor pulses and a metronome ticks at 120 BPM. Moves started on the beat (PERFECT / GOOD) build a multiplier from x1 to x4 (+12% damage per level, double meter at x4); an off-beat opener or getting hit resets it. Cancels keep the opener's timing. On-beat *Drop the Bass* dazes; on-beat *Breakdown* spins twice. **Ultimate — Encore** scales with the multiplier.
+* **ATLAS — The Architect.** *Raise Wall* (SP1) builds a concrete wall that blocks movement and projectiles and can be stood on; *Scaffold* (SP2) leaves a platform both fighters can use (hold DOWN to drop through); *Wrecking Swing* (SP3) splats foes into walls and corners. **Ultimate — Ceiling Drop:** a slab hunts the opponent, then crashes down — dash out of its shadow or stand-block it.
+* New arena system (walls, one-way platforms, falling slabs), CPU logic for every new tool (TEMPO's CPU waits for the beat), move lists, endings, fatalities, Champion Regalia and one shop skin each, and a 53-check test suite (`test_signature_fighters.mjs`).
+
 ## 🎓 Update 2.1 — Tutorial, Training Lab, Unique Kits, Audio & Unlocks
 
 * **Tutorial** (Mode Select → Tutorial): 11 guided lessons with live checks — movement, attacks, specials, blocking, low blocking, combos, throws, throw tech, Combo Breaker, Ultimate. `ENTER` / `SELECT` skips a lesson.
@@ -108,6 +118,10 @@ Combining the brutal combat flow and finishing moves of **Mortal Kombat**, the s
 | **Ronin** | Crimson Blade (Feudal Japan) | **Wave Cutter**, **Rising Katana**, **Whirl Kick**. |
 | **Vagabond** | Wandering Knight (Fallen Kingdom)| **Edge Wave**, **Knight Flip**, **Shield Ram**. |
 | **Warden** | Wall of the Desert (Sand Citadel) | **Citadel Knee**, **Twin Blades**, **Iron Gate**. |
+| **Echo** *(New)* | Chrono Kunst (Year 2091) | **Echo Step** (ghost replay), **Déjà Vu** (repeating palm), **Phase Shift** (pass-through strike).<br>**Ultimate:** *Time Collapse (時間崩壊)* |
+| **Glitch** *(New)* | Code Injection (The Deep Web) | **Lag Spike** (blink + packet), **Ctrl+C** (copy their special), **Ctrl+V** (use it).<br>**Ultimate:** *Blue Screen of Death (致命的例外)* |
+| **Tempo** *(New)* | Breaking & Rhythm Boxing (Bronx Underground) | **Drop the Bass** (soundwave), **Scratch** (rising spin kick), **Breakdown** (windmill sweep) — all stronger on the beat.<br>**Ultimate:** *Encore (アンコール)* |
+| **Atlas** *(New)* | Demolition Brawling (Megacity Skyline) | **Raise Wall**, **Scaffold** (platform), **Wrecking Swing** (wall splat).<br>**Ultimate:** *Ceiling Drop (天井崩落)* |
 | **M1GHTY** *(Classified)* | Divine Annihilator (Astral Realm) | **One-Hit Extinction Combat Arts**.<br>**Ultimate:** *Grand Celestial Ruin*<br>**Fatality:** *Void Singularity* |
 
 ---

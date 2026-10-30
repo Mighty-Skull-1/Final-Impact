@@ -576,6 +576,134 @@ export const FIGHTER_CATALOG = [
     }
   },
   {
+    id: 'echo',
+    name: 'ECHO',
+    kanji: 'エコー',
+    title: 'THE AFTERIMAGE',
+    style: 'Chrono Kunst',
+    origin: 'Year 2091',
+    power: 3,
+    speed: 5,
+    defense: 3,
+    isNew: true,
+    mechanic: 'Her ghost replays your last 2 seconds — do a combo, then press SP1 and the ghost does it again.',
+    quote: '"I already won this fight. I\'m just here to watch it happen again."',
+    specials: [
+      { name: 'Echo Step', cmd: '↓ ↘ → + P (or SP1)', cmdKeyboard: 'Q (or ↓ ↘ → + P)', cmdGamepad: 'RB (or ↓ ↘ → + X/Y)', desc: 'A ghost of ECHO steps out and replays everything she did in the last 2 seconds — its hits land too (half damage). 5s recharge' },
+      { name: 'Déjà Vu', cmd: '→ ↓ ↘ + P (or SP2)', cmdKeyboard: 'E (or → ↓ ↘ + P)', cmdGamepad: 'RT (or → ↓ ↘ + X/Y)', desc: 'Invincible rising palm. If it hits, the same hit lands again a moment later' },
+      { name: 'Phase Shift', cmd: '↓ ↙ ← + K (or SP3)', cmdKeyboard: 'R (or ↓ ↙ ← + K)', cmdGamepad: 'LB (or ↓ ↙ ← + A/B)', desc: 'Slips straight through the opponent and their projectiles, then strikes from the other side' }
+    ],
+    ultimate: {
+      name: 'Time Collapse',
+      kanji: '時間崩壊',
+      cmdKeyboard: 'SPACE (100% Super)',
+      cmdGamepad: 'R3 / LB+RB (100% Super)',
+      desc: 'Rewinds ECHO 3 seconds (position and lost health), then time snaps back on a nearby opponent — every hit she landed in that window replays at once'
+    },
+    fatality: {
+      name: 'Paradox',
+      cmdKeyboard: 'SPACE or I + K (Finish Him)',
+      cmdGamepad: 'R3 or Y + B (Finish Him)',
+      desc: 'Erases the opponent from every second of the fight at once'
+    }
+  },
+  {
+    id: 'glitch',
+    name: 'GLITCH',
+    kanji: 'グリッチ',
+    title: 'THE CORRUPTED',
+    style: 'Code Injection',
+    origin: 'The Deep Web',
+    power: 3,
+    speed: 4,
+    defense: 3,
+    isNew: true,
+    mechanic: 'Hit with SP2 to copy their last special, then press SP3 to use it against them.',
+    quote: '"Your moves? Nice. Mine now."',
+    specials: [
+      { name: 'Lag Spike', cmd: '↓ ↘ → + P (or SP1)', cmdKeyboard: 'Q (or ↓ ↘ → + P)', cmdGamepad: 'RB (or ↓ ↘ → + X/Y)', desc: 'Blinks through the opponent and leaves a corrupted packet behind that detonates a moment later' },
+      { name: 'Ctrl+C', cmd: '→ ↓ ↘ + P (or SP2)', cmdKeyboard: 'E (or → ↓ ↘ + P)', cmdGamepad: 'RT (or → ↓ ↘ + X/Y)', desc: "Long reaching data-hand. On hit it COPIES the opponent's last-used special" },
+      { name: 'Ctrl+V', cmd: '↓ ↙ ← + K (or SP3)', cmdKeyboard: 'R (or ↓ ↙ ← + K)', cmdGamepad: 'LB (or ↓ ↙ ← + A/B)', desc: 'Runs the copied special as GLITCH. With nothing copied: a point-blank corrupting burst. Getting hit wipes the copy' }
+    ],
+    ultimate: {
+      name: 'Blue Screen of Death',
+      kanji: '致命的例外',
+      cmdKeyboard: 'SPACE (100% Super)',
+      cmdGamepad: 'R3 / LB+RB (100% Super)',
+      desc: 'Cinematic beat-down; the victim\'s controls are scrambled for 5 seconds (directions, punches/kicks and SP1/SP3 swap)'
+    },
+    fatality: {
+      name: 'Delete',
+      cmdKeyboard: 'SPACE or I + K (Finish Him)',
+      cmdGamepad: 'R3 or Y + B (Finish Him)',
+      desc: 'Pixelates the opponent and deletes them from the server'
+    }
+  },
+  {
+    id: 'tempo',
+    name: 'TEMPO',
+    kanji: 'テンポ',
+    title: 'THE BEAT',
+    style: 'Breaking & Rhythm Boxing',
+    origin: 'Bronx Underground',
+    power: 4,
+    speed: 4,
+    defense: 3,
+    isNew: true,
+    mechanic: 'Start moves on the beat (the floor pulses and you hear a tick). On-beat hits build x1 → x4 damage; an off-beat move or getting hit resets it.',
+    quote: '"Stay on beat or get knocked off it."',
+    specials: [
+      { name: 'Drop the Bass', cmd: '↓ ↘ → + P (or SP1)', cmdKeyboard: 'Q (or ↓ ↘ → + P)', cmdGamepad: 'RB (or ↓ ↘ → + X/Y)', desc: 'Soundwave projectile. Started on the beat it is bigger, faster and dazes' },
+      { name: 'Scratch', cmd: '→ ↓ ↘ + P (or SP2)', cmdKeyboard: 'E (or → ↓ ↘ + P)', cmdGamepad: 'RT (or → ↓ ↘ + X/Y)', desc: 'Invincible rising spin kick — anti-air' },
+      { name: 'Breakdown', cmd: '↓ ↙ ← + K (or SP3)', cmdKeyboard: 'R (or ↓ ↙ ← + K)', cmdGamepad: 'LB (or ↓ ↙ ← + A/B)', desc: 'Low windmill sweep. Started on the beat it spins twice' }
+    ],
+    ultimate: {
+      name: 'Encore',
+      kanji: 'アンコール',
+      cmdKeyboard: 'SPACE (100% Super)',
+      cmdGamepad: 'R3 / LB+RB (100% Super)',
+      desc: 'Cinematic beat-down timed to the rhythm; damage grows with the multiplier'
+    },
+    fatality: {
+      name: 'Mic Drop',
+      cmdKeyboard: 'SPACE or I + K (Finish Him)',
+      cmdGamepad: 'R3 or Y + B (Finish Him)',
+      desc: 'The beat drops — and so does the opponent'
+    }
+  },
+  {
+    id: 'atlas',
+    name: 'ATLAS',
+    kanji: 'アトラス',
+    title: 'THE ARCHITECT',
+    style: 'Demolition Brawling',
+    origin: 'Megacity Skyline',
+    power: 5,
+    speed: 2,
+    defense: 5,
+    isNew: true,
+    mechanic: 'Build walls and platforms that change the arena for BOTH players; splat opponents into your walls.',
+    quote: '"I don\'t fight in your arena. I build my own."',
+    specials: [
+      { name: 'Raise Wall', cmd: '↓ ↘ → + P (or SP1)', cmdKeyboard: 'Q (or ↓ ↘ → + P)', cmdGamepad: 'RB (or ↓ ↘ → + X/Y)', desc: 'A concrete wall erupts in front of ATLAS — launches anyone on that spot, blocks movement and projectiles, and can be stood on' },
+      { name: 'Scaffold', cmd: '→ ↓ ↘ + P (or SP2)', cmdKeyboard: 'E (or → ↓ ↘ + P)', cmdGamepad: 'RT (or → ↓ ↘ + X/Y)', desc: 'Invincible upward hammer swing that leaves a platform overhead (both fighters can use it; hold DOWN to drop through)' },
+      { name: 'Wrecking Swing', cmd: '↓ ↙ ← + K (or SP3)', cmdKeyboard: 'R (or ↓ ↙ ← + K)', cmdGamepad: 'LB (or ↓ ↙ ← + A/B)', desc: 'Armoured haymaker. Knock a foe into a wall or corner for a WALL SPLAT that shatters the wall' }
+    ],
+    ultimate: {
+      name: 'Ceiling Drop',
+      kanji: '天井崩落',
+      cmdKeyboard: 'SPACE (100% Super)',
+      cmdGamepad: 'R3 / LB+RB (100% Super)',
+      desc: 'A slab of ceiling hunts the opponent, then crashes down — dash out of its shadow or stand-block it'
+    },
+    fatality: {
+      name: 'Demolition',
+      cmdKeyboard: 'SPACE or I + K (Finish Him)',
+      cmdGamepad: 'R3 or Y + B (Finish Him)',
+      desc: 'Buries the opponent under a collapsing skyscraper'
+    }
+  },
+  {
     id: 'mighty',
     name: 'M1GHTY',
     kanji: '神威・無敗',

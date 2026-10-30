@@ -35,6 +35,8 @@ import { VersusScreen } from '../ui/VersusScreen.js';
 import { FinishHim } from '../ui/FinishHim.js';
 import { STAGE_CATALOG } from '../graphics/StageCatalog.js';
 import { ROSTER_CLASSES, ROSTER_QUOTES } from '../fighters/RosterFighters.js';
+import { SIGNATURE_CLASSES } from '../fighters/Signature.js';
+import { arena } from './Arena.js';
 import { getFighterCatalogEntry } from '../fighters/FighterCatalog.js';
 import { ShopScreen } from '../ui/ShopScreen.js';
 import { AdminModal } from '../ui/AdminModal.js';
@@ -101,6 +103,7 @@ export class Game {
     this.elden = eldenManager;
     this.announcer = announcer;
     this.combat = new CombatDirector(this);
+    arena.game = this;
     this.training = new TrainingController(this);
     this.challenges = dailyChallenges;
     this.ending = new EndingScreen();
@@ -363,6 +366,7 @@ export class Game {
     this.allFighters = [];
     this.pickups = [];
     this.projectiles = [];
+    arena.clear();
     this.cameraX = 0;
 
     this.round = 1;
@@ -865,6 +869,7 @@ export class Game {
     this.f4 = null;
     this.allFighters = [];
     this.projectiles = [];
+    arena.clear();
     this.pickups = [];
     this.isCampaign = false;
     this.isCoopCampaign = false;
@@ -895,6 +900,7 @@ export class Game {
     this.round = 1;
     this.projectiles.forEach(p => { if (p && p.destroy) p.destroy(); });
     this.projectiles = [];
+    arena.clear();
     this.spawnDefaultPickups();
 
     this.isCoopCampaign = (mode === 'coop_campaign') || (this.isOnline && this.onlineLobby?.matchMode === 'coop_campaign');
@@ -1053,6 +1059,7 @@ export class Game {
     const isCoop = this.isCoopCampaign;
     this.projectiles.forEach(p => { if (p && p.destroy) p.destroy(); });
     this.projectiles = [];
+    arena.clear();
     this.spawnDefaultPickups();
 
     // Thematic stage backgrounds for each boss
@@ -1181,6 +1188,7 @@ export class Game {
     }
 
     this.projectiles = [];
+    arena.clear();
     input.consumeBuffer(1);
     input.consumeBuffer(2);
     input.consumeBuffer(3);
@@ -1226,6 +1234,7 @@ export class Game {
     else if (id === 'champion') fighter = new Champion(opts);
     else if (id === 'endless_dragon') fighter = new EndlessDragon(opts);
     else if (ROSTER_CLASSES[id]) fighter = new ROSTER_CLASSES[id](opts);
+    else if (SIGNATURE_CLASSES[id]) fighter = new SIGNATURE_CLASSES[id](opts);
     else fighter = new Kazuki(opts);
 
     // Team 1: playerNum 1 & 3. Team 2: playerNum 2 & 4
@@ -1237,6 +1246,7 @@ export class Game {
     };
     // Scripted hits (cinematic ultimates) go through the same combat rules as normal hits
     fighter.combatHit = (target, data, pos) => this.combat.applyHit(fighter, target, data, pos || { x: target.x + 40, y: target.y - 48 });
+    fighter.combatHitOpts = (target, data, pos, opts) => this.combat.applyHit(fighter, target, data, pos || { x: target.x + 40, y: target.y - 48 }, opts || {});
 
     // Universal mechanics (throws, breaker, dirty cooldown, intro lock) run before every
     // character's own input code, whichever path (local, CPU, online) drives it.
@@ -1244,7 +1254,7 @@ export class Game {
     fighter.handleInput = (state, inputManager, opponent) => {
       const res = this.combat.preInput(fighter, state || {}, inputManager, opponent);
       if (res.consumed) return;
-      ownHandleInput(res.input, inputManager, opponent);
+      ownHandleInput(res.input, res.manager || inputManager, opponent);
     };
     this.combat.resetFighter(fighter);
 
@@ -1270,6 +1280,7 @@ export class Game {
     });
 
     this.projectiles = [];
+    arena.clear();
     input.consumeBuffer(1);
     input.consumeBuffer(2);
 
@@ -1296,6 +1307,7 @@ export class Game {
     this.updateCamera(true);
 
     this.projectiles = [];
+    arena.clear();
     this.spawnDefaultPickups();
     this.hud.reset(this.round);
     this.slowMotion = false;
@@ -1846,11 +1858,13 @@ export class Game {
     // 5. Environmental Pickup Check (Down + Dirty / C to collect)
     this.checkPickups();
 
-    // 6. Update Active Fighters
+    // 6. Update the buildable arena (walls, platforms, ATLAS's slab), then the fighters
+    arena.update();
     this.allFighters.forEach(f => {
       if (!f.isDead || f.state === FIGHTER_STATE.KNOCKDOWN) {
         const opp = this.getNearestOpponent(f);
         f.update(opp, STAGE_WIDTH);
+        arena.resolveWalls(f);
         this.checkCornerCrowdRebound(f);
         if (this.elden) this.elden.updateStance(f);
       }
@@ -2493,6 +2507,7 @@ export class Game {
       const p = this.projectiles[i];
       p.update();
 
+      if (p.active && arena.blockProjectile(p)) p.destroy();
       if (!p.active) {
         this.projectiles.splice(i, 1);
         continue;
@@ -3032,11 +3047,17 @@ export class Game {
     // Ground Pickups
     this.pickups.forEach(p => p.render(ctx));
 
+    // Walls & platforms built during the fight
+    arena.render(ctx);
+
     // All active fighters
     this.allFighters.forEach(f => f.render(ctx));
 
     // Projectiles
     this.projectiles.forEach(p => p.render(ctx));
+
+    // Falling ceiling slabs (in front of the fighters)
+    arena.renderOverlay(ctx);
 
     // Hit sparks, dust, shockwaves, ability trails
     vfx.render(ctx);

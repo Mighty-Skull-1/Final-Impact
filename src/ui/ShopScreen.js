@@ -34,6 +34,10 @@ export class ShopScreen {
       { id: 'vagabond', name: 'VAGABOND' },
       { id: 'warden', name: 'WARDEN' },
       { id: 'wretch', name: 'WRETCH' },
+      { id: 'echo', name: 'ECHO' },
+      { id: 'glitch', name: 'GLITCH' },
+      { id: 'tempo', name: 'TEMPO' },
+      { id: 'atlas', name: 'ATLAS' },
       { id: 'mighty', name: 'M1GHTY' }
     ];
 

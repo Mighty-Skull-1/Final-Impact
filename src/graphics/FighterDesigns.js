@@ -224,6 +224,59 @@ export const FIGHTER_DESIGNS = {
     glow: '#38bdf8'
   },
 
+  // ===== Signature fighters =====
+  echo: {
+    build: 'lean', skin: '#f1d5c0', eyes: '#67e8f9',
+    hair: { style: 'long', color: '#e2e8f0' },
+    head: { type: 'band', color: '#22d3ee', trim: '#ffffff', tails: true },
+    top: { style: 'jacket', color: '#0f766e', trim: '#67e8f9', under: '#0b1f24' },
+    bottom: { style: 'pants', color: '#134e4a', trim: '#67e8f9' },
+    boots: { style: 'boot', color: '#e2e8f0', trim: '#22d3ee' },
+    arms: { style: 'long', color: '#0f766e' },
+    gloves: { style: 'glove', color: '#e2e8f0' },
+    belt: { color: '#67e8f9', tails: true },
+    scarf: '#a5f3fc',
+    glow: '#67e8f9'
+  },
+  glitch: {
+    build: 'normal', skin: '#8d6e63', eyes: '#a3e635',
+    hair: { style: 'none', color: '#111' },
+    head: { type: 'hood', color: '#18181b', cowl: '#09090b' },
+    mask: { type: 'full', color: '#09090b' },
+    top: { style: 'jacket', color: '#18181b', trim: '#a3e635', under: '#0a0a0a' },
+    bottom: { style: 'pants', color: '#111114', trim: '#f0abfc' },
+    boots: { style: 'boot', color: '#0a0a0a', trim: '#a3e635' },
+    arms: { style: 'long', color: '#18181b' },
+    gloves: { style: 'glove', color: '#a3e635' },
+    belt: { color: '#f0abfc', tails: true },
+    glow: '#a3e635'
+  },
+  tempo: {
+    build: 'normal', skin: '#7a4a2e', eyes: '#1a0f0a',
+    hair: { style: 'braids', color: '#141414' },
+    head: { type: 'band', color: '#f472b6', trim: '#facc15', tails: false },
+    top: { style: 'tank', color: '#f472b6' },
+    bottom: { style: 'pants', color: '#312e81', trim: '#facc15' },
+    boots: { style: 'boot', color: '#f8fafc', trim: '#f472b6' },
+    gloves: { style: 'wraps', color: '#facc15' },
+    belt: { color: '#facc15', buckle: '#f472b6' },
+    glow: '#f472b6'
+  },
+  atlas: {
+    build: 'heavy', skin: '#c9946c', eyes: '#1c1917',
+    hair: { style: 'short', color: '#292524' },
+    head: { type: 'helm', color: '#f59e0b' },
+    top: { style: 'vest', color: '#ea580c', trim: '#fde047', under: '#57534e' },
+    bottom: { style: 'pants', color: '#1e3a8a', trim: '#f59e0b' },
+    boots: { style: 'greave', color: '#78350f', trim: '#f59e0b' },
+    arms: { style: 'gauntlet', color: '#78716c' },
+    gloves: { style: 'glove', color: '#44403c' },
+    pauldrons: '#78716c', kneePads: '#78716c',
+    belt: { color: '#292524', buckle: '#fde047' },
+    bandolier: '#78350f',
+    glow: '#f59e0b'
+  },
+
   // ===== Archetype fighters (inspired by hooded / armoured wanderers) =====
   oracle: {
     build: 'lean', skin: '#e3c3a6', eyes: '#2dd4bf',

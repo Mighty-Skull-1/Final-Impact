@@ -7,7 +7,7 @@ import { COLORS, FONTS, drawText, drawBackdrop, drawScreenHeader, drawPromptBar,
 
 const STORAGE_KEY = 'final_impact_daily';
 const ROSTER = ['kazuki', 'raven', 'kagura', 'fang', 'zephyr', 'colossus', 'cinder', 'glacier', 'oracle', 'bandit',
-  'confessor', 'valka', 'convict', 'prophet', 'ronin', 'vagabond', 'warden', 'wretch'];
+  'confessor', 'valka', 'convict', 'prophet', 'ronin', 'vagabond', 'warden', 'wretch', 'echo', 'glitch', 'tempo', 'atlas'];
 
 // event: which gameplay event counts; test(info) optionally filters it
 const TEMPLATES = [

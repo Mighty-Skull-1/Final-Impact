@@ -1001,6 +1001,71 @@ class SoundFX {
     }, 0.05);
   }
 
+  // ===== Signature fighters =====
+  // TEMPO: metronome tick (accent on the downbeat)
+  playBeatTick(accent = false) {
+    this._run('beatTick', () => {
+      const v = this._voice({ group: 'sfx', send: 0.05, gain: 0.7 });
+      v.tone({ type: 'sine', f: accent ? 1760 : 1320, a: 0.001, d: 0.04, g: accent ? 0.12 : 0.07 });
+      v.noise({ filter: { type: 'highpass', f: 7000 }, a: 0.0005, d: 0.02, g: accent ? 0.06 : 0.035 });
+      if (accent) v.tone({ type: 'sine', f: 110, to: 55, time: 0.08, a: 0.001, d: 0.1, g: 0.18 });
+      v.finish();
+    }, 0.02);
+  }
+
+  // GLITCH: bit-crushed stutter
+  playGlitch() {
+    this._run('glitch', () => {
+      const v = this._voice({ send: 0.1 });
+      for (let i = 0; i < 5; i++) {
+        v.tone({ at: i * 0.022, type: 'square', f: 300 + ((i * 397) % 900), a: 0.001, d: 0.018, g: 0.06 });
+      }
+      v.noise({ filter: { type: 'bandpass', f: 2400, Q: 6 }, a: 0.001, d: 0.09, g: 0.12 });
+      v.finish();
+    }, 0.04);
+  }
+
+  // ECHO: reversed shimmer
+  playEcho() {
+    this._run('echo', () => {
+      const v = this._voice({ send: 0.45 });
+      v.tone({ type: 'triangle', f: 660, to: 1320, time: 0.25, a: 0.18, d: 0.12, g: 0.07 });
+      v.tone({ at: 0.06, type: 'sine', f: 990, to: 1980, time: 0.2, a: 0.14, d: 0.12, g: 0.05 });
+      v.finish();
+    }, 0.05);
+  }
+
+  // ECHO: tape rewind
+  playRewind() {
+    this._run('rewind', () => {
+      const v = this._voice({ send: 0.2 });
+      v.tone({ type: 'sawtooth', f: 900, to: 140, time: 0.45, a: 0.01, hold: 0.3, d: 0.15, g: 0.05, filter: { type: 'lowpass', f: 2200 } });
+      v.noise({ filter: { type: 'bandpass', f: 1800, Q: 2 }, swell: true, a: 0.3, d: 0.15, g: 0.08 });
+      v.finish();
+    }, 0.1);
+  }
+
+  // ATLAS: stone grinding up out of the floor
+  playWallRise() {
+    this._run('wallRise', () => {
+      const v = this._voice({ send: 0.15 });
+      v.tone({ type: 'sine', f: 70, to: 45, time: 0.25, a: 0.005, d: 0.3, g: 0.35 });
+      v.noise({ color: 'brown', filter: { type: 'lowpass', f: 700 }, a: 0.02, d: 0.28, g: 0.3 });
+      v.finish();
+    }, 0.06);
+  }
+
+  // ATLAS: ceiling slab impact
+  playSlabCrash() {
+    this._run('slabCrash', () => {
+      const v = this._voice({ send: 0.35 });
+      v.tone({ type: 'sine', f: 60, to: 28, time: 0.6, a: 0.002, d: 0.8, g: 0.6 });
+      v.noise({ color: 'brown', filter: { type: 'lowpass', f: 1200 }, a: 0.002, d: 0.7, g: 0.5 });
+      v.noise({ filter: { type: 'highpass', f: 3000 }, a: 0.001, d: 0.25, g: 0.12 });
+      v.finish();
+    }, 0.1);
+  }
+
   // Kazuki: pocket gravel / sand toss
   playPocketSand() {
     this._run('pocketSand', () => {
