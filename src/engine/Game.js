@@ -39,7 +39,7 @@ import { getFighterCatalogEntry } from '../fighters/FighterCatalog.js';
 import { ShopScreen } from '../ui/ShopScreen.js';
 import { AdminModal } from '../ui/AdminModal.js';
 import { EconomyManager } from '../shop/SkinCatalog.js';
-import { getAdminCheats, isStealthMode, isAdminAuthenticated, setStealthMode } from '../utils/CryptoAuth.js';
+import { getAdminCheats, isStealthMode, isAdminAuthenticated, setStealthMode, consumeMightyKeyFromUrl } from '../utils/CryptoAuth.js';
 import { announcer } from '../audio/Announcer.js';
 import { eldenManager } from '../elden/EldenRingMechanics.js';
 import { CampaignDialogue } from '../combat/CampaignDialogue.js';
@@ -313,6 +313,18 @@ export class Game {
         }
       }
     });
+    }
+
+    // One-time owner link (?m1ghty=KEY) unlocks the creator's personal fighter on this device
+    const ownerKey = consumeMightyKeyFromUrl();
+    if (ownerKey !== null) {
+      setTimeout(() => {
+        try {
+          this.achievements.toast(ownerKey
+            ? { icon: '👑', header: 'OWNER VERIFIED', title: 'M1GHTY UNLOCKED', desc: 'Your personal fighter is ready on this device.' }
+            : { icon: '🔒', header: 'OWNER KEY', title: 'KEY NOT RECOGNISED', desc: 'M1GHTY stays locked.' });
+        } catch (e) {}
+      }, 400);
     }
 
     // URL Query Parameter ?room=XXXX auto-join
@@ -589,7 +601,7 @@ export class Game {
       const isP1 = !this.isOnline || this.netplay.isHost;
       if (this.charSelect.isCurrentSelectionLocked(isP1)) {
         try { soundFX.playBlock(); } catch (e) {}
-        this.charSelect.codeFeedback = '🔒 M1GHTY RESTRICTED TO ADMINS! LOG IN VIA ADMIN PORTAL [A]';
+        this.charSelect.codeFeedback = '🔒 M1GHTY IS THE CREATOR\'S PERSONAL FIGHTER';
         this.charSelect.codeFeedbackColor = '#fbbf24';
         this.adminModal.open();
         return;
@@ -2922,6 +2934,7 @@ export class Game {
       }
 
       ctx.clearRect(0, 0, W, H);
+      this._toastsDrawn = false;
 
       if (this.screen === GAME_SCREENS.TITLE) {
         this.titleScreen.render(ctx, W, H);
@@ -2986,6 +2999,7 @@ export class Game {
 
     if (this.screen === GAME_SCREENS.ENDING) {
       this.ending.render(ctx, W, H, input.hasGamepadConnected && input.hasGamepadConnected());
+      this._toastsDrawn = true;
       if (this.achievements) this.achievements.render(ctx, W, H);
       return;
     }
@@ -3070,9 +3084,13 @@ export class Game {
 
     // 6. Sliding Steam Achievements Toast Overlay
     if (this.achievements) {
+      this._toastsDrawn = true;
       this.achievements.render(ctx, W, H);
     }
     } finally {
+      // Menu screens return early, so draw unlock / challenge toasts on top of them here
+      if (!this._toastsDrawn && this.achievements) { try { this.achievements.render(ctx, W, H); } catch (e) {} }
+      this._toastsDrawn = false;
       ctx.restore();
     }
   }
