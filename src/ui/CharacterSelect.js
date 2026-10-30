@@ -143,6 +143,18 @@ export class CharacterSelect {
     this.gameMode = mode;
     this.cpuDifficulty = difficulty;
     this.localPlayerNum = localPlayerNum;
+    this.pickStage = 'p1';
+  }
+
+  // VS CPU and Training: after picking your fighter you pick the CPU opponent / dummy
+  choosesOpponent() {
+    return this.gameMode === 'cpu' || this.gameMode === 'training';
+  }
+  pickingOpponent() {
+    return this.choosesOpponent() && this.pickStage === 'p2';
+  }
+  opponentWord() {
+    return this.gameMode === 'training' ? 'DUMMY' : 'OPPONENT';
   }
 
   // Roster is laid out as a compact centred block (4 rows for the 20-fighter roster).
@@ -173,6 +185,8 @@ export class CharacterSelect {
 
   handleInput(inputState, isP1 = true) {
     if (this.showCodeModal) return;
+    // While choosing the opponent / dummy, player 1's controls move the right-hand cursor
+    if (isP1 && this.pickingOpponent()) isP1 = false;
 
     if (isP1) {
       if (inputState.left) {
@@ -232,10 +246,11 @@ export class CharacterSelect {
       const r = this.tileRect(idx, W);
       if (inRect(r)) {
         const char = this.characters[idx];
-        const prevIdx = (this.gameMode === 'online' && this.localPlayerNum === 2) ? this.p2Index : this.p1Index;
+        const rightSide = (this.gameMode === 'online' && this.localPlayerNum === 2) || this.pickingOpponent();
+        const prevIdx = rightSide ? this.p2Index : this.p1Index;
         const wasAlreadySelected = (prevIdx === idx);
 
-        if (this.gameMode === 'online' && this.localPlayerNum === 2) {
+        if (rightSide) {
           this.p2Index = idx;
         } else {
           this.p1Index = idx;
@@ -265,11 +280,11 @@ export class CharacterSelect {
     }
 
     // Clicking your own fighter showcase confirms the selection
-    const focusRight = this.gameMode === 'online' && this.localPlayerNum === 2;
+    const focusRight = (this.gameMode === 'online' && this.localPlayerNum === 2) || this.pickingOpponent();
     const showcase = { x: focusRight ? W - SIDE_W : 0, y: 50, w: SIDE_W, h: GROUND_Y - 40 };
     if (inRect(showcase)) {
       if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
-        const lockedType = this.isCurrentSelectionLocked(true);
+        const lockedType = this.isCurrentSelectionLocked(!this.pickingOpponent());
         if (!lockedType && onConfirm) {
           onConfirm();
           return true;
@@ -281,7 +296,7 @@ export class CharacterSelect {
     if (inRect(this.buttonRect(W), 2)) {
       if (this.gameMode !== 'online' || this.localPlayerNum === 1) {
         // Prevent starting if current selection is locked
-        const lockedType = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
+        const lockedType = this.isCurrentSelectionLocked((this.gameMode !== 'online' || this.localPlayerNum === 1) && !this.pickingOpponent());
         if (lockedType) {
           try { soundFX.playBlock(); } catch (e) {}
           if (lockedType === 'mighty') {
@@ -550,6 +565,7 @@ export class CharacterSelect {
     wash(SIDE_W / 2, COLORS.p1);
 
     let modeLabel = MODE_LABELS[this.gameMode] || MODE_LABELS.campaign;
+    if (this.choosesOpponent()) modeLabel += this.pickingOpponent() ? ` · PICK THE ${this.opponentWord()}` : ' · PICK YOUR FIGHTER';
     if (this.gameMode === 'cpu') modeLabel += ' · ' + (this.cpuDifficulty || 'normal').toUpperCase();
     if (hasBeatenDragon) modeLabel += '  ★';
 
@@ -605,7 +621,7 @@ export class CharacterSelect {
     this.drawCursor(ctx, 1, rects[this.p1Index], COLORS.p1, '1P', t, false);
 
     // ---- Centre: quote of the fighter you are choosing ---------------------
-    const focusIdx = (this.gameMode === 'online' && this.localPlayerNum === 2) ? this.p2Index : this.p1Index;
+    const focusIdx = ((this.gameMode === 'online' && this.localPlayerNum === 2) || this.pickingOpponent()) ? this.p2Index : this.p1Index;
     const fc = this.characters[focusIdx];
     const G = this.gridLayout(W);
     const gridBottom = G.y0 + G.rows * (G.tileH + G.gap) - G.gap;
@@ -652,7 +668,7 @@ export class CharacterSelect {
 
     // ---- Action button / status --------------------------------------------
     const bR = this.buttonRect(W);
-    const currentLocked = this.isCurrentSelectionLocked(this.gameMode !== 'online' || this.localPlayerNum === 1);
+    const currentLocked = this.isCurrentSelectionLocked((this.gameMode !== 'online' || this.localPlayerNum === 1) && !this.pickingOpponent());
     if (currentLocked === 'mighty') {
       drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, isStealth ? 'THIS FIGHTER IS LOCKED' : 'LOCKED · CREATOR EXCLUSIVE', { color: isStealth ? '#c084fc' : COLORS.warn, time: t, size: 8 });
     } else if (currentLocked === 'dragon') {
@@ -661,7 +677,9 @@ export class CharacterSelect {
       const dots = '.'.repeat(1 + Math.floor(t / 20) % 3);
       drawStatusBar(ctx, bR.x, bR.y, bR.w, bR.h, 'WAITING FOR HOST' + dots, { color: COLORS.p1, time: t, size: 8 });
     } else {
-      const label = this.gameMode === 'tutorial' ? 'START TUTORIAL' : (['cpu', '2p', '2v2', 'training'].includes(this.gameMode) ? 'CHOOSE STAGE' : 'START BATTLE');
+      const label = this.gameMode === 'tutorial' ? 'START TUTORIAL'
+        : (this.choosesOpponent() && !this.pickingOpponent()) ? `CHOOSE ${this.opponentWord()}`
+        : (['cpu', '2p', '2v2', 'training'].includes(this.gameMode) ? 'CHOOSE STAGE' : 'START BATTLE');
       drawActionButton(ctx, bR.x, bR.y, bR.w, bR.h, label, { key: gp ? 'A' : 'ENTER', time: t, size: 12 });
     }
 
