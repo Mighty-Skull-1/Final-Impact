@@ -602,7 +602,7 @@ export class Game {
     }
 
     if (this.screen === GAME_SCREENS.CHAR_SELECT) {
-      const isP1 = !this.isOnline || this.netplay.isHost;
+      const isP1 = (!this.isOnline || this.netplay.isHost) && !this.charSelect.pickingOpponent();
       if (this.charSelect.isCurrentSelectionLocked(isP1)) {
         try { soundFX.playBlock(); } catch (e) {}
         this.charSelect.codeFeedback = '🔒 M1GHTY IS THE CREATOR\'S PERSONAL FIGHTER';
@@ -638,6 +638,12 @@ export class Game {
       }
       if (this.charSelect.gameMode === 'tutorial') {
         this.startTutorial(this.charSelect.p1Index);
+        return;
+      }
+      // VS CPU / Training: second step — pick who you fight
+      if (this.charSelect.choosesOpponent() && !this.charSelect.pickingOpponent()) {
+        this.charSelect.pickStage = 'p2';
+        soundFX.playMenuSelect();
         return;
       }
       if (['cpu', '2p', '2v2', 'training'].includes(this.charSelect.gameMode)) {
@@ -730,6 +736,10 @@ export class Game {
       }
     } else if (this.screen === GAME_SCREENS.CHAR_SELECT) {
       soundFX.playWhoosh('light');
+      if (this.charSelect.pickingOpponent()) {
+        this.charSelect.pickStage = 'p1'; // back to choosing your own fighter
+        return;
+      }
       if (this.isOnline) {
         this.netplay.disconnect();
         this.isOnline = false;
